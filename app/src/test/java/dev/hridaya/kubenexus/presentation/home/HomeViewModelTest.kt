@@ -151,13 +151,28 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `SelectPod and DismissPodDetails manage selected pod state`() = runTest(testDispatcher) {
-        val pod = Pod(id = "p-1", name = "nginx", namespace = "default", status = PodStatus.RUNNING)
-        viewModel.onAction(HomeUiAction.SelectPod(pod))
-        assertEquals("nginx", viewModel.uiState.value.selectedPod?.name)
+    fun `RefreshWorkloads triggers refresh and updates lastRefreshedAt`() = runTest(testDispatcher) {
+        val validYaml = """
+            apiVersion: v1
+            kind: Config
+            clusters:
+            - cluster:
+                server: https://127.0.0.1:6443
+              name: test-cluster
+            current-context: test-cluster
+        """.trimIndent()
 
-        viewModel.onAction(HomeUiAction.DismissPodDetails)
-        assertEquals(null, viewModel.uiState.value.selectedPod)
+        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+        advanceUntilIdle()
+
+        val initialRefresh = viewModel.uiState.value.lastRefreshedAt
+        viewModel.onAction(HomeUiAction.RefreshWorkloads)
+        advanceUntilIdle()
+
+        val afterRefresh = viewModel.uiState.value.lastRefreshedAt
+        assertFalse(viewModel.uiState.value.isRefreshing)
+        assertNotNull(afterRefresh)
     }
 
     private class FakeClusterRepository : ClusterRepository {

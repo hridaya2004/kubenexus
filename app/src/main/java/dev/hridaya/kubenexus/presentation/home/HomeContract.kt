@@ -12,6 +12,8 @@ data class ErrorDialogData(
 data class HomeUiState(
     val isLoading: Boolean = true,
     val isConnecting: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val lastRefreshedAt: Long? = null,
     val clusters: List<Cluster> = emptyList(),
     val activeCluster: Cluster? = null,
     val pods: List<Pod> = emptyList(),
@@ -31,6 +33,7 @@ data class HomeUiState(
 )
 
 sealed interface HomeUiAction {
+    data object RefreshWorkloads : HomeUiAction
     data object OpenClusterDrawer : HomeUiAction
     data object DismissClusterDrawer : HomeUiAction
     data object OpenFabActionSheet : HomeUiAction

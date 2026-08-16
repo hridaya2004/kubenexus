@@ -20,9 +20,12 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,6 +48,7 @@ class HomeViewModel(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val _selectedNamespace = MutableStateFlow("All Namespaces")
+    private val _refreshTrigger = MutableStateFlow(0L)
 
     private val _effects = Channel<HomeUiEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
@@ -58,8 +62,9 @@ class HomeViewModel(
             combine(
                 getClustersUseCase(),
                 getActiveClusterUseCase(),
-                _selectedNamespace
-            ) { clusters, activeCluster, ns ->
+                _selectedNamespace,
+                _refreshTrigger
+            ) { clusters, activeCluster, ns, _ ->
                 Triple(clusters, activeCluster, ns)
             }.flatMapLatest { (clusters, activeCluster, ns) ->
                 combine(
@@ -67,11 +72,23 @@ class HomeViewModel(
                     getNamespacesUseCase(activeCluster?.id)
                 ) { pods, namespaces ->
                     WorkloadData(clusters, activeCluster, pods, namespaces, ns)
+                }.onStart {
+                    _uiState.update { it.copy(isRefreshing = true) }
+                }.catch { t ->
+                    _uiState.update {
+                        it.copy(
+                            isRefreshing = false,
+                            lastRefreshedAt = System.currentTimeMillis()
+                        )
+                    }
+                    _effects.send(HomeUiEffect.ShowSnackbar("Failed to fetch pods: ${t.message ?: "Network error"}"))
                 }
             }.collect { data ->
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
+                        isRefreshing = false,
+                        lastRefreshedAt = System.currentTimeMillis(),
                         clusters = data.clusters,
                         activeCluster = data.activeCluster,
                         pods = data.pods,
@@ -93,6 +110,10 @@ class HomeViewModel(
 
     fun onAction(action: HomeUiAction) {
         when (action) {
+            is HomeUiAction.RefreshWorkloads -> {
+                refresh()
+            }
+
             is HomeUiAction.OpenClusterDrawer -> {
                 _uiState.update { it.copy(showClusterDrawer = true) }
             }
@@ -205,7 +226,8 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         selectedNamespace = action.namespace,
-                        showNamespacePicker = false
+                        showNamespacePicker = false,
+                        isRefreshing = true
                     )
                 }
             }
@@ -226,6 +248,11 @@ class HomeViewModel(
                 }
             }
         }
+    }
+
+    private fun refresh() {
+        _uiState.update { it.copy(isRefreshing = true) }
+        _refreshTrigger.value = System.currentTimeMillis()
     }
 
     private fun connectAndSaveCluster() {

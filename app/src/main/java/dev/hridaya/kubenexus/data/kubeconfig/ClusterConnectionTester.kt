@@ -71,9 +71,9 @@ class ClusterConnectionTester(
                 connection.setRequestProperty("Authorization", "Bearer $token")
             }
 
-            // Trust all certs for probe if insecure or self-signed
+            // Trust all certs for probe if insecure or self-signed, configure client certificates for mTLS
             if (connection is HttpsURLConnection) {
-                configureTlsBypass(connection)
+                configureTls(connection, parsed.rawKubeconfig)
             }
 
             val responseCode = connection.responseCode
@@ -115,17 +115,48 @@ class ClusterConnectionTester(
         return regex.find(content)?.groupValues?.get(1)?.trim().orEmpty()
     }
 
-    private fun configureTlsBypass(httpsConnection: HttpsURLConnection) {
+    private fun configureTls(httpsConnection: HttpsURLConnection, rawKubeconfig: String) {
         try {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
                 override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
                 override fun checkClientTrusted(certs: Array<X509Certificate>?, authType: String?) {}
                 override fun checkServerTrusted(certs: Array<X509Certificate>?, authType: String?) {}
             })
+
+            val keyManagers = createKeyManagersFromKubeconfig(rawKubeconfig)
+
             val sc = SSLContext.getInstance("TLS")
-            sc.init(null, trustAllCerts, SecureRandom())
+            sc.init(keyManagers, trustAllCerts, SecureRandom())
             httpsConnection.sslSocketFactory = sc.socketFactory
             httpsConnection.setHostnameVerifier { _, _ -> true }
-        } catch (ignored: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "TLS configuration fallback: ${e.message}")
+        }
+    }
+
+    private fun createKeyManagersFromKubeconfig(rawKubeconfig: String): Array<javax.net.ssl.KeyManager>? {
+        return try {
+            val certDataRegex = Regex("""client-certificate-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+            val keyDataRegex = Regex("""client-key-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+
+            val certBase64 = certDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
+            val keyBase64 = keyDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
+
+            if (certBase64.isBlank() || keyBase64.isBlank()) return null
+
+            val cert = PemKeyParser.parseCertificate(certBase64)
+            val privateKey = PemKeyParser.parsePrivateKey(keyBase64)
+
+            val keyStore = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+            keyStore.load(null, null)
+            keyStore.setKeyEntry("client-key", privateKey, "".toCharArray(), arrayOf(cert))
+
+            val kmf = javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm())
+            kmf.init(keyStore, "".toCharArray())
+            kmf.keyManagers
+        } catch (e: Exception) {
+            Log.e(TAG, "Client mTLS cert setup failed: ${e.message}", e)
+            null
+        }
     }
 }

@@ -70,8 +70,15 @@ class DefaultAppContainer(
         )
     }
 
+    private val kubernetesApiClient: dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient by lazy {
+        dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient()
+    }
+
     override val podRepository: PodRepository by lazy {
         PodRepositoryImpl(
+            clusterDao = database.clusterDao(),
+            apiClient = kubernetesApiClient,
+            nativeBridge = nativeBridge,
             dispatcherProvider = dispatcherProvider
         )
     }

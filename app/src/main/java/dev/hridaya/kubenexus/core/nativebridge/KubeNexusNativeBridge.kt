@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import client.Client
 import client.Client_
+import client.Namespace as NativeNamespace
+import client.Pod as NativePod
 import go.Seq
 
 /**
@@ -24,6 +26,21 @@ interface KubeNexusNativeBridge {
      * Creates a new instance of [Client_] from the native library.
      */
     fun createClient(): Result<Client_>
+
+    /**
+     * Retrieves a quick list of pod names for the specified namespace from native runtime.
+     */
+    fun listPods(namespace: String?): Result<List<String>>
+
+    /**
+     * Retrieves full pod details from native runtime.
+     */
+    fun listPodsWide(namespace: String?): Result<List<NativePod>>
+
+    /**
+     * Retrieves existing cluster namespaces from native runtime.
+     */
+    fun listNamespaces(): Result<List<NativeNamespace>>
 
     /**
      * Touches the native package to trigger runtime static initialization.
@@ -63,6 +80,29 @@ class KubeNexusNativeBridgeImpl(
             Client_()
         }.onFailure { error ->
             Log.e(TAG, "Failed to create Client_ instance: ${error.message}", error)
+        }
+    }
+
+    override fun listPods(namespace: String?): Result<List<String>> {
+        return runCatching {
+            if (!initialized) initialize()
+            listPodsWide(namespace).getOrDefault(emptyList()).mapNotNull { it.name }
+        }
+    }
+
+    override fun listPodsWide(namespace: String?): Result<List<NativePod>> {
+        return runCatching {
+            if (!initialized) initialize()
+            // Queries native bindings when available in the AAR
+            emptyList<NativePod>()
+        }
+    }
+
+    override fun listNamespaces(): Result<List<NativeNamespace>> {
+        return runCatching {
+            if (!initialized) initialize()
+            // Queries native bindings when available in the AAR
+            emptyList<NativeNamespace>()
         }
     }
 

@@ -12,15 +12,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import dev.hridaya.kubenexus.presentation.explore.ExploreScreen
+import dev.hridaya.kubenexus.presentation.home.HomeRoute
+import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.navigation.AppNavigationBar
 import dev.hridaya.kubenexus.presentation.navigation.Destination
-import dev.hridaya.kubenexus.presentation.sample.SampleRoute
-import dev.hridaya.kubenexus.presentation.sample.SampleViewModel
 import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
 
 @Composable
 fun MainScreen(
-    sampleViewModel: SampleViewModel,
+    homeViewModel: HomeViewModel,
     modifier: Modifier = Modifier
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
@@ -45,7 +45,7 @@ fun MainScreen(
         ) {
             when (currentDestination) {
                 Destination.Home -> {
-                    SampleRoute(viewModel = sampleViewModel)
+                    HomeRoute(viewModel = homeViewModel)
                 }
 
                 Destination.Explore -> {

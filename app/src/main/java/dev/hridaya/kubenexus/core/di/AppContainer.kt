@@ -3,27 +3,34 @@ package dev.hridaya.kubenexus.core.di
 import android.content.Context
 import dev.hridaya.kubenexus.core.common.dispatcher.DefaultDispatcherProvider
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
-import dev.hridaya.kubenexus.data.repository.SampleRepositoryImpl
+import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridgeImpl
+import dev.hridaya.kubenexus.data.kubeconfig.ClusterConnectionTester
+import dev.hridaya.kubenexus.data.repository.ClusterRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ThemePreferencesRepositoryImpl
-import dev.hridaya.kubenexus.data.source.local.InMemorySampleLocalDataSource
-import dev.hridaya.kubenexus.data.source.local.SampleLocalDataSource
+import dev.hridaya.kubenexus.data.source.local.KubeNexusDatabase
 import dev.hridaya.kubenexus.data.source.local.SharedPrefsThemePreferencesDataSource
 import dev.hridaya.kubenexus.data.source.local.ThemePreferencesLocalDataSource
-import dev.hridaya.kubenexus.data.source.remote.SampleRemoteDataSource
-import dev.hridaya.kubenexus.data.source.remote.SimulatedSampleRemoteDataSource
-import dev.hridaya.kubenexus.domain.repository.SampleRepository
+import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
-import dev.hridaya.kubenexus.domain.usecase.AddSampleItemUseCase
-import dev.hridaya.kubenexus.domain.usecase.GetSampleItemsUseCase
-import dev.hridaya.kubenexus.domain.usecase.RefreshSampleItemsUseCase
+import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
+import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 
 interface AppContainer {
     val dispatcherProvider: DispatcherProvider
-    val sampleRepository: SampleRepository
+    val nativeBridge: KubeNexusNativeBridge
+    val clusterRepository: ClusterRepository
     val themePreferencesRepository: ThemePreferencesRepository
-    val getSampleItemsUseCase: GetSampleItemsUseCase
-    val addSampleItemUseCase: AddSampleItemUseCase
-    val refreshSampleItemsUseCase: RefreshSampleItemsUseCase
+    val getClustersUseCase: GetClustersUseCase
+    val getActiveClusterUseCase: GetActiveClusterUseCase
+    val addClusterUseCase: AddClusterUseCase
+    val setActiveClusterUseCase: SetActiveClusterUseCase
+    val deleteClusterUseCase: DeleteClusterUseCase
+    val testClusterConnectionUseCase: TestClusterConnectionUseCase
 }
 
 class DefaultAppContainer(
@@ -34,12 +41,24 @@ class DefaultAppContainer(
         DefaultDispatcherProvider()
     }
 
-    private val localDataSource: SampleLocalDataSource by lazy {
-        InMemorySampleLocalDataSource()
+    override val nativeBridge: KubeNexusNativeBridge by lazy {
+        KubeNexusNativeBridgeImpl(appContext)
     }
 
-    private val remoteDataSource: SampleRemoteDataSource by lazy {
-        SimulatedSampleRemoteDataSource()
+    private val database: KubeNexusDatabase by lazy {
+        KubeNexusDatabase.getInstance(appContext)
+    }
+
+    private val clusterConnectionTester: ClusterConnectionTester by lazy {
+        ClusterConnectionTester(nativeBridge)
+    }
+
+    override val clusterRepository: ClusterRepository by lazy {
+        ClusterRepositoryImpl(
+            clusterDao = database.clusterDao(),
+            connectionTester = clusterConnectionTester,
+            dispatcherProvider = dispatcherProvider
+        )
     }
 
     private val themePreferencesLocalDataSource: ThemePreferencesLocalDataSource by lazy {
@@ -55,31 +74,44 @@ class DefaultAppContainer(
         )
     }
 
-    override val sampleRepository: SampleRepository by lazy {
-        SampleRepositoryImpl(
-            localDataSource = localDataSource,
-            remoteDataSource = remoteDataSource,
+    override val getClustersUseCase: GetClustersUseCase by lazy {
+        GetClustersUseCase(
+            repository = clusterRepository,
             dispatcherProvider = dispatcherProvider
         )
     }
 
-    override val getSampleItemsUseCase: GetSampleItemsUseCase by lazy {
-        GetSampleItemsUseCase(
-            repository = sampleRepository,
+    override val getActiveClusterUseCase: GetActiveClusterUseCase by lazy {
+        GetActiveClusterUseCase(
+            repository = clusterRepository,
             dispatcherProvider = dispatcherProvider
         )
     }
 
-    override val addSampleItemUseCase: AddSampleItemUseCase by lazy {
-        AddSampleItemUseCase(
-            repository = sampleRepository,
+    override val addClusterUseCase: AddClusterUseCase by lazy {
+        AddClusterUseCase(
+            repository = clusterRepository,
             dispatcherProvider = dispatcherProvider
         )
     }
 
-    override val refreshSampleItemsUseCase: RefreshSampleItemsUseCase by lazy {
-        RefreshSampleItemsUseCase(
-            repository = sampleRepository,
+    override val setActiveClusterUseCase: SetActiveClusterUseCase by lazy {
+        SetActiveClusterUseCase(
+            repository = clusterRepository,
+            dispatcherProvider = dispatcherProvider
+        )
+    }
+
+    override val deleteClusterUseCase: DeleteClusterUseCase by lazy {
+        DeleteClusterUseCase(
+            repository = clusterRepository,
+            dispatcherProvider = dispatcherProvider
+        )
+    }
+
+    override val testClusterConnectionUseCase: TestClusterConnectionUseCase by lazy {
+        TestClusterConnectionUseCase(
+            repository = clusterRepository,
             dispatcherProvider = dispatcherProvider
         )
     }

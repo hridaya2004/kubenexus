@@ -9,8 +9,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.main.MainScreen
-import dev.hridaya.kubenexus.presentation.sample.SampleViewModel
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalAmoledDark
 import dev.hridaya.kubenexus.ui.theme.LocalOnAmoledDarkChange
@@ -21,9 +21,9 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: SampleViewModel by viewModels {
+    private val viewModel: HomeViewModel by viewModels {
         val app = application as KubeNexusApp
-        SampleViewModel.provideFactory(app.container)
+        HomeViewModel.provideFactory(app.container)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
                     themeMode = themeMode,
                     amoledDark = amoledDark
                 ) {
-                    MainScreen(sampleViewModel = viewModel)
+                    MainScreen(homeViewModel = viewModel)
                 }
             }
         }

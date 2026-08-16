@@ -12,5 +12,6 @@ class KubeNexusApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = DefaultAppContainer(applicationContext)
+        container.nativeBridge.initialize()
     }
 }

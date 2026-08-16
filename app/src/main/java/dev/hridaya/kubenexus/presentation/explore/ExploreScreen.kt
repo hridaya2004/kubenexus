@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Architecture
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,7 +50,7 @@ fun ExploreScreen(
                 title = {
                     Text(
                         text = "Explore Architecture",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.headlineSmall
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -91,6 +92,13 @@ fun ExploreScreen(
                     icon = Icons.Outlined.Code,
                     title = "100% Jetpack Compose",
                     description = "Declarative UI with Unidirectional Data Flow (UDF), immutability, and Lifecycle state collection."
+                )
+            }
+            item {
+                ExploreCard(
+                    icon = Icons.Outlined.Memory,
+                    title = "Native Go Engine (.aar)",
+                    description = "Integrated Go Mobile JNI bindings with Seq context management and Client interface."
                 )
             }
         }

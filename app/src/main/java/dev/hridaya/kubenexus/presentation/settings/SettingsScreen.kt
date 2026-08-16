@@ -65,7 +65,7 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = "Settings",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.headlineSmall
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

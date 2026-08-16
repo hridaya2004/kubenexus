@@ -1,10 +1,14 @@
 package client
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -16,6 +20,68 @@ const defaultTimeout = 30 * time.Second
 type Client struct {
 	clientset *kubernetes.Clientset
 	timeout   time.Duration
+}
+
+type Namespace struct {
+	Name   string
+	Status string
+}
+
+type Pod struct {
+	Name      string
+	Namespace string
+	Status    string
+	Ready     string
+	Restarts  int32
+	Age       string
+	Node      string
+	IP        string
+}
+
+type ContainerInfo struct {
+	Name         string
+	Image        string
+	Ready        bool
+	RestartCount int32
+	State        string
+}
+
+type PodCondition struct {
+	Type               string
+	Status             string
+	LastTransitionTime string
+	Reason             string
+	Message            string
+}
+
+type PodEvent struct {
+	Type    string
+	Reason  string
+	Message string
+	Age     string
+}
+
+type PodDetails struct {
+	Name              string
+	Namespace         string
+	Status            string
+	Node              string
+	IP                string
+	HostIP            string
+	RestartPolicy     string
+	StartTime         string
+	Containers        []ContainerInfo
+	InitContainers    []ContainerInfo
+	Conditions        []PodCondition
+	Events            []PodEvent
+	Volumes           []string
+	Labels            map[string]string
+}
+
+type LogCallback interface {
+	OnLogLine(line string)
+	OnError(err string)
+	OnDone()
 }
 
 type Option func(*Client) error
@@ -84,4 +150,234 @@ func (c *Client) ListPods(ctx context.Context, namespace string) ([]string, erro
 		names[i] = pod.Name
 	}
 	return names, nil
+}
+
+func (c *Client) ListNamespaces(ctx context.Context) ([]Namespace, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	nsList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("listing namespaces: %w", err)
+	}
+
+	namespaces := make([]Namespace, len(nsList.Items))
+	for i, ns := range nsList.Items {
+		namespaces[i] = Namespace{
+			Name:   ns.Name,
+			Status: string(ns.Status.Phase),
+		}
+	}
+	return namespaces, nil
+}
+
+func (c *Client) ListPodsWide(ctx context.Context, namespace string) ([]Pod, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("listing pods: %w", err)
+	}
+
+	result := make([]Pod, len(pods.Items))
+	for i, pod := range pods.Items {
+		ready, total := countReadyContainers(pod.Spec.Containers, pod.Status.ContainerStatuses)
+		result[i] = Pod{
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+			Status:    string(pod.Status.Phase),
+			Ready:     fmt.Sprintf("%d/%d", ready, total),
+			Restarts:  countRestarts(pod.Status.ContainerStatuses),
+			Age:       formatAge(pod.CreationTimestamp.Time),
+			Node:      pod.Spec.NodeName,
+			IP:        pod.Status.PodIP,
+		}
+	}
+	return result, nil
+}
+
+func countReadyContainers(containers []corev1.Container, statuses []corev1.ContainerStatus) (int, int) {
+	total := len(containers)
+	ready := 0
+	for _, s := range statuses {
+		if s.Ready {
+			ready++
+		}
+	}
+	return ready, total
+}
+
+func countRestarts(statuses []corev1.ContainerStatus) int32 {
+	var total int32
+	for _, s := range statuses {
+		total += s.RestartCount
+	}
+	return total
+}
+
+func formatAge(t time.Time) string {
+	d := time.Since(t).Truncate(time.Second)
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	if h > 0 {
+		return fmt.Sprintf("%dh%dm", h, m)
+	}
+	return fmt.Sprintf("%dm", m)
+}
+
+func (c *Client) DescribePod(ctx context.Context, namespace, name string) (*PodDetails, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	pod, err := c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("getting pod: %w", err)
+	}
+
+	details := &PodDetails{
+		Name:          pod.Name,
+		Namespace:     pod.Namespace,
+		Status:        string(pod.Status.Phase),
+		Node:          pod.Spec.NodeName,
+		IP:            pod.Status.PodIP,
+		HostIP:        pod.Status.HostIP,
+		RestartPolicy: string(pod.Spec.RestartPolicy),
+		Labels:        pod.Labels,
+	}
+
+	if pod.Status.StartTime != nil {
+		details.StartTime = pod.Status.StartTime.Format(time.RFC3339)
+	}
+
+	for _, c := range pod.Spec.InitContainers {
+		details.InitContainers = append(details.InitContainers, containerToInfo(c, pod.Status.InitContainerStatuses))
+	}
+	for _, c := range pod.Spec.Containers {
+		details.Containers = append(details.Containers, containerToInfo(c, pod.Status.ContainerStatuses))
+	}
+
+	for _, v := range pod.Spec.Volumes {
+		details.Volumes = append(details.Volumes, v.Name)
+	}
+
+	for _, cond := range pod.Status.Conditions {
+		details.Conditions = append(details.Conditions, PodCondition{
+			Type:               string(cond.Type),
+			Status:             string(cond.Status),
+			LastTransitionTime: cond.LastTransitionTime.Format(time.RFC3339),
+			Reason:             cond.Reason,
+			Message:            cond.Message,
+		})
+	}
+
+	events, err := c.getPodEvents(ctx, namespace, name)
+	if err == nil {
+		details.Events = events
+	}
+
+	return details, nil
+}
+
+func containerToInfo(c corev1.Container, statuses []corev1.ContainerStatus) ContainerInfo {
+	info := ContainerInfo{
+		Name:  c.Name,
+		Image: c.Image,
+	}
+	for _, s := range statuses {
+		if s.Name == c.Name {
+			info.Ready = s.Ready
+			info.RestartCount = s.RestartCount
+			info.State = formatContainerState(s.State)
+			break
+		}
+	}
+	return info
+}
+
+func formatContainerState(state corev1.ContainerState) string {
+	if state.Running != nil {
+		return "Running"
+	}
+	if state.Waiting != nil {
+		return fmt.Sprintf("Waiting (%s)", state.Waiting.Reason)
+	}
+	if state.Terminated != nil {
+		return fmt.Sprintf("Terminated (exit %d)", state.Terminated.ExitCode)
+	}
+	return "Unknown"
+}
+
+func (c *Client) getPodEvents(ctx context.Context, namespace, podName string) ([]PodEvent, error) {
+	eventList, err := c.clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", podName),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	events := make([]PodEvent, len(eventList.Items))
+	for i, e := range eventList.Items {
+		events[i] = PodEvent{
+			Type:    e.Type,
+			Reason:  e.Reason,
+			Message: e.Message,
+			Age:     formatAge(e.LastTimestamp.Time),
+		}
+	}
+	return events, nil
+}
+
+func (c *Client) Logs(ctx context.Context, namespace, podName, container string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	opts := &corev1.PodLogOptions{}
+	if container != "" {
+		opts.Container = container
+	}
+
+	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("opening log stream: %w", err)
+	}
+	defer stream.Close()
+
+	data, err := io.ReadAll(stream)
+	if err != nil {
+		return "", fmt.Errorf("reading logs: %w", err)
+	}
+	return string(data), nil
+}
+
+func (c *Client) StreamLogs(ctx context.Context, namespace, podName, container string, callback LogCallback) {
+	opts := &corev1.PodLogOptions{
+		Follow: true,
+	}
+	if container != "" {
+		opts.Container = container
+	}
+
+	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		callback.OnError(fmt.Sprintf("opening log stream: %v", err))
+		callback.OnDone()
+		return
+	}
+	defer stream.Close()
+
+	scanner := bufio.NewScanner(stream)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) != "" {
+			callback.OnLogLine(line)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		callback.OnError(fmt.Sprintf("reading logs: %v", err))
+	}
+	callback.OnDone()
 }

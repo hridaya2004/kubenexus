@@ -1,4 +1,4 @@
-module kubenexus/go-client
+module github.com/hridaya2004/kubenexus-go-client
 
 go 1.26.0
 

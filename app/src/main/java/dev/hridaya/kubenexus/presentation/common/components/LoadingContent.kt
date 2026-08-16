@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LoadingContent(
-    message: String = "Loading...",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    message: String = "Loading..."
 ) {
     Box(
         modifier = modifier.fillMaxSize(),

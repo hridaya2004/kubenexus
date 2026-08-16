@@ -135,6 +135,7 @@ fun HomeScreen(
                         ClusterPill(
                             activeCluster = uiState.activeCluster,
                             totalClusters = uiState.clusters.size,
+                            connectionStatus = uiState.clusterConnectionStatus,
                             onClick = { onAction(HomeUiAction.OpenClusterDrawer) }
                         )
                     }

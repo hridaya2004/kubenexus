@@ -2,6 +2,8 @@ package dev.hridaya.kubenexus.data.mapper
 
 import client.Namespace as NativeNamespace
 import client.Pod as NativePod
+import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
+import dev.hridaya.kubenexus.data.source.local.entity.PodEntity
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodStatus
 
@@ -40,5 +42,47 @@ fun Pod.toNative(): NativePod {
     ip?.let { nativePod.ip = it }
     return nativePod
 }
+
+fun PodEntity.toDomain(): Pod {
+    val domainStatus = when (status.lowercase()) {
+        "running" -> PodStatus.RUNNING
+        "pending" -> PodStatus.PENDING
+        "completed", "succeeded" -> PodStatus.COMPLETED
+        "failed" -> PodStatus.FAILED
+        "crashloopbackoff", "error" -> PodStatus.CRASH_LOOP
+        else -> PodStatus.UNKNOWN
+    }
+
+    return Pod(
+        id = id,
+        name = name,
+        namespace = namespace,
+        status = domainStatus,
+        readyContainers = readyContainers,
+        restarts = restarts,
+        age = age,
+        node = node,
+        ip = ip,
+        image = image
+    )
+}
+
+fun Pod.toEntity(clusterId: String): PodEntity {
+    return PodEntity(
+        id = "${clusterId}_${namespace}_$name",
+        clusterId = clusterId,
+        name = name,
+        namespace = namespace,
+        status = status.title,
+        readyContainers = readyContainers,
+        restarts = restarts,
+        age = age,
+        ip = ip,
+        node = node,
+        image = image
+    )
+}
+
+fun NamespaceEntity.toDomainName(): String = name
 
 fun NativeNamespace.toDomainName(): String = name ?: "default"

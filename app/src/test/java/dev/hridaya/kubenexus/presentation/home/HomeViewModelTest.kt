@@ -3,6 +3,7 @@ package dev.hridaya.kubenexus.presentation.home
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodStatus
@@ -12,8 +13,10 @@ import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
+import dev.hridaya.kubenexus.domain.usecase.RefreshWorkloadsUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
@@ -58,6 +61,8 @@ class HomeViewModelTest {
             getActiveClusterUseCase = GetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
             getPodsUseCase = GetPodsUseCase(fakePodRepository),
             getNamespacesUseCase = GetNamespacesUseCase(fakePodRepository),
+            getLastRefreshedUseCase = GetLastRefreshedUseCase(fakePodRepository),
+            refreshWorkloadsUseCase = RefreshWorkloadsUseCase(fakePodRepository),
             addClusterUseCase = AddClusterUseCase(fakeClusterRepository, testDispatcherProvider),
             setActiveClusterUseCase = SetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
             deleteClusterUseCase = DeleteClusterUseCase(fakeClusterRepository, testDispatcherProvider),
@@ -67,16 +72,20 @@ class HomeViewModelTest {
         )
     }
 
+
+
     @Test
-    fun `initial state shows empty clusters and isLoading false after observation`() = runTest(testDispatcher) {
+    fun `initial state starts with loading false and empty clusters`() = runTest(testDispatcher) {
         advanceUntilIdle()
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
         assertTrue(state.clusters.isEmpty())
+        assertEquals(null, state.activeCluster)
+        assertEquals(ClusterConnectionStatus.OFFLINE, state.clusterConnectionStatus)
     }
 
     @Test
-    fun `OpenClusterDrawer and DismissClusterDrawer toggle showClusterDrawer`() = runTest(testDispatcher) {
+    fun `OpenClusterDrawer and DismissClusterDrawer update state`() {
         viewModel.onAction(HomeUiAction.OpenClusterDrawer)
         assertTrue(viewModel.uiState.value.showClusterDrawer)
 
@@ -85,7 +94,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `OpenFabActionSheet and DismissFabActionSheet toggle showFabActionSheet`() = runTest(testDispatcher) {
+    fun `OpenFabActionSheet and DismissFabActionSheet update state`() {
         viewModel.onAction(HomeUiAction.OpenFabActionSheet)
         assertTrue(viewModel.uiState.value.showFabActionSheet)
 
@@ -124,6 +133,7 @@ class HomeViewModelTest {
         assertEquals(1, state.clusters.size)
         assertEquals("test-cluster", state.activeCluster?.name)
         assertEquals(2, state.pods.size)
+        assertEquals(ClusterConnectionStatus.CONNECTED, state.clusterConnectionStatus)
     }
 
     @Test
@@ -166,7 +176,6 @@ class HomeViewModelTest {
         viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
         advanceUntilIdle()
 
-        val initialRefresh = viewModel.uiState.value.lastRefreshedAt
         viewModel.onAction(HomeUiAction.RefreshWorkloads)
         advanceUntilIdle()
 
@@ -241,6 +250,8 @@ class HomeViewModelTest {
     }
 
     private class FakePodRepository : PodRepository {
+        private val lastRefreshedFlow = MutableStateFlow<Long?>(1700000000000L)
+
         override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> {
             if (clusterId == null) return flowOf(emptyList())
             val all = listOf(
@@ -257,6 +268,15 @@ class HomeViewModelTest {
 
         override fun getNamespacesStream(clusterId: String?): Flow<List<String>> {
             return flowOf(listOf("All Namespaces", "default", "kube-system", "monitoring"))
+        }
+
+        override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
+            return lastRefreshedFlow.asStateFlow()
+        }
+
+        override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> {
+            lastRefreshedFlow.value = System.currentTimeMillis()
+            return Result.Success(Unit)
         }
     }
 }

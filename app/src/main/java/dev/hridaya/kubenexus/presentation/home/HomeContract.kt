@@ -1,6 +1,7 @@
 package dev.hridaya.kubenexus.presentation.home
 
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.Pod
 
 data class ErrorDialogData(
@@ -14,6 +15,7 @@ data class HomeUiState(
     val isConnecting: Boolean = false,
     val isRefreshing: Boolean = false,
     val lastRefreshedAt: Long? = null,
+    val clusterConnectionStatus: ClusterConnectionStatus = ClusterConnectionStatus.OFFLINE,
     val clusters: List<Cluster> = emptyList(),
     val activeCluster: Cluster? = null,
     val pods: List<Pod> = emptyList(),

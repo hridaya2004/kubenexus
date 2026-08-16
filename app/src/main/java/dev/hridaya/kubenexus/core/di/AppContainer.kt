@@ -19,8 +19,10 @@ import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
+import dev.hridaya.kubenexus.domain.usecase.RefreshWorkloadsUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
@@ -35,6 +37,8 @@ interface AppContainer {
     val getActiveClusterUseCase: GetActiveClusterUseCase
     val getPodsUseCase: GetPodsUseCase
     val getNamespacesUseCase: GetNamespacesUseCase
+    val getLastRefreshedUseCase: GetLastRefreshedUseCase
+    val refreshWorkloadsUseCase: RefreshWorkloadsUseCase
     val addClusterUseCase: AddClusterUseCase
     val setActiveClusterUseCase: SetActiveClusterUseCase
     val deleteClusterUseCase: DeleteClusterUseCase
@@ -77,6 +81,8 @@ class DefaultAppContainer(
     override val podRepository: PodRepository by lazy {
         PodRepositoryImpl(
             clusterDao = database.clusterDao(),
+            podDao = database.podDao(),
+            namespaceDao = database.namespaceDao(),
             apiClient = kubernetesApiClient,
             nativeBridge = nativeBridge,
             dispatcherProvider = dispatcherProvider
@@ -118,6 +124,18 @@ class DefaultAppContainer(
 
     override val getNamespacesUseCase: GetNamespacesUseCase by lazy {
         GetNamespacesUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val getLastRefreshedUseCase: GetLastRefreshedUseCase by lazy {
+        GetLastRefreshedUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val refreshWorkloadsUseCase: RefreshWorkloadsUseCase by lazy {
+        RefreshWorkloadsUseCase(
             podRepository = podRepository
         )
     }

@@ -49,3 +49,36 @@ func TestDefaultTimeout(t *testing.T) {
 		t.Errorf("zero-value Client timeout = %v, want 0", c.timeout)
 	}
 }
+
+func TestNewFromData(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr bool
+	}{
+		{
+			name:    "invalid yaml",
+			data:    []byte("not valid kubeconfig"),
+			wantErr: true,
+		},
+		{
+			name:    "empty data",
+			data:    []byte{},
+			wantErr: true,
+		},
+		{
+			name:    "nil data",
+			data:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewFromData(tt.data)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewFromData() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

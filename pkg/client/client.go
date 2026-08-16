@@ -39,6 +39,15 @@ func New(kubeconfig string, opts ...Option) (*Client, error) {
 	return NewFromConfig(config, opts...)
 }
 
+func NewFromData(data []byte, opts ...Option) (*Client, error) {
+	config, err := clientcmd.RESTConfigFromKubeConfig(data)
+	if err != nil {
+		return nil, fmt.Errorf("parsing kubeconfig: %w", err)
+	}
+
+	return NewFromConfig(config, opts...)
+}
+
 func NewFromConfig(config *rest.Config, opts ...Option) (*Client, error) {
 	c := &Client{
 		timeout: defaultTimeout,

@@ -21,6 +21,7 @@ import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.home.ManageClustersScreen
 import dev.hridaya.kubenexus.presentation.navigation.AppNavigationBar
 import dev.hridaya.kubenexus.presentation.navigation.Destination
+import dev.hridaya.kubenexus.presentation.pods.PodsScreen
 import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
 
 @Composable
@@ -30,58 +31,76 @@ fun MainScreen(
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
+    var isViewingPods by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(homeViewModel.effects) {
         homeViewModel.effects.collect { effect ->
             if (effect is HomeUiEffect.NavigateToHome) {
                 isManagingClusters = false
+                isViewingPods = false
                 currentDestination = Destination.Home
             }
         }
     }
 
-    if (isManagingClusters) {
-        val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
-        BackHandler { isManagingClusters = false }
-        ManageClustersScreen(
-            uiState = uiState,
-            onAction = homeViewModel::onAction,
-            onNavigateBack = { isManagingClusters = false },
-            modifier = modifier
-        )
-    } else {
-        Scaffold(
-            modifier = modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
-            bottomBar = {
-                AppNavigationBar(
-                    destinations = Destination.topLevelDestinations,
-                    currentDestination = currentDestination,
-                    onDestinationSelected = { destination ->
-                        currentDestination = destination
-                    }
-                )
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = innerPadding.calculateBottomPadding())
-            ) {
-                when (currentDestination) {
-                    Destination.Home -> {
-                        HomeRoute(
-                            viewModel = homeViewModel,
-                            onNavigateToManageClusters = { isManagingClusters = true }
-                        )
-                    }
+    when {
+        isManagingClusters -> {
+            val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            BackHandler { isManagingClusters = false }
+            ManageClustersScreen(
+                uiState = uiState,
+                onAction = homeViewModel::onAction,
+                onNavigateBack = { isManagingClusters = false },
+                modifier = modifier
+            )
+        }
 
-                    Destination.Explore -> {
-                        ExploreScreen()
-                    }
+        isViewingPods -> {
+            val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            BackHandler { isViewingPods = false }
+            PodsScreen(
+                uiState = uiState,
+                onAction = homeViewModel::onAction,
+                onNavigateBack = { isViewingPods = false },
+                modifier = modifier
+            )
+        }
 
-                    Destination.Settings -> {
-                        SettingsScreen()
+        else -> {
+            Scaffold(
+                modifier = modifier.fillMaxSize(),
+                containerColor = Color.Transparent,
+                bottomBar = {
+                    AppNavigationBar(
+                        destinations = Destination.topLevelDestinations,
+                        currentDestination = currentDestination,
+                        onDestinationSelected = { destination ->
+                            currentDestination = destination
+                        }
+                    )
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = innerPadding.calculateBottomPadding())
+                ) {
+                    when (currentDestination) {
+                        Destination.Home -> {
+                            HomeRoute(
+                                viewModel = homeViewModel,
+                                onNavigateToManageClusters = { isManagingClusters = true },
+                                onNavigateToPods = { isViewingPods = true }
+                            )
+                        }
+
+                        Destination.Explore -> {
+                            ExploreScreen()
+                        }
+
+                        Destination.Settings -> {
+                            SettingsScreen()
+                        }
                     }
                 }
             }

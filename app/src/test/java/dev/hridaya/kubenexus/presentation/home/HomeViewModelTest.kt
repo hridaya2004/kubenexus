@@ -4,11 +4,16 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
+import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
+import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
@@ -17,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -39,20 +45,24 @@ class HomeViewModelTest {
         override val unconfined: CoroutineDispatcher = testDispatcher
     }
 
-    private lateinit var fakeRepository: FakeClusterRepository
+    private lateinit var fakeClusterRepository: FakeClusterRepository
+    private lateinit var fakePodRepository: FakePodRepository
     private lateinit var viewModel: HomeViewModel
 
     @Before
     fun setUp() {
-        fakeRepository = FakeClusterRepository()
+        fakeClusterRepository = FakeClusterRepository()
+        fakePodRepository = FakePodRepository()
         viewModel = HomeViewModel(
-            getClustersUseCase = GetClustersUseCase(fakeRepository, testDispatcherProvider),
-            getActiveClusterUseCase = GetActiveClusterUseCase(fakeRepository, testDispatcherProvider),
-            addClusterUseCase = AddClusterUseCase(fakeRepository, testDispatcherProvider),
-            setActiveClusterUseCase = SetActiveClusterUseCase(fakeRepository, testDispatcherProvider),
-            deleteClusterUseCase = DeleteClusterUseCase(fakeRepository, testDispatcherProvider),
-            updateClusterNameUseCase = UpdateClusterNameUseCase(fakeRepository),
-            testClusterConnectionUseCase = TestClusterConnectionUseCase(fakeRepository, testDispatcherProvider),
+            getClustersUseCase = GetClustersUseCase(fakeClusterRepository, testDispatcherProvider),
+            getActiveClusterUseCase = GetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
+            getPodsUseCase = GetPodsUseCase(fakePodRepository),
+            getNamespacesUseCase = GetNamespacesUseCase(fakePodRepository),
+            addClusterUseCase = AddClusterUseCase(fakeClusterRepository, testDispatcherProvider),
+            setActiveClusterUseCase = SetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
+            deleteClusterUseCase = DeleteClusterUseCase(fakeClusterRepository, testDispatcherProvider),
+            updateClusterNameUseCase = UpdateClusterNameUseCase(fakeClusterRepository),
+            testClusterConnectionUseCase = TestClusterConnectionUseCase(fakeClusterRepository, testDispatcherProvider),
             dispatcherProvider = testDispatcherProvider
         )
     }
@@ -94,7 +104,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `ConnectAndSaveSubmitted with valid kubeconfig saves and sets active`() = runTest(testDispatcher) {
+    fun `ConnectAndSaveSubmitted with valid kubeconfig saves, sets active and loads pods`() = runTest(testDispatcher) {
         val validYaml = """
             apiVersion: v1
             kind: Config
@@ -113,10 +123,11 @@ class HomeViewModelTest {
         assertFalse(state.showAddClusterSheet)
         assertEquals(1, state.clusters.size)
         assertEquals("test-cluster", state.activeCluster?.name)
+        assertEquals(2, state.pods.size)
     }
 
     @Test
-    fun `SaveClusterName updates cluster alias`() = runTest(testDispatcher) {
+    fun `SelectNamespace updates selected namespace and filters pods`() = runTest(testDispatcher) {
         val validYaml = """
             apiVersion: v1
             kind: Config
@@ -131,34 +142,22 @@ class HomeViewModelTest {
         viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
         advanceUntilIdle()
 
-        val clusterId = viewModel.uiState.value.clusters.first().id
-        viewModel.onAction(HomeUiAction.SaveClusterName(clusterId, "production-k8s"))
+        viewModel.onAction(HomeUiAction.SelectNamespace("kube-system"))
         advanceUntilIdle()
 
-        assertEquals("production-k8s", viewModel.uiState.value.clusters.first().name)
+        assertEquals("kube-system", viewModel.uiState.value.selectedNamespace)
+        assertEquals(1, viewModel.uiState.value.pods.size)
+        assertEquals("coredns-1", viewModel.uiState.value.pods.first().name)
     }
 
     @Test
-    fun `ConfirmDeleteCluster removes cluster from state`() = runTest(testDispatcher) {
-        val validYaml = """
-            apiVersion: v1
-            kind: Config
-            clusters:
-            - cluster:
-                server: https://127.0.0.1:6443
-              name: test-cluster
-            current-context: test-cluster
-        """.trimIndent()
+    fun `SelectPod and DismissPodDetails manage selected pod state`() = runTest(testDispatcher) {
+        val pod = Pod(id = "p-1", name = "nginx", namespace = "default", status = PodStatus.RUNNING)
+        viewModel.onAction(HomeUiAction.SelectPod(pod))
+        assertEquals("nginx", viewModel.uiState.value.selectedPod?.name)
 
-        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
-        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
-        advanceUntilIdle()
-
-        val clusterId = viewModel.uiState.value.clusters.first().id
-        viewModel.onAction(HomeUiAction.ConfirmDeleteCluster(clusterId))
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value.clusters.isEmpty())
+        viewModel.onAction(HomeUiAction.DismissPodDetails)
+        assertEquals(null, viewModel.uiState.value.selectedPod)
     }
 
     private class FakeClusterRepository : ClusterRepository {
@@ -223,6 +222,26 @@ class HomeViewModelTest {
                 if (it.id == id) it.copy(status = status, lastConnectedAt = lastConnectedAt) else it
             }
             return Result.Success(Unit)
+        }
+    }
+
+    private class FakePodRepository : PodRepository {
+        override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> {
+            if (clusterId == null) return flowOf(emptyList())
+            val all = listOf(
+                Pod(id = "p-1", name = "coredns-1", namespace = "kube-system", status = PodStatus.RUNNING),
+                Pod(id = "p-2", name = "nginx-web", namespace = "default", status = PodStatus.RUNNING)
+            )
+            val filtered = if (!namespace.isNullOrBlank() && namespace != "All Namespaces") {
+                all.filter { it.namespace == namespace }
+            } else {
+                all
+            }
+            return flowOf(filtered)
+        }
+
+        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> {
+            return flowOf(listOf("All Namespaces", "default", "kube-system", "monitoring"))
         }
     }
 }

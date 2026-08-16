@@ -10,21 +10,29 @@ import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val getClustersUseCase: GetClustersUseCase,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
+    private val getPodsUseCase: GetPodsUseCase,
+    private val getNamespacesUseCase: GetNamespacesUseCase,
     private val addClusterUseCase: AddClusterUseCase,
     private val setActiveClusterUseCase: SetActiveClusterUseCase,
     private val deleteClusterUseCase: DeleteClusterUseCase,
@@ -36,31 +44,52 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _selectedNamespace = MutableStateFlow("All Namespaces")
+
     private val _effects = Channel<HomeUiEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
 
     init {
-        observeClusters()
+        observeClustersAndPods()
     }
 
-    private fun observeClusters() {
+    private fun observeClustersAndPods() {
         viewModelScope.launch(dispatcherProvider.main) {
             combine(
                 getClustersUseCase(),
-                getActiveClusterUseCase()
-            ) { clusters, activeCluster ->
-                Pair(clusters, activeCluster)
-            }.collect { (clusters, activeCluster) ->
+                getActiveClusterUseCase(),
+                _selectedNamespace
+            ) { clusters, activeCluster, ns ->
+                Triple(clusters, activeCluster, ns)
+            }.flatMapLatest { (clusters, activeCluster, ns) ->
+                combine(
+                    getPodsUseCase(activeCluster?.id, ns),
+                    getNamespacesUseCase(activeCluster?.id)
+                ) { pods, namespaces ->
+                    WorkloadData(clusters, activeCluster, pods, namespaces, ns)
+                }
+            }.collect { data ->
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
-                        clusters = clusters,
-                        activeCluster = activeCluster
+                        clusters = data.clusters,
+                        activeCluster = data.activeCluster,
+                        pods = data.pods,
+                        availableNamespaces = if (data.namespaces.isNotEmpty()) data.namespaces else state.availableNamespaces,
+                        selectedNamespace = data.selectedNamespace
                     )
                 }
             }
         }
     }
+
+    private data class WorkloadData(
+        val clusters: List<dev.hridaya.kubenexus.domain.model.Cluster>,
+        val activeCluster: dev.hridaya.kubenexus.domain.model.Cluster?,
+        val pods: List<dev.hridaya.kubenexus.domain.model.Pod>,
+        val namespaces: List<String>,
+        val selectedNamespace: String
+    )
 
     fun onAction(action: HomeUiAction) {
         when (action) {
@@ -153,6 +182,32 @@ class HomeViewModel(
             is HomeUiAction.ConfirmDeleteCluster -> {
                 _uiState.update { it.copy(clusterToDelete = null) }
                 deleteCluster(action.clusterId)
+            }
+
+            is HomeUiAction.SelectPod -> {
+                _uiState.update { it.copy(selectedPod = action.pod) }
+            }
+
+            is HomeUiAction.DismissPodDetails -> {
+                _uiState.update { it.copy(selectedPod = null) }
+            }
+
+            is HomeUiAction.OpenNamespacePicker -> {
+                _uiState.update { it.copy(showNamespacePicker = true) }
+            }
+
+            is HomeUiAction.DismissNamespacePicker -> {
+                _uiState.update { it.copy(showNamespacePicker = false) }
+            }
+
+            is HomeUiAction.SelectNamespace -> {
+                _selectedNamespace.value = action.namespace
+                _uiState.update {
+                    it.copy(
+                        selectedNamespace = action.namespace,
+                        showNamespacePicker = false
+                    )
+                }
             }
 
             is HomeUiAction.DismissErrorDialog -> {
@@ -321,6 +376,8 @@ class HomeViewModel(
                     return HomeViewModel(
                         getClustersUseCase = container.getClustersUseCase,
                         getActiveClusterUseCase = container.getActiveClusterUseCase,
+                        getPodsUseCase = container.getPodsUseCase,
+                        getNamespacesUseCase = container.getNamespacesUseCase,
                         addClusterUseCase = container.addClusterUseCase,
                         setActiveClusterUseCase = container.setActiveClusterUseCase,
                         deleteClusterUseCase = container.deleteClusterUseCase,

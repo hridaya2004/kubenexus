@@ -3,16 +3,20 @@ package dev.hridaya.kubenexus.presentation.home
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -35,17 +39,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
 import dev.hridaya.kubenexus.presentation.home.components.AddClusterBottomSheet
-import dev.hridaya.kubenexus.presentation.home.components.ClusterCard
 import dev.hridaya.kubenexus.presentation.home.components.ClusterPill
 import dev.hridaya.kubenexus.presentation.home.components.ClusterSwitcherDrawer
 import dev.hridaya.kubenexus.presentation.home.components.EmptyClustersView
 import dev.hridaya.kubenexus.presentation.home.components.ErrorDialog
 import dev.hridaya.kubenexus.presentation.home.components.FabActionBottomSheet
+import dev.hridaya.kubenexus.presentation.home.components.ResourcePreferenceCard
 
 @Composable
 fun HomeRoute(
     viewModel: HomeViewModel,
     onNavigateToManageClusters: () -> Unit,
+    onNavigateToPods: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -73,6 +78,7 @@ fun HomeRoute(
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
         onNavigateToManageClusters = onNavigateToManageClusters,
+        onNavigateToPods = onNavigateToPods,
         modifier = modifier
     )
 }
@@ -84,6 +90,7 @@ fun HomeScreen(
     snackbarHostState: SnackbarHostState,
     onAction: (HomeUiAction) -> Unit,
     onNavigateToManageClusters: () -> Unit,
+    onNavigateToPods: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -133,7 +140,7 @@ fun HomeScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    LoadingContent(message = "Loading clusters...")
+                    LoadingContent(message = "Loading cluster...")
                 }
 
                 uiState.clusters.isEmpty() -> {
@@ -144,20 +151,50 @@ fun HomeScreen(
 
                 else -> {
                     LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(
-                            items = uiState.clusters,
-                            key = { it.id }
-                        ) { cluster ->
-                            ClusterCard(
-                                cluster = cluster,
-                                isConnecting = uiState.isConnecting,
-                                onSelect = { onAction(HomeUiAction.SelectClusterClicked(cluster.id)) },
-                                onTestConnection = { onAction(HomeUiAction.TestClusterConnectionClicked(cluster.id)) },
-                                onDelete = { onAction(HomeUiAction.RequestDeleteCluster(cluster)) }
+                        item {
+                            Text(
+                                text = "Workloads",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        item {
+                            ResourcePreferenceCard(
+                                title = "Pods",
+                                subtitle = "Container instances and workload state",
+                                icon = Icons.Outlined.Layers,
+                                badgeText = "${uiState.pods.size}",
+                                onClick = onNavigateToPods
+                            )
+                        }
+
+                        item {
+                            ResourcePreferenceCard(
+                                title = "Deployments",
+                                subtitle = "Declarative updates for Pods and ReplicaSets",
+                                icon = Icons.Outlined.Apps,
+                                badgeText = "Workload",
+                                onClick = {
+                                    onAction(HomeUiAction.TriggerNoopAction("Deployment management coming soon"))
+                                }
+                            )
+                        }
+
+                        item {
+                            ResourcePreferenceCard(
+                                title = "ReplicaSets",
+                                subtitle = "Maintain stable set of replica Pods",
+                                icon = Icons.Outlined.Widgets,
+                                badgeText = "Workload",
+                                onClick = {
+                                    onAction(HomeUiAction.TriggerNoopAction("ReplicaSet management coming soon"))
+                                }
                             )
                         }
                     }
@@ -179,7 +216,7 @@ fun HomeScreen(
             FabActionBottomSheet(
                 hasClustersConfigured = uiState.clusters.isNotEmpty(),
                 onAddClusterClick = { onAction(HomeUiAction.OpenAddClusterSheet) },
-                onAddPodClick = { onAction(HomeUiAction.TriggerNoopAction("Pod creation coming soon")) },
+                onAddPodClick = onNavigateToPods,
                 onAddDeploymentClick = { onAction(HomeUiAction.TriggerNoopAction("Deployment creation coming soon")) },
                 onAddServiceClick = { onAction(HomeUiAction.TriggerNoopAction("Service creation coming soon")) },
                 onDismiss = { onAction(HomeUiAction.DismissFabActionSheet) }

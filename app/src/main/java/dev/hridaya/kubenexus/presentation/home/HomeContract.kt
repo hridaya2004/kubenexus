@@ -1,6 +1,7 @@
 package dev.hridaya.kubenexus.presentation.home
 
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.domain.model.Pod
 
 data class ErrorDialogData(
     val title: String,
@@ -13,6 +14,11 @@ data class HomeUiState(
     val isConnecting: Boolean = false,
     val clusters: List<Cluster> = emptyList(),
     val activeCluster: Cluster? = null,
+    val pods: List<Pod> = emptyList(),
+    val availableNamespaces: List<String> = listOf("All Namespaces", "default", "kube-system", "monitoring"),
+    val selectedNamespace: String = "All Namespaces",
+    val showNamespacePicker: Boolean = false,
+    val selectedPod: Pod? = null,
     val showClusterDrawer: Boolean = false,
     val showFabActionSheet: Boolean = false,
     val showAddClusterSheet: Boolean = false,
@@ -43,6 +49,11 @@ sealed interface HomeUiAction {
     data class RequestDeleteCluster(val cluster: Cluster) : HomeUiAction
     data object DismissDeleteCluster : HomeUiAction
     data class ConfirmDeleteCluster(val clusterId: String) : HomeUiAction
+    data class SelectPod(val pod: Pod) : HomeUiAction
+    data object DismissPodDetails : HomeUiAction
+    data object OpenNamespacePicker : HomeUiAction
+    data object DismissNamespacePicker : HomeUiAction
+    data class SelectNamespace(val namespace: String) : HomeUiAction
     data object DismissErrorDialog : HomeUiAction
     data class CopyErrorClicked(val text: String) : HomeUiAction
     data class TriggerNoopAction(val message: String) : HomeUiAction

@@ -7,16 +7,20 @@ import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridgeImpl
 import dev.hridaya.kubenexus.data.kubeconfig.ClusterConnectionTester
 import dev.hridaya.kubenexus.data.repository.ClusterRepositoryImpl
+import dev.hridaya.kubenexus.data.repository.PodRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ThemePreferencesRepositoryImpl
 import dev.hridaya.kubenexus.data.source.local.KubeNexusDatabase
 import dev.hridaya.kubenexus.data.source.local.SharedPrefsThemePreferencesDataSource
 import dev.hridaya.kubenexus.data.source.local.ThemePreferencesLocalDataSource
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
+import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
@@ -25,9 +29,12 @@ interface AppContainer {
     val dispatcherProvider: DispatcherProvider
     val nativeBridge: KubeNexusNativeBridge
     val clusterRepository: ClusterRepository
+    val podRepository: PodRepository
     val themePreferencesRepository: ThemePreferencesRepository
     val getClustersUseCase: GetClustersUseCase
     val getActiveClusterUseCase: GetActiveClusterUseCase
+    val getPodsUseCase: GetPodsUseCase
+    val getNamespacesUseCase: GetNamespacesUseCase
     val addClusterUseCase: AddClusterUseCase
     val setActiveClusterUseCase: SetActiveClusterUseCase
     val deleteClusterUseCase: DeleteClusterUseCase
@@ -63,6 +70,12 @@ class DefaultAppContainer(
         )
     }
 
+    override val podRepository: PodRepository by lazy {
+        PodRepositoryImpl(
+            dispatcherProvider = dispatcherProvider
+        )
+    }
+
     private val themePreferencesLocalDataSource: ThemePreferencesLocalDataSource by lazy {
         SharedPrefsThemePreferencesDataSource(
             context = appContext,
@@ -87,6 +100,18 @@ class DefaultAppContainer(
         GetActiveClusterUseCase(
             repository = clusterRepository,
             dispatcherProvider = dispatcherProvider
+        )
+    }
+
+    override val getPodsUseCase: GetPodsUseCase by lazy {
+        GetPodsUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val getNamespacesUseCase: GetNamespacesUseCase by lazy {
+        GetNamespacesUseCase(
+            podRepository = podRepository
         )
     }
 

@@ -19,6 +19,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
+import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
 
 interface AppContainer {
     val dispatcherProvider: DispatcherProvider
@@ -30,6 +31,7 @@ interface AppContainer {
     val addClusterUseCase: AddClusterUseCase
     val setActiveClusterUseCase: SetActiveClusterUseCase
     val deleteClusterUseCase: DeleteClusterUseCase
+    val updateClusterNameUseCase: UpdateClusterNameUseCase
     val testClusterConnectionUseCase: TestClusterConnectionUseCase
 }
 
@@ -106,6 +108,12 @@ class DefaultAppContainer(
         DeleteClusterUseCase(
             repository = clusterRepository,
             dispatcherProvider = dispatcherProvider
+        )
+    }
+
+    override val updateClusterNameUseCase: UpdateClusterNameUseCase by lazy {
+        UpdateClusterNameUseCase(
+            clusterRepository = clusterRepository
         )
     }
 

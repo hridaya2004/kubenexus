@@ -45,6 +45,9 @@ abstract class ClusterDao {
         activateCluster(id)
     }
 
+    @Query("UPDATE clusters SET name = :name WHERE id = :id")
+    abstract suspend fun updateClusterName(id: String, name: String)
+
     @Query("UPDATE clusters SET status = :status, lastConnectedAt = :lastConnectedAt WHERE id = :id")
     abstract suspend fun updateStatus(id: String, status: String, lastConnectedAt: Long?)
 }

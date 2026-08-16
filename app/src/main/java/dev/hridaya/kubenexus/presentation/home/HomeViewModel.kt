@@ -12,6 +12,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
+import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,7 @@ class HomeViewModel(
     private val addClusterUseCase: AddClusterUseCase,
     private val setActiveClusterUseCase: SetActiveClusterUseCase,
     private val deleteClusterUseCase: DeleteClusterUseCase,
+    private val updateClusterNameUseCase: UpdateClusterNameUseCase,
     private val testClusterConnectionUseCase: TestClusterConnectionUseCase,
     private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
@@ -62,10 +64,28 @@ class HomeViewModel(
 
     fun onAction(action: HomeUiAction) {
         when (action) {
-            is HomeUiAction.FabClicked -> {
+            is HomeUiAction.OpenClusterDrawer -> {
+                _uiState.update { it.copy(showClusterDrawer = true) }
+            }
+
+            is HomeUiAction.DismissClusterDrawer -> {
+                _uiState.update { it.copy(showClusterDrawer = false) }
+            }
+
+            is HomeUiAction.OpenFabActionSheet -> {
+                _uiState.update { it.copy(showFabActionSheet = true) }
+            }
+
+            is HomeUiAction.DismissFabActionSheet -> {
+                _uiState.update { it.copy(showFabActionSheet = false) }
+            }
+
+            is HomeUiAction.OpenAddClusterSheet -> {
                 _uiState.update {
                     it.copy(
                         showAddClusterSheet = true,
+                        showFabActionSheet = false,
+                        showClusterDrawer = false,
                         kubeconfigInput = "",
                         customClusterName = "",
                         kubeconfigError = null
@@ -110,7 +130,28 @@ class HomeViewModel(
                 testClusterConnection(action.clusterId)
             }
 
-            is HomeUiAction.DeleteClusterClicked -> {
+            is HomeUiAction.RequestEditCluster -> {
+                _uiState.update { it.copy(editingCluster = action.cluster) }
+            }
+
+            is HomeUiAction.DismissEditCluster -> {
+                _uiState.update { it.copy(editingCluster = null) }
+            }
+
+            is HomeUiAction.SaveClusterName -> {
+                saveClusterName(action.clusterId, action.newName)
+            }
+
+            is HomeUiAction.RequestDeleteCluster -> {
+                _uiState.update { it.copy(clusterToDelete = action.cluster) }
+            }
+
+            is HomeUiAction.DismissDeleteCluster -> {
+                _uiState.update { it.copy(clusterToDelete = null) }
+            }
+
+            is HomeUiAction.ConfirmDeleteCluster -> {
+                _uiState.update { it.copy(clusterToDelete = null) }
                 deleteCluster(action.clusterId)
             }
 
@@ -121,6 +162,12 @@ class HomeViewModel(
             is HomeUiAction.CopyErrorClicked -> {
                 viewModelScope.launch {
                     _effects.send(HomeUiEffect.ShowToast("Error details copied to clipboard"))
+                }
+            }
+
+            is HomeUiAction.TriggerNoopAction -> {
+                viewModelScope.launch {
+                    _effects.send(HomeUiEffect.ShowToast(action.message))
                 }
             }
         }
@@ -153,6 +200,7 @@ class HomeViewModel(
                         )
                     }
                     _effects.send(HomeUiEffect.ShowToast("Connected to cluster '${result.data.name}' successfully!"))
+                    _effects.send(HomeUiEffect.NavigateToHome)
                 }
 
                 is Result.Error -> {
@@ -232,6 +280,23 @@ class HomeViewModel(
         }
     }
 
+    private fun saveClusterName(clusterId: String, newName: String) {
+        viewModelScope.launch(dispatcherProvider.main) {
+            when (val result = updateClusterNameUseCase(clusterId, newName)) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(editingCluster = null) }
+                    _effects.send(HomeUiEffect.ShowToast("Cluster renamed successfully!"))
+                }
+
+                is Result.Error -> {
+                    _effects.send(HomeUiEffect.ShowSnackbar("Failed to rename cluster: ${result.error.message}"))
+                }
+
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
     private fun deleteCluster(clusterId: String) {
         viewModelScope.launch(dispatcherProvider.main) {
             when (val result = deleteClusterUseCase(clusterId)) {
@@ -259,6 +324,7 @@ class HomeViewModel(
                         addClusterUseCase = container.addClusterUseCase,
                         setActiveClusterUseCase = container.setActiveClusterUseCase,
                         deleteClusterUseCase = container.deleteClusterUseCase,
+                        updateClusterNameUseCase = container.updateClusterNameUseCase,
                         testClusterConnectionUseCase = container.testClusterConnectionUseCase,
                         dispatcherProvider = container.dispatcherProvider
                     ) as T

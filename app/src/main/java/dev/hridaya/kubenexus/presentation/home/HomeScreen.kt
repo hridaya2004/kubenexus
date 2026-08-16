@@ -4,8 +4,11 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -24,21 +27,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
 import dev.hridaya.kubenexus.presentation.home.components.AddClusterBottomSheet
 import dev.hridaya.kubenexus.presentation.home.components.ClusterCard
+import dev.hridaya.kubenexus.presentation.home.components.ClusterPill
+import dev.hridaya.kubenexus.presentation.home.components.ClusterSwitcherDrawer
 import dev.hridaya.kubenexus.presentation.home.components.EmptyClustersView
 import dev.hridaya.kubenexus.presentation.home.components.ErrorDialog
+import dev.hridaya.kubenexus.presentation.home.components.FabActionBottomSheet
 
 @Composable
 fun HomeRoute(
     viewModel: HomeViewModel,
+    onNavigateToManageClusters: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -55,6 +62,8 @@ fun HomeRoute(
                 is HomeUiEffect.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(effect.message)
                 }
+
+                is HomeUiEffect.NavigateToHome -> Unit
             }
         }
     }
@@ -63,6 +72,7 @@ fun HomeRoute(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
+        onNavigateToManageClusters = onNavigateToManageClusters,
         modifier = modifier
     )
 }
@@ -73,6 +83,7 @@ fun HomeScreen(
     uiState: HomeUiState,
     snackbarHostState: SnackbarHostState,
     onAction: (HomeUiAction) -> Unit,
+    onNavigateToManageClusters: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -82,10 +93,20 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "KubeNexus",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "KubeNexus",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        ClusterPill(
+                            activeCluster = uiState.activeCluster,
+                            totalClusters = uiState.clusters.size,
+                            onClick = { onAction(HomeUiAction.OpenClusterDrawer) }
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
@@ -94,13 +115,13 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onAction(HomeUiAction.FabClicked) },
+                onClick = { onAction(HomeUiAction.OpenFabActionSheet) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add Kubernetes Cluster"
+                    contentDescription = "Quick Actions"
                 )
             }
         }
@@ -116,7 +137,9 @@ fun HomeScreen(
                 }
 
                 uiState.clusters.isEmpty() -> {
-                    EmptyClustersView()
+                    EmptyClustersView(
+                        onAddClusterClick = { onAction(HomeUiAction.OpenAddClusterSheet) }
+                    )
                 }
 
                 else -> {
@@ -134,7 +157,7 @@ fun HomeScreen(
                                 isConnecting = uiState.isConnecting,
                                 onSelect = { onAction(HomeUiAction.SelectClusterClicked(cluster.id)) },
                                 onTestConnection = { onAction(HomeUiAction.TestClusterConnectionClicked(cluster.id)) },
-                                onDelete = { onAction(HomeUiAction.DeleteClusterClicked(cluster.id)) }
+                                onDelete = { onAction(HomeUiAction.RequestDeleteCluster(cluster)) }
                             )
                         }
                     }
@@ -142,7 +165,27 @@ fun HomeScreen(
             }
         }
 
-        // Add Cluster Bottom Sheet
+        if (uiState.showClusterDrawer) {
+            ClusterSwitcherDrawer(
+                clusters = uiState.clusters,
+                activeCluster = uiState.activeCluster,
+                onSelectCluster = { onAction(HomeUiAction.SelectClusterClicked(it)) },
+                onManageClustersClick = onNavigateToManageClusters,
+                onDismiss = { onAction(HomeUiAction.DismissClusterDrawer) }
+            )
+        }
+
+        if (uiState.showFabActionSheet) {
+            FabActionBottomSheet(
+                hasClustersConfigured = uiState.clusters.isNotEmpty(),
+                onAddClusterClick = { onAction(HomeUiAction.OpenAddClusterSheet) },
+                onAddPodClick = { onAction(HomeUiAction.TriggerNoopAction("Pod creation coming soon")) },
+                onAddDeploymentClick = { onAction(HomeUiAction.TriggerNoopAction("Deployment creation coming soon")) },
+                onAddServiceClick = { onAction(HomeUiAction.TriggerNoopAction("Service creation coming soon")) },
+                onDismiss = { onAction(HomeUiAction.DismissFabActionSheet) }
+            )
+        }
+
         if (uiState.showAddClusterSheet) {
             AddClusterBottomSheet(
                 kubeconfigInput = uiState.kubeconfigInput,
@@ -157,7 +200,6 @@ fun HomeScreen(
             )
         }
 
-        // Error Dialog
         uiState.errorDialogData?.let { errorData ->
             ErrorDialog(
                 data = errorData,

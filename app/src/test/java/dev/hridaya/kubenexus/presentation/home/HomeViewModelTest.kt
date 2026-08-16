@@ -11,6 +11,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
+import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -50,6 +51,7 @@ class HomeViewModelTest {
             addClusterUseCase = AddClusterUseCase(fakeRepository, testDispatcherProvider),
             setActiveClusterUseCase = SetActiveClusterUseCase(fakeRepository, testDispatcherProvider),
             deleteClusterUseCase = DeleteClusterUseCase(fakeRepository, testDispatcherProvider),
+            updateClusterNameUseCase = UpdateClusterNameUseCase(fakeRepository),
             testClusterConnectionUseCase = TestClusterConnectionUseCase(fakeRepository, testDispatcherProvider),
             dispatcherProvider = testDispatcherProvider
         )
@@ -64,15 +66,26 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `FabClicked updates showAddClusterSheet to true`() = runTest(testDispatcher) {
-        viewModel.onAction(HomeUiAction.FabClicked)
-        val state = viewModel.uiState.value
-        assertTrue(state.showAddClusterSheet)
+    fun `OpenClusterDrawer and DismissClusterDrawer toggle showClusterDrawer`() = runTest(testDispatcher) {
+        viewModel.onAction(HomeUiAction.OpenClusterDrawer)
+        assertTrue(viewModel.uiState.value.showClusterDrawer)
+
+        viewModel.onAction(HomeUiAction.DismissClusterDrawer)
+        assertFalse(viewModel.uiState.value.showClusterDrawer)
+    }
+
+    @Test
+    fun `OpenFabActionSheet and DismissFabActionSheet toggle showFabActionSheet`() = runTest(testDispatcher) {
+        viewModel.onAction(HomeUiAction.OpenFabActionSheet)
+        assertTrue(viewModel.uiState.value.showFabActionSheet)
+
+        viewModel.onAction(HomeUiAction.DismissFabActionSheet)
+        assertFalse(viewModel.uiState.value.showFabActionSheet)
     }
 
     @Test
     fun `ConnectAndSaveSubmitted with blank input sets error`() = runTest(testDispatcher) {
-        viewModel.onAction(HomeUiAction.FabClicked)
+        viewModel.onAction(HomeUiAction.OpenAddClusterSheet)
         viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
         advanceUntilIdle()
 
@@ -100,6 +113,52 @@ class HomeViewModelTest {
         assertFalse(state.showAddClusterSheet)
         assertEquals(1, state.clusters.size)
         assertEquals("test-cluster", state.activeCluster?.name)
+    }
+
+    @Test
+    fun `SaveClusterName updates cluster alias`() = runTest(testDispatcher) {
+        val validYaml = """
+            apiVersion: v1
+            kind: Config
+            clusters:
+            - cluster:
+                server: https://127.0.0.1:6443
+              name: test-cluster
+            current-context: test-cluster
+        """.trimIndent()
+
+        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+        advanceUntilIdle()
+
+        val clusterId = viewModel.uiState.value.clusters.first().id
+        viewModel.onAction(HomeUiAction.SaveClusterName(clusterId, "production-k8s"))
+        advanceUntilIdle()
+
+        assertEquals("production-k8s", viewModel.uiState.value.clusters.first().name)
+    }
+
+    @Test
+    fun `ConfirmDeleteCluster removes cluster from state`() = runTest(testDispatcher) {
+        val validYaml = """
+            apiVersion: v1
+            kind: Config
+            clusters:
+            - cluster:
+                server: https://127.0.0.1:6443
+              name: test-cluster
+            current-context: test-cluster
+        """.trimIndent()
+
+        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+        advanceUntilIdle()
+
+        val clusterId = viewModel.uiState.value.clusters.first().id
+        viewModel.onAction(HomeUiAction.ConfirmDeleteCluster(clusterId))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.clusters.isEmpty())
     }
 
     private class FakeClusterRepository : ClusterRepository {
@@ -134,6 +193,13 @@ class HomeViewModelTest {
 
         override suspend fun setActiveCluster(id: String): Result<Unit> {
             clustersFlow.value = clustersFlow.value.map { it.copy(isActive = it.id == id) }
+            return Result.Success(Unit)
+        }
+
+        override suspend fun updateClusterName(id: String, newName: String): Result<Unit> {
+            clustersFlow.value = clustersFlow.value.map {
+                if (it.id == id) it.copy(name = newName) else it
+            }
             return Result.Success(Unit)
         }
 

@@ -9,22 +9,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun EmptyClustersView(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAddClusterClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = modifier
@@ -65,12 +69,28 @@ fun EmptyClustersView(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "There are no kubeconfigs or clusters configured.\nTap the + button below to add your Kubernetes cluster.",
+                text = "There are no kubeconfigs or clusters configured.\nTap the + button to add your Kubernetes cluster.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
             )
+
+            if (onAddClusterClick != null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onAddClusterClick,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Cluster")
+                }
+            }
         }
     }
 }

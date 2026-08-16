@@ -18,5 +18,6 @@ interface ClusterRepository {
     suspend fun deleteCluster(id: String): Result<Unit>
     suspend fun testConnection(kubeconfigRaw: String): Result<String>
     suspend fun testClusterById(id: String): Result<String>
+    suspend fun updateClusterName(id: String, newName: String): Result<Unit>
     suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit>
 }

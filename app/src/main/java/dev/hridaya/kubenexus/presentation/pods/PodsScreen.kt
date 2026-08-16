@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
+import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.presentation.home.HomeUiAction
 import dev.hridaya.kubenexus.presentation.home.HomeUiState
 import dev.hridaya.kubenexus.presentation.home.components.PodCard
@@ -58,6 +59,7 @@ fun PodsScreen(
     uiState: HomeUiState,
     onAction: (HomeUiAction) -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToPodDetail: (Pod) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pods_refresh_rotation")
@@ -130,7 +132,6 @@ fun PodsScreen(
                     )
                 }
 
-                // Namespace Selector Chips Row
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -193,7 +194,6 @@ fun PodsScreen(
                     }
                 }
 
-                // Pods List or Empty state
                 if (uiState.pods.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -259,7 +259,11 @@ fun PodsScreen(
     uiState.selectedPod?.let { pod ->
         PodDetailsDialog(
             pod = pod,
-            onDismiss = { onAction(HomeUiAction.DismissPodDetails) }
+            onDismiss = { onAction(HomeUiAction.DismissPodDetails) },
+            onShowMore = {
+                onAction(HomeUiAction.DismissPodDetails)
+                onNavigateToPodDetail(pod)
+            }
         )
     }
 }

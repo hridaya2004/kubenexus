@@ -278,5 +278,23 @@ class HomeViewModelTest {
             lastRefreshedFlow.value = System.currentTimeMillis()
             return Result.Success(Unit)
         }
+
+        override suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<dev.hridaya.kubenexus.domain.model.PodDetails> {
+            return Result.Success(
+                dev.hridaya.kubenexus.domain.model.PodDetails(
+                    name = podName,
+                    namespace = namespace,
+                    status = PodStatus.RUNNING
+                )
+            )
+        }
+
+        override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Result<String> {
+            return Result.Success("Fake logs output")
+        }
+
+        override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Flow<String> {
+            return flowOf("Fake streamed log line")
+        }
     }
 }

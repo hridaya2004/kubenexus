@@ -14,8 +14,10 @@ import dev.hridaya.kubenexus.data.source.local.dao.PodDao
 import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
 import dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient
 import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -77,7 +79,7 @@ class PodRepositoryImpl(
 
             try {
                 // 1. Fetch live Pods (try native or REST API)
-                val livePods = try {
+                val livePods: List<Pod> = try {
                     val nativeResult = nativeBridge.listPodsWide(namespace).getOrNull()
                     if (!nativeResult.isNullOrEmpty()) {
                         nativeResult.map { it.toDomain() }
@@ -94,7 +96,7 @@ class PodRepositoryImpl(
                 }
 
                 // 2. Fetch live Namespaces
-                val liveNamespaces = try {
+                val liveNamespaces: List<String> = try {
                     val nativeNsResult = nativeBridge.listNamespaces().getOrNull()
                     if (!nativeNsResult.isNullOrEmpty()) {
                         nativeNsResult.map { it.toDomainName() }
@@ -138,4 +140,79 @@ class PodRepositoryImpl(
             }
         }
     }
+
+    override suspend fun describePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<PodDetails> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        try {
+            val details = apiClient.describePod(
+                serverUrl = cluster.serverUrl,
+                rawKubeconfig = cluster.rawKubeconfig,
+                namespace = namespace,
+                podName = podName
+            )
+            Result.Success(details)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to describe pod '$podName': ${t.message}", t)
+            Result.Error(AppError.Network(t.message ?: "Failed to describe pod from cluster API"))
+        }
+    }
+
+    override suspend fun getPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?
+    ): Result<String> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        try {
+            val logs = apiClient.fetchPodLogs(
+                serverUrl = cluster.serverUrl,
+                rawKubeconfig = cluster.rawKubeconfig,
+                namespace = namespace,
+                podName = podName,
+                containerName = containerName
+            )
+            Result.Success(logs)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to fetch logs for pod '$podName': ${t.message}", t)
+            Result.Error(AppError.Network(t.message ?: "Failed to fetch logs from cluster API"))
+        }
+    }
+
+    override fun streamPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?
+    ): Flow<String> = flow {
+        if (clusterId == null) {
+            emit("Error: No active cluster selected")
+            return@flow
+        }
+        val cluster = clusterDao.getClusterById(clusterId)
+        if (cluster == null) {
+            emit("Error: Cluster '$clusterId' not found in database")
+            return@flow
+        }
+
+        apiClient.streamPodLogs(
+            serverUrl = cluster.serverUrl,
+            rawKubeconfig = cluster.rawKubeconfig,
+            namespace = namespace,
+            podName = podName,
+            containerName = containerName
+        ).collect { line ->
+            emit(line)
+        }
+    }.flowOn(dispatcherProvider.io)
 }

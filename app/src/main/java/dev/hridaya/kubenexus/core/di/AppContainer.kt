@@ -17,13 +17,16 @@ import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
 import dev.hridaya.kubenexus.domain.usecase.RefreshWorkloadsUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
 
@@ -39,6 +42,9 @@ interface AppContainer {
     val getNamespacesUseCase: GetNamespacesUseCase
     val getLastRefreshedUseCase: GetLastRefreshedUseCase
     val refreshWorkloadsUseCase: RefreshWorkloadsUseCase
+    val describePodUseCase: DescribePodUseCase
+    val getPodLogsUseCase: GetPodLogsUseCase
+    val streamPodLogsUseCase: StreamPodLogsUseCase
     val addClusterUseCase: AddClusterUseCase
     val setActiveClusterUseCase: SetActiveClusterUseCase
     val deleteClusterUseCase: DeleteClusterUseCase
@@ -136,6 +142,24 @@ class DefaultAppContainer(
 
     override val refreshWorkloadsUseCase: RefreshWorkloadsUseCase by lazy {
         RefreshWorkloadsUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val describePodUseCase: DescribePodUseCase by lazy {
+        DescribePodUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val getPodLogsUseCase: GetPodLogsUseCase by lazy {
+        GetPodLogsUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val streamPodLogsUseCase: StreamPodLogsUseCase by lazy {
+        StreamPodLogsUseCase(
             podRepository = podRepository
         )
     }

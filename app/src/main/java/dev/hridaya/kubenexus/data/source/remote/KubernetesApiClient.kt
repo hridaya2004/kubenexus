@@ -2,20 +2,24 @@ package dev.hridaya.kubenexus.data.source.remote
 
 import android.util.Base64
 import android.util.Log
+import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodConditionDetail
+import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodEventDetail
 import dev.hridaya.kubenexus.domain.model.PodStatus
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import org.json.JSONObject
 import java.io.BufferedReader
-import java.io.ByteArrayInputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.KeyFactory
 import java.security.KeyStore
 import java.security.SecureRandom
-import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
-import java.security.spec.PKCS8EncodedKeySpec
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -31,7 +35,7 @@ class KubernetesApiClient {
     companion object {
         private const val TAG = "KubernetesApiClient"
         private const val CONNECT_TIMEOUT_MS = 10000
-        private const val READ_TIMEOUT_MS = 10000
+        private const val READ_TIMEOUT_MS = 15000
     }
 
     fun fetchPods(serverUrl: String, rawKubeconfig: String, namespace: String?): List<Pod> {
@@ -59,6 +63,88 @@ class KubernetesApiClient {
         }
     }
 
+    fun describePod(serverUrl: String, rawKubeconfig: String, namespace: String, podName: String): PodDetails {
+        val normalizedServer = normalizeUrl(serverUrl)
+        val podEndpoint = "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName"
+        val eventsEndpoint = "$normalizedServer/api/v1/namespaces/$namespace/events?fieldSelector=involvedObject.name=$podName"
+
+        val podJson = executeGet(podEndpoint, rawKubeconfig)
+        val eventsJson = try {
+            executeGet(eventsEndpoint, rawKubeconfig)
+        } catch (ignored: Exception) {
+            null
+        }
+
+        return parsePodDetails(podJson, eventsJson, namespace, podName)
+    }
+
+    fun fetchPodLogs(
+        serverUrl: String,
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        containerName: String? = null,
+        tailLines: Int = 1000
+    ): String {
+        val normalizedServer = normalizeUrl(serverUrl)
+        val containerParam = if (!containerName.isNullOrBlank()) "&container=$containerName" else ""
+        val endpoint = "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName/log?tailLines=$tailLines$containerParam"
+        return executeGet(endpoint, rawKubeconfig)
+    }
+
+    fun streamPodLogs(
+        serverUrl: String,
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        containerName: String? = null
+    ): Flow<String> = flow {
+        val normalizedServer = normalizeUrl(serverUrl)
+        val containerParam = if (!containerName.isNullOrBlank()) "&container=$containerName" else ""
+        val endpoint = "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName/log?follow=true&tailLines=200$containerParam"
+
+        var connection: HttpURLConnection? = null
+        try {
+            val url = URL(endpoint)
+            connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = CONNECT_TIMEOUT_MS
+            connection.readTimeout = 0 // Infinite for streaming
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("User-Agent", "KubeNexus/1.0 (Android)")
+            connection.setRequestProperty("Accept", "text/plain, */*")
+
+            val token = extractToken(rawKubeconfig)
+            if (token.isNotBlank()) {
+                connection.setRequestProperty("Authorization", "Bearer $token")
+            } else {
+                val basicAuth = extractBasicAuth(rawKubeconfig)
+                if (basicAuth.isNotBlank()) {
+                    connection.setRequestProperty("Authorization", "Basic $basicAuth")
+                }
+            }
+
+            if (connection is HttpsURLConnection) {
+                configureSsl(connection, rawKubeconfig)
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode in 200..299) {
+                val reader = BufferedReader(InputStreamReader(connection.inputStream))
+                var line: String? = null
+                while (currentCoroutineContext().isActive && reader.readLine().also { line = it } != null) {
+                    emit(line ?: "")
+                }
+            } else {
+                val err = connection.errorStream?.let { BufferedReader(InputStreamReader(it)).readText() } ?: ""
+                emit("Error streaming logs (HTTP $responseCode): $err")
+            }
+        } catch (t: Throwable) {
+            emit("Log stream terminated: ${t.message}")
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
     private fun executeGet(endpointUrl: String, rawKubeconfig: String): String {
         var connection: HttpURLConnection? = null
         try {
@@ -68,7 +154,7 @@ class KubernetesApiClient {
             connection.readTimeout = READ_TIMEOUT_MS
             connection.requestMethod = "GET"
             connection.setRequestProperty("User-Agent", "KubeNexus/1.0 (Android)")
-            connection.setRequestProperty("Accept", "application/json, */*")
+            connection.setRequestProperty("Accept", "application/json, text/plain, */*")
 
             val token = extractToken(rawKubeconfig)
             if (token.isNotBlank()) {
@@ -98,8 +184,8 @@ class KubernetesApiClient {
 
                 val failureMsg = when (responseCode) {
                     401 -> "Authentication failed (HTTP 401 Unauthorized): Check token or credentials."
-                    403 -> "Forbidden (HTTP 403): User lacks RBAC permissions to list pods/namespaces in this cluster."
-                    404 -> "API endpoint not found (HTTP 404): $endpointUrl"
+                    403 -> "Forbidden (HTTP 403): User lacks RBAC permissions for $endpointUrl."
+                    404 -> "Resource not found (HTTP 404): $endpointUrl"
                     else -> "API server returned HTTP $responseCode $responseMessage ${errorBody.take(200)}"
                 }
                 Log.e(TAG, failureMsg)
@@ -183,6 +269,171 @@ class KubernetesApiClient {
             Log.e(TAG, "Error parsing Pods JSON: ${e.message}", e)
         }
         return podsList
+    }
+
+    private fun parsePodDetails(
+        podJson: String,
+        eventsJson: String?,
+        namespace: String,
+        podName: String
+    ): PodDetails {
+        val root = JSONObject(podJson)
+        val metadata = root.optJSONObject("metadata")
+        val spec = root.optJSONObject("spec")
+        val status = root.optJSONObject("status")
+
+        val phase = status?.optString("phase", "Running") ?: "Running"
+        val podStatus = mapPhaseToStatus(phase, status)
+        val nodeName = spec?.optString("nodeName")
+        val podIP = status?.optString("podIP")
+        val hostIP = status?.optString("hostIP")
+        val restartPolicy = spec?.optString("restartPolicy", "Always")
+        val startTime = status?.optString("startTime")
+
+        val labels = mutableMapOf<String, String>()
+        metadata?.optJSONObject("labels")?.let { obj ->
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                labels[k] = obj.optString(k)
+            }
+        }
+
+        val annotations = mutableMapOf<String, String>()
+        metadata?.optJSONObject("annotations")?.let { obj ->
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                annotations[k] = obj.optString(k)
+            }
+        }
+
+        val containerDetails = mutableListOf<ContainerDetail>()
+        val containers = spec?.optJSONArray("containers")
+        val containerStatuses = status?.optJSONArray("containerStatuses")
+
+        val statusMap = mutableMapOf<String, JSONObject>()
+        if (containerStatuses != null) {
+            for (i in 0 until containerStatuses.length()) {
+                val cs = containerStatuses.getJSONObject(i)
+                val cName = cs.optString("name")
+                statusMap[cName] = cs
+            }
+        }
+
+        if (containers != null) {
+            for (i in 0 until containers.length()) {
+                val c = containers.getJSONObject(i)
+                val cName = c.optString("name", "container-$i")
+                val image = c.optString("image", "")
+                val cs = statusMap[cName]
+
+                val ready = cs?.optBoolean("ready", true) ?: true
+                val restartCount = cs?.optInt("restartCount", 0) ?: 0
+                val stateObj = cs?.optJSONObject("state")
+                val stateStr = when {
+                    stateObj?.has("running") == true -> "Running"
+                    stateObj?.has("waiting") == true -> "Waiting: ${stateObj.optJSONObject("waiting")?.optString("reason", "Waiting")}"
+                    stateObj?.has("terminated") == true -> "Terminated"
+                    else -> "Running"
+                }
+
+                val portsList = mutableListOf<String>()
+                val portsArr = c.optJSONArray("ports")
+                if (portsArr != null) {
+                    for (p in 0 until portsArr.length()) {
+                        val portObj = portsArr.getJSONObject(p)
+                        val containerPort = portObj.optInt("containerPort")
+                        val protocol = portObj.optString("protocol", "TCP")
+                        portsList.add("$containerPort/$protocol")
+                    }
+                }
+
+                containerDetails.add(
+                    ContainerDetail(
+                        name = cName,
+                        image = image,
+                        ready = ready,
+                        restartCount = restartCount,
+                        state = stateStr,
+                        ports = portsList
+                    )
+                )
+            }
+        }
+
+        val conditionDetails = mutableListOf<PodConditionDetail>()
+        val conditionsArr = status?.optJSONArray("conditions")
+        if (conditionsArr != null) {
+            for (i in 0 until conditionsArr.length()) {
+                val cond = conditionsArr.getJSONObject(i)
+                conditionDetails.add(
+                    PodConditionDetail(
+                        type = cond.optString("type"),
+                        status = cond.optString("status"),
+                        lastTransitionTime = cond.optString("lastTransitionTime"),
+                        reason = cond.optString("reason").takeIf { it.isNotBlank() },
+                        message = cond.optString("message").takeIf { it.isNotBlank() }
+                    )
+                )
+            }
+        }
+
+        val eventDetails = mutableListOf<PodEventDetail>()
+        if (!eventsJson.isNullOrBlank()) {
+            try {
+                val eventsRoot = JSONObject(eventsJson)
+                val items = eventsRoot.optJSONArray("items")
+                if (items != null) {
+                    for (i in 0 until items.length()) {
+                        val ev = items.getJSONObject(i)
+                        val evType = ev.optString("type", "Normal")
+                        val reason = ev.optString("reason", "")
+                        val message = ev.optString("message", "")
+                        val lastTimestamp = ev.optString("lastTimestamp").ifBlank {
+                            ev.optJSONObject("metadata")?.optString("creationTimestamp")
+                        }
+                        val age = calculateAge(lastTimestamp)
+                        eventDetails.add(
+                            PodEventDetail(
+                                type = evType,
+                                reason = reason,
+                                message = message,
+                                age = age
+                            )
+                        )
+                    }
+                }
+            } catch (ignored: Exception) {}
+        }
+
+        val volumesList = mutableListOf<String>()
+        val volumesArr = spec?.optJSONArray("volumes")
+        if (volumesArr != null) {
+            for (i in 0 until volumesArr.length()) {
+                val v = volumesArr.getJSONObject(i)
+                val vName = v.optString("name")
+                if (vName.isNotBlank()) volumesList.add(vName)
+            }
+        }
+
+        return PodDetails(
+            name = metadata?.optString("name", podName) ?: podName,
+            namespace = metadata?.optString("namespace", namespace) ?: namespace,
+            status = podStatus,
+            node = nodeName,
+            ip = podIP,
+            hostIp = hostIP,
+            restartPolicy = restartPolicy,
+            startTime = startTime,
+            containers = containerDetails,
+            conditions = conditionDetails,
+            events = eventDetails,
+            labels = labels,
+            annotations = annotations,
+            volumes = volumesList,
+            rawDescribeText = podJson
+        )
     }
 
     private fun parseNamespacesJson(jsonString: String): List<String> {

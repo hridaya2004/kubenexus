@@ -3,11 +3,10 @@ package dev.hridaya.kubenexus.presentation.home.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,6 +14,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Pod
 
@@ -22,6 +22,7 @@ import dev.hridaya.kubenexus.domain.model.Pod
 fun PodDetailsDialog(
     pod: Pod,
     onDismiss: () -> Unit,
+    onShowMore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     AlertDialog(
@@ -29,7 +30,8 @@ fun PodDetailsDialog(
         title = {
             Text(
                 text = pod.name,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
         },
@@ -66,6 +68,11 @@ fun PodDetailsDialog(
             }
         },
         confirmButton = {
+            Button(onClick = onShowMore) {
+                Text("Show more")
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Close")
             }

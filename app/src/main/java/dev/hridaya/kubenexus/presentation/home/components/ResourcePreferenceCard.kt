@@ -1,7 +1,5 @@
 package dev.hridaya.kubenexus.presentation.home.components
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.presentation.common.components.scaleOnPress
 
 @Composable
 fun ResourcePreferenceCard(
@@ -41,7 +40,7 @@ fun ResourcePreferenceCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
+            .scaleOnPress(targetScale = 0.97f, onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer

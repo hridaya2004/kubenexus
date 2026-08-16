@@ -14,6 +14,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.hridaya.kubenexus.core.di.AppContainer
 import dev.hridaya.kubenexus.presentation.explore.ExploreScreen
 import dev.hridaya.kubenexus.presentation.home.HomeRoute
 import dev.hridaya.kubenexus.presentation.home.HomeUiEffect
@@ -22,28 +24,60 @@ import dev.hridaya.kubenexus.presentation.home.ManageClustersScreen
 import dev.hridaya.kubenexus.presentation.navigation.AppNavigationBar
 import dev.hridaya.kubenexus.presentation.navigation.Destination
 import dev.hridaya.kubenexus.presentation.pods.PodsScreen
+import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailRoute
+import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
 import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
 
 @Composable
 fun MainScreen(
     homeViewModel: HomeViewModel,
+    appContainer: AppContainer,
     modifier: Modifier = Modifier
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
     var isViewingPods by rememberSaveable { mutableStateOf(false) }
+    var selectedPodName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedPodNamespace by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(homeViewModel.effects) {
         homeViewModel.effects.collect { effect ->
             if (effect is HomeUiEffect.NavigateToHome) {
                 isManagingClusters = false
                 isViewingPods = false
+                selectedPodName = null
+                selectedPodNamespace = null
                 currentDestination = Destination.Home
             }
         }
     }
 
     when {
+        selectedPodName != null && selectedPodNamespace != null -> {
+            val podName = selectedPodName!!
+            val podNamespace = selectedPodNamespace!!
+            val podDetailViewModel: PodDetailViewModel = viewModel(
+                key = "pod_detail_${podNamespace}_${podName}",
+                factory = PodDetailViewModel.provideFactory(
+                    podName = podName,
+                    namespace = podNamespace,
+                    container = appContainer
+                )
+            )
+            BackHandler {
+                selectedPodName = null
+                selectedPodNamespace = null
+            }
+            PodDetailRoute(
+                viewModel = podDetailViewModel,
+                onNavigateBack = {
+                    selectedPodName = null
+                    selectedPodNamespace = null
+                },
+                modifier = modifier
+            )
+        }
+
         isManagingClusters -> {
             val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
             BackHandler { isManagingClusters = false }
@@ -62,6 +96,10 @@ fun MainScreen(
                 uiState = uiState,
                 onAction = homeViewModel::onAction,
                 onNavigateBack = { isViewingPods = false },
+                onNavigateToPodDetail = { pod ->
+                    selectedPodName = pod.name
+                    selectedPodNamespace = pod.namespace
+                },
                 modifier = modifier
             )
         }

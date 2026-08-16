@@ -1,7 +1,6 @@
 package dev.hridaya.kubenexus.presentation.home.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,11 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,10 +23,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodStatus
+import dev.hridaya.kubenexus.presentation.common.components.scaleOnPress
 
 @Composable
 fun PodCard(
@@ -42,7 +41,7 @@ fun PodCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
+            .scaleOnPress(targetScale = 0.97f, onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -62,12 +61,12 @@ fun PodCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    val (dotColor, statusText) = when (pod.status) {
-                        PodStatus.RUNNING -> Color(0xFF22C55E) to "Running"
-                        PodStatus.PENDING -> Color(0xFFEAB308) to "Pending"
-                        PodStatus.COMPLETED -> Color(0xFF3B82F6) to "Completed"
-                        PodStatus.FAILED, PodStatus.CRASH_LOOP -> MaterialTheme.colorScheme.error to "Error"
-                        PodStatus.UNKNOWN -> MaterialTheme.colorScheme.outline to "Unknown"
+                    val dotColor = when (pod.status) {
+                        PodStatus.RUNNING -> Color(0xFF22C55E)
+                        PodStatus.PENDING -> Color(0xFFEAB308)
+                        PodStatus.COMPLETED -> Color(0xFF3B82F6)
+                        PodStatus.FAILED, PodStatus.CRASH_LOOP -> MaterialTheme.colorScheme.error
+                        PodStatus.UNKNOWN -> MaterialTheme.colorScheme.outline
                     }
 
                     Box(
@@ -81,6 +80,7 @@ fun PodCard(
                     Text(
                         text = pod.name,
                         style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -97,6 +97,7 @@ fun PodCard(
                     Text(
                         text = pod.namespace,
                         style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
@@ -119,6 +120,7 @@ fun PodCard(
                     Text(
                         text = pod.ip,
                         style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }

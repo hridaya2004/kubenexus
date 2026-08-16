@@ -2,6 +2,7 @@ package dev.hridaya.kubenexus.domain.repository
 
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodDetails
 import kotlinx.coroutines.flow.Flow
 
 interface PodRepository {
@@ -9,4 +10,7 @@ interface PodRepository {
     fun getNamespacesStream(clusterId: String?): Flow<List<String>>
     fun getLastRefreshedStream(clusterId: String?): Flow<Long?>
     suspend fun refreshWorkloads(clusterId: String?, namespace: String? = null): Result<Unit>
+    suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails>
+    suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String? = null): Result<String>
+    fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String? = null): Flow<String>
 }

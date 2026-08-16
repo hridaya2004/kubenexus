@@ -7,7 +7,7 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/hridaya2004/kubenexus-go-client/internal/client"
+	"github.com/hridaya2004/kubenexus-go-client/pkg/client"
 
 	"k8s.io/client-go/util/homedir"
 )

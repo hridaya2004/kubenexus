@@ -12,6 +12,11 @@
 # Output of go coverage
 *.out
 
+# Android build artifacts
+*.aar
+*.jar
+!/pkg/**/*.jar
+
 # Dependency directories
 vendor/
 

@@ -44,10 +44,12 @@ class SampleViewModel(
                     _effects.send(SampleUiEffect.NavigateToDetails(action.id))
                 }
             }
+
             is SampleUiAction.RetryClicked -> {
                 _uiState.update { it.copy(errorMessage = null, isLoading = true) }
                 refresh()
             }
+
             is SampleUiAction.ClearError -> _uiState.update { it.copy(errorMessage = null) }
         }
     }
@@ -65,6 +67,7 @@ class SampleViewModel(
                             )
                         }
                     }
+
                     is Result.Error -> {
                         _uiState.update {
                             it.copy(
@@ -73,6 +76,7 @@ class SampleViewModel(
                             )
                         }
                     }
+
                     is Result.Loading -> {
                         _uiState.update { it.copy(isLoading = true) }
                     }
@@ -101,10 +105,12 @@ class SampleViewModel(
                     _uiState.update { it.copy(isSaving = false, showAddDialog = false) }
                     _effects.send(SampleUiEffect.ShowSnackbar("Item '${result.data.title}' added."))
                 }
+
                 is Result.Error -> {
                     _uiState.update { it.copy(isSaving = false) }
                     _effects.send(SampleUiEffect.ShowSnackbar(result.error.message))
                 }
+
                 is Result.Loading -> Unit
             }
         }

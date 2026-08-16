@@ -23,28 +23,30 @@ class SampleRepositoryImpl(
         return localDataSource.getItemsStream().map { it.toDomainList() }
     }
 
-    override suspend fun getSampleItemById(id: String): Result<SampleItem> = withContext(dispatcherProvider.io) {
-        try {
-            val local = localDataSource.getItemById(id)
-            if (local != null) {
-                Result.Success(local.toDomain())
-            } else {
-                Result.Error(AppError.NotFound("Item with id '$id' not found."))
+    override suspend fun getSampleItemById(id: String): Result<SampleItem> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val local = localDataSource.getItemById(id)
+                if (local != null) {
+                    Result.Success(local.toDomain())
+                } else {
+                    Result.Error(AppError.NotFound("Item with id '$id' not found."))
+                }
+            } catch (e: Exception) {
+                Result.Error(AppError.Unknown("Failed to load item", e))
             }
-        } catch (e: Exception) {
-            Result.Error(AppError.Unknown("Failed to load item", e))
         }
-    }
 
-    override suspend fun addSampleItem(title: String, description: String): Result<SampleItem> = withContext(dispatcherProvider.io) {
-        try {
-            val createdDto = remoteDataSource.createItem(title, description)
-            localDataSource.saveItem(createdDto)
-            Result.Success(createdDto.toDomain())
-        } catch (e: Exception) {
-            Result.Error(AppError.Network("Failed to add item: ${e.message}"))
+    override suspend fun addSampleItem(title: String, description: String): Result<SampleItem> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val createdDto = remoteDataSource.createItem(title, description)
+                localDataSource.saveItem(createdDto)
+                Result.Success(createdDto.toDomain())
+            } catch (e: Exception) {
+                Result.Error(AppError.Network("Failed to add item: ${e.message}"))
+            }
         }
-    }
 
     override suspend fun refreshSampleItems(): Result<Unit> = withContext(dispatcherProvider.io) {
         try {
@@ -56,13 +58,14 @@ class SampleRepositoryImpl(
         }
     }
 
-    override suspend fun deleteSampleItem(id: String): Result<Unit> = withContext(dispatcherProvider.io) {
-        try {
-            remoteDataSource.deleteItem(id)
-            localDataSource.deleteItem(id)
-            Result.Success(Unit)
-        } catch (e: Exception) {
-            Result.Error(AppError.Network("Failed to delete item: ${e.message}"))
+    override suspend fun deleteSampleItem(id: String): Result<Unit> =
+        withContext(dispatcherProvider.io) {
+            try {
+                remoteDataSource.deleteItem(id)
+                localDataSource.deleteItem(id)
+                Result.Success(Unit)
+            } catch (e: Exception) {
+                Result.Error(AppError.Network("Failed to delete item: ${e.message}"))
+            }
         }
-    }
 }

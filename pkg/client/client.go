@@ -1,3 +1,4 @@
+// Package client provides a Kubernetes client wrapper suitable for mobile bindings.
 package client
 
 import (
@@ -17,16 +18,19 @@ import (
 
 const defaultTimeout = 30 * time.Second
 
+// Client wraps a Kubernetes clientset for cluster operations.
 type Client struct {
 	clientset *kubernetes.Clientset
 	timeout   time.Duration
 }
 
+// Namespace contains name and status for a cluster namespace.
 type Namespace struct {
 	Name   string
 	Status string
 }
 
+// Pod contains summary fields for pod listing.
 type Pod struct {
 	Name      string
 	Namespace string
@@ -38,6 +42,7 @@ type Pod struct {
 	IP        string
 }
 
+// ContainerInfo holds status and runtime information for a container.
 type ContainerInfo struct {
 	Name         string
 	Image        string
@@ -46,6 +51,7 @@ type ContainerInfo struct {
 	State        string
 }
 
+// PodCondition represents a single condition status for a pod.
 type PodCondition struct {
 	Type               string
 	Status             string
@@ -54,6 +60,7 @@ type PodCondition struct {
 	Message            string
 }
 
+// PodEvent represents an event associated with a pod.
 type PodEvent struct {
 	Type    string
 	Reason  string
@@ -61,31 +68,35 @@ type PodEvent struct {
 	Age     string
 }
 
+// PodDetails contains detailed pod metadata, status, containers, and events.
 type PodDetails struct {
-	Name              string
-	Namespace         string
-	Status            string
-	Node              string
-	IP                string
-	HostIP            string
-	RestartPolicy     string
-	StartTime         string
-	Containers        []ContainerInfo
-	InitContainers    []ContainerInfo
-	Conditions        []PodCondition
-	Events            []PodEvent
-	Volumes           []string
-	Labels            map[string]string
+	Name           string
+	Namespace      string
+	Status         string
+	Node           string
+	IP             string
+	HostIP         string
+	RestartPolicy  string
+	StartTime      string
+	Containers     []ContainerInfo
+	InitContainers []ContainerInfo
+	Conditions     []PodCondition
+	Events         []PodEvent
+	Volumes        []string
+	Labels         map[string]string
 }
 
+// LogCallback receives streamed container log lines and status events.
 type LogCallback interface {
 	OnLogLine(line string)
 	OnError(err string)
 	OnDone()
 }
 
+// Option configures a Client during construction.
 type Option func(*Client) error
 
+// WithTimeout sets the request timeout for client calls.
 func WithTimeout(d time.Duration) Option {
 	return func(c *Client) error {
 		if d <= 0 {
@@ -96,6 +107,7 @@ func WithTimeout(d time.Duration) Option {
 	}
 }
 
+// New creates a Client from a kubeconfig file path.
 func New(kubeconfig string, opts ...Option) (*Client, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -105,6 +117,7 @@ func New(kubeconfig string, opts ...Option) (*Client, error) {
 	return NewFromConfig(config, opts...)
 }
 
+// NewFromData creates a Client from raw kubeconfig YAML bytes.
 func NewFromData(data []byte, opts ...Option) (*Client, error) {
 	config, err := clientcmd.RESTConfigFromKubeConfig(data)
 	if err != nil {
@@ -114,6 +127,7 @@ func NewFromData(data []byte, opts ...Option) (*Client, error) {
 	return NewFromConfig(config, opts...)
 }
 
+// NewFromConfig creates a Client from an existing rest.Config.
 func NewFromConfig(config *rest.Config, opts ...Option) (*Client, error) {
 	c := &Client{
 		timeout: defaultTimeout,
@@ -136,6 +150,7 @@ func NewFromConfig(config *rest.Config, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
+// ListPods returns pod names in the namespace, or all namespaces if empty.
 func (c *Client) ListPods(ctx context.Context, namespace string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -152,6 +167,7 @@ func (c *Client) ListPods(ctx context.Context, namespace string) ([]string, erro
 	return names, nil
 }
 
+// ListNamespaces returns all namespaces in the cluster.
 func (c *Client) ListNamespaces(ctx context.Context) ([]Namespace, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -171,6 +187,7 @@ func (c *Client) ListNamespaces(ctx context.Context) ([]Namespace, error) {
 	return namespaces, nil
 }
 
+// ListPodsWide returns pod summaries in the namespace, or all namespaces if empty.
 func (c *Client) ListPodsWide(ctx context.Context, namespace string) ([]Pod, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -218,14 +235,19 @@ func countRestarts(statuses []corev1.ContainerStatus) int32 {
 
 func formatAge(t time.Time) string {
 	d := time.Since(t).Truncate(time.Second)
-	h := int(d.Hours())
+	days := int(d.Hours()) / 24
+	h := int(d.Hours()) % 24
 	m := int(d.Minutes()) % 60
+	if days > 0 {
+		return fmt.Sprintf("%dd%dh", days, h)
+	}
 	if h > 0 {
 		return fmt.Sprintf("%dh%dm", h, m)
 	}
 	return fmt.Sprintf("%dm", m)
 }
 
+// DescribePod returns detailed information for a specific pod.
 func (c *Client) DescribePod(ctx context.Context, namespace, name string) (*PodDetails, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -243,7 +265,7 @@ func (c *Client) DescribePod(ctx context.Context, namespace, name string) (*PodD
 		IP:            pod.Status.PodIP,
 		HostIP:        pod.Status.HostIP,
 		RestartPolicy: string(pod.Spec.RestartPolicy),
-		Labels:        pod.Labels,
+		Labels:        cloneMap(pod.Labels),
 	}
 
 	if pod.Status.StartTime != nil {
@@ -272,7 +294,10 @@ func (c *Client) DescribePod(ctx context.Context, namespace, name string) (*PodD
 	}
 
 	events, err := c.getPodEvents(ctx, namespace, name)
-	if err == nil {
+	if err != nil {
+		// Best effort: lack of event permissions or missing events shouldn't fail pod description.
+		details.Events = []PodEvent{}
+	} else {
 		details.Events = events
 	}
 
@@ -308,12 +333,23 @@ func formatContainerState(state corev1.ContainerState) string {
 	return "Unknown"
 }
 
+func cloneMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	clone := make(map[string]string, len(m))
+	for k, v := range m {
+		clone[k] = v
+	}
+	return clone
+}
+
 func (c *Client) getPodEvents(ctx context.Context, namespace, podName string) ([]PodEvent, error) {
 	eventList, err := c.clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", podName),
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listing pod events: %w", err)
 	}
 
 	events := make([]PodEvent, len(eventList.Items))
@@ -328,6 +364,7 @@ func (c *Client) getPodEvents(ctx context.Context, namespace, podName string) ([
 	return events, nil
 }
 
+// Logs returns the full log output for a container.
 func (c *Client) Logs(ctx context.Context, namespace, podName, container string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -351,6 +388,7 @@ func (c *Client) Logs(ctx context.Context, namespace, podName, container string)
 	return string(data), nil
 }
 
+// StreamLogs follows pod logs and sends each line to callback until completed or cancelled.
 func (c *Client) StreamLogs(ctx context.Context, namespace, podName, container string, callback LogCallback) {
 	opts := &corev1.PodLogOptions{
 		Follow: true,
@@ -369,6 +407,7 @@ func (c *Client) StreamLogs(ctx context.Context, namespace, podName, container s
 	defer stream.Close()
 
 	scanner := bufio.NewScanner(stream)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.TrimSpace(line) != "" {

@@ -175,16 +175,25 @@ func TestCountRestarts(t *testing.T) {
 }
 
 func TestFormatAge(t *testing.T) {
-	past := time.Now().Add(-5 * time.Minute)
-	got := formatAge(past)
-	if got != "5m" {
-		t.Errorf("formatAge() = %v, want \"5m\"", got)
+	tests := []struct {
+		name     string
+		duration time.Duration
+		want     string
+	}{
+		{"4 minutes", 4 * time.Minute, "4m"},
+		{"2 hours 30 minutes", 2*time.Hour + 30*time.Minute, "2h30m"},
+		{"1 day 3 hours", 24*time.Hour + 3*time.Hour, "1d3h"},
+		{"7 days", 7 * 24 * time.Hour, "7d0h"},
 	}
 
-	past = time.Now().Add(-2*time.Hour - 30*time.Minute)
-	got = formatAge(past)
-	if got != "2h30m" {
-		t.Errorf("formatAge() = %v, want \"2h30m\"", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			past := time.Now().Add(-tt.duration)
+			got := formatAge(past)
+			if got != tt.want {
+				t.Errorf("formatAge() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -325,5 +334,32 @@ func TestMockLogCallback(t *testing.T) {
 	}
 	if !cb.done {
 		t.Error("done should be true")
+	}
+}
+
+func TestCloneMap(t *testing.T) {
+	original := map[string]string{"app": "nginx", "env": "prod"}
+	clone := cloneMap(original)
+
+	if len(clone) != len(original) {
+		t.Fatalf("clone length = %d, want %d", len(clone), len(original))
+	}
+	for k, v := range original {
+		if clone[k] != v {
+			t.Errorf("clone[%q] = %q, want %q", k, clone[k], v)
+		}
+	}
+
+	// Mutating clone must not affect original
+	clone["new"] = "value"
+	if _, ok := original["new"]; ok {
+		t.Error("mutating clone affected original")
+	}
+}
+
+func TestCloneMapNil(t *testing.T) {
+	clone := cloneMap(nil)
+	if clone != nil {
+		t.Errorf("cloneMap(nil) = %v, want nil", clone)
 	}
 }

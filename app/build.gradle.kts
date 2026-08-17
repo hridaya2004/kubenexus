@@ -15,24 +15,60 @@ android {
         minSdk = 35
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = project.findProperty("KEYSTORE_PATH") as? String
+                ?: System.getenv("KEYSTORE_PATH")
+            if (keystorePath != null && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = project.findProperty("KEYSTORE_PASSWORD") as? String
+                    ?: System.getenv("KEYSTORE_PASSWORD") ?: ""
+                keyAlias = project.findProperty("KEY_ALIAS") as? String
+                    ?: System.getenv("KEY_ALIAS") ?: ""
+                keyPassword = project.findProperty("KEY_PASSWORD") as? String
+                    ?: System.getenv("KEY_PASSWORD") ?: ""
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
+    }
+
     buildTypes {
-        release {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
             optimization {
                 enable = false
             }
         }
+
+        release {
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

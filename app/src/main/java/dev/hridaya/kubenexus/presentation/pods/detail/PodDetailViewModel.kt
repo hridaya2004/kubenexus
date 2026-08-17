@@ -123,7 +123,7 @@ class PodDetailViewModel(
     fun onAction(action: PodDetailUiAction) {
         when (action) {
             is PodDetailUiAction.RefreshDescribe -> {
-                fetchDescribe()
+                fetchDescribe(isRefresh = true)
             }
 
             is PodDetailUiAction.SelectTab -> {
@@ -193,9 +193,15 @@ class PodDetailViewModel(
         }
     }
 
-    private fun fetchDescribe() {
+    private fun fetchDescribe(isRefresh: Boolean = false) {
         val cid = activeClusterId ?: return
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update {
+            if (isRefresh) {
+                it.copy(isRefreshing = true, errorMessage = null)
+            } else {
+                it.copy(isLoading = it.podDetails == null, isRefreshing = false, errorMessage = null)
+            }
+        }
 
         viewModelScope.launch(dispatcherProvider.main) {
             when (val result = describePodUseCase(cid, namespace, podName)) {
@@ -206,6 +212,8 @@ class PodDetailViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            isRefreshing = false,
+                            lastRefreshedAt = System.currentTimeMillis(),
                             podDetails = details,
                             selectedContainer = it.selectedContainer ?: defaultContainer
                         )
@@ -216,6 +224,7 @@ class PodDetailViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            isRefreshing = false,
                             errorMessage = result.error.message
                         )
                     }

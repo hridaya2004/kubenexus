@@ -24,6 +24,8 @@ data class TerminalLine(
 
 data class PodDetailUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
+    val lastRefreshedAt: Long? = null,
     val podName: String = "",
     val namespace: String = "",
     val clusterId: String? = null,

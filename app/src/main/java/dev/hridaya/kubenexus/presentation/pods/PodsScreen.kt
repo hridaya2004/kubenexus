@@ -51,7 +51,6 @@ import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.presentation.home.HomeUiAction
 import dev.hridaya.kubenexus.presentation.home.HomeUiState
 import dev.hridaya.kubenexus.presentation.home.components.PodCard
-import dev.hridaya.kubenexus.presentation.home.components.PodDetailsDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -247,23 +246,12 @@ fun PodsScreen(
                         items(uiState.pods, key = { it.id }) { pod ->
                             PodCard(
                                 pod = pod,
-                                onClick = { onAction(HomeUiAction.SelectPod(pod)) }
+                                onClick = { onNavigateToPodDetail(pod) }
                             )
                         }
                     }
                 }
             }
         }
-    }
-
-    uiState.selectedPod?.let { pod ->
-        PodDetailsDialog(
-            pod = pod,
-            onDismiss = { onAction(HomeUiAction.DismissPodDetails) },
-            onShowMore = {
-                onAction(HomeUiAction.DismissPodDetails)
-                onNavigateToPodDetail(pod)
-            }
-        )
     }
 }

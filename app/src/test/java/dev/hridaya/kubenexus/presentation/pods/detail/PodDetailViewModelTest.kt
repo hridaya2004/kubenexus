@@ -83,6 +83,7 @@ class PodDetailViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
         assertNotNull(state.podDetails)
+        assertNotNull(state.lastRefreshedAt)
         assertEquals("test-pod-1", state.podDetails?.name)
         assertEquals("container-app", state.selectedContainer)
         assertEquals(1, state.podDetails?.containers?.size)

@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +71,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -171,25 +173,6 @@ fun PodDetailScreen(
                         )
                     }
                 },
-                actions = {
-                    IconButton(onClick = { onAction(PodDetailUiAction.RefreshDescribe) }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Refresh,
-                            contentDescription = "Refresh"
-                        )
-                    }
-                    IconButton(
-                        onClick = { onAction(PodDetailUiAction.ShowDeleteDialog(true)) },
-                        colors = androidx.compose.material3.IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = "Delete Pod"
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
@@ -230,17 +213,24 @@ fun PodDetailScreen(
 
             when (uiState.selectedTab) {
                 PodDetailTab.DESCRIBE -> {
-                    DescribeTabContent(
-                        uiState = uiState,
-                        onNavigateToLogs = { containerName ->
-                            onAction(PodDetailUiAction.SelectContainer(containerName))
-                            onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
-                        },
-                        onNavigateToTerminal = { containerName ->
-                            onAction(PodDetailUiAction.SelectContainer(containerName))
-                            onAction(PodDetailUiAction.SelectTab(PodDetailTab.TERMINAL))
-                        }
-                    )
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { onAction(PodDetailUiAction.RefreshDescribe) },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        DescribeTabContent(
+                            uiState = uiState,
+                            onAction = onAction,
+                            onNavigateToLogs = { containerName ->
+                                onAction(PodDetailUiAction.SelectContainer(containerName))
+                                onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
+                            },
+                            onNavigateToTerminal = { containerName ->
+                                onAction(PodDetailUiAction.SelectContainer(containerName))
+                                onAction(PodDetailUiAction.SelectTab(PodDetailTab.TERMINAL))
+                            }
+                        )
+                    }
                 }
 
                 PodDetailTab.LOGS -> {
@@ -270,8 +260,9 @@ fun PodDetailScreen(
             title = {
                 Text(
                     text = "Delete Pod",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
@@ -307,6 +298,7 @@ fun PodDetailScreen(
 @Composable
 private fun DescribeTabContent(
     uiState: PodDetailUiState,
+    onAction: (PodDetailUiAction) -> Unit,
     onNavigateToLogs: (String) -> Unit,
     onNavigateToTerminal: (String) -> Unit
 ) {
@@ -386,6 +378,9 @@ private fun DescribeTabContent(
                     DetailItem("Host IP", details.hostIp ?: "Pending")
                     DetailItem("Restart Policy", details.restartPolicy ?: "Always")
                     DetailItem("Start Time", TimeFormatter.formatIsoToLocal(details.startTime))
+                    if (uiState.lastRefreshedAt != null) {
+                        DetailItem("Last Refreshed", TimeFormatter.formatLastRefreshed(uiState.lastRefreshedAt))
+                    }
                 }
             }
         }
@@ -557,6 +552,37 @@ private fun DescribeTabContent(
                     }
                 }
             }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = { onAction(PodDetailUiAction.ShowDeleteDialog(true)) },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.DeleteOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Delete Pod",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -781,7 +807,7 @@ private fun TerminalTabContent(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (uiState.isTerminalActive) "interactive session (${uiState.activeShellCommand})" else "exec terminal",
+                            text = if (uiState.isTerminalActive) "interactive session (${uiState.activeShellCommand})" else "terminal",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
                             color = TermuxText
@@ -1017,7 +1043,7 @@ private fun ContainerCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isAttachable) "Exec Terminal" else "Detached", fontSize = 12.sp)
+                    Text(if (isAttachable) "Terminal" else "Detached", fontSize = 12.sp)
                 }
             }
         }

@@ -1,23 +1,14 @@
-// Package client provides a Kubernetes client wrapper suitable for mobile bindings.
+// Package client provides a Kubernetes client wrapper designed for Android mobile bindings.
 package client
 
 import (
-	"bufio"
-	"bytes"
-	"context"
 	"fmt"
-	"io"
 	"net/url"
-	"strings"
-	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
@@ -41,7 +32,7 @@ func defaultExecutorFactory(config *rest.Config, method string, u *url.URL) (rem
 	return remotecommand.NewFallbackExecutor(wsExec, spdyExec, httpstream.IsUpgradeFailure)
 }
 
-// Client wraps a Kubernetes clientset for cluster operations.
+// Client wraps a Kubernetes clientset for mobile Android cluster operations.
 type Client struct {
 	clientset       *kubernetes.Clientset
 	config          *rest.Config
@@ -50,682 +41,115 @@ type Client struct {
 	executorFactory executorFactoryFunc
 }
 
-// Namespace contains name and status for a cluster namespace.
-type Namespace struct {
-	Name   string
-	Status string
+// NewClient creates a Client from raw kubeconfig YAML string.
+func NewClient(kubeconfigYAML string) (*Client, error) {
+	return NewClientFromBytes([]byte(kubeconfigYAML))
 }
 
-// Pod contains summary fields for pod listing.
-type Pod struct {
-	Name      string
-	Namespace string
-	Status    string
-	Ready     string
-	Restarts  int32
-	Age       string
-	Node      string
-	IP        string
+// NewClientFromBytes creates a Client from raw kubeconfig YAML byte slice with default settings (Protobuf enabled).
+func NewClientFromBytes(data []byte) (*Client, error) {
+	return NewClientWithOptions(data, 30, true)
 }
 
-// ContainerInfo holds status and runtime information for a container.
-type ContainerInfo struct {
-	Name         string
-	Image        string
-	Ready        bool
-	RestartCount int32
-	State        string
-}
-
-// PodCondition represents a single condition status for a pod.
-type PodCondition struct {
-	Type               string
-	Status             string
-	LastTransitionTime string
-	Reason             string
-	Message            string
-}
-
-// PodEvent represents an event associated with a pod.
-type PodEvent struct {
-	Type    string
-	Reason  string
-	Message string
-	Age     string
-}
-
-// PodDetails contains detailed pod metadata, status, containers, and events.
-type PodDetails struct {
-	Name           string
-	Namespace      string
-	Status         string
-	Node           string
-	IP             string
-	HostIP         string
-	RestartPolicy  string
-	StartTime      string
-	Containers     []ContainerInfo
-	InitContainers []ContainerInfo
-	Conditions     []PodCondition
-	Events         []PodEvent
-	Volumes        []string
-	Labels         map[string]string
-}
-
-// LogCallback receives streamed container log lines and status events.
-type LogCallback interface {
-	OnLogLine(line string)
-	OnError(err string)
-	OnDone()
-}
-
-// ExecResult contains the captured stdout and stderr from a command execution.
-type ExecResult struct {
-	Stdout string
-	Stderr string
-}
-
-// ExecCallback receives streamed output and lifecycle events for an interactive exec session.
-type ExecCallback interface {
-	OnStdout(data string)
-	OnStderr(data string)
-	OnError(err string)
-	OnDone()
-}
-
-// ExecSession represents an active interactive exec session in a container.
-type ExecSession struct {
-	stdinWriter io.WriteCloser
-	cancel      context.CancelFunc
-	resizeChan  chan remotecommand.TerminalSize
-	mu          sync.Mutex
-	closed      bool
-}
-
-// Write writes string data to the container's standard input.
-func (s *ExecSession) Write(data string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed || s.stdinWriter == nil {
-		return fmt.Errorf("session is closed")
-	}
-	_, err := s.stdinWriter.Write([]byte(data))
-	return err
-}
-
-// WriteBytes writes raw byte data to the container's standard input.
-func (s *ExecSession) WriteBytes(data []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed || s.stdinWriter == nil {
-		return fmt.Errorf("session is closed")
-	}
-	_, err := s.stdinWriter.Write(data)
-	return err
-}
-
-// Resize updates the terminal dimensions for TTY-enabled sessions.
-func (s *ExecSession) Resize(width, height int32) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed || s.resizeChan == nil || width <= 0 || height <= 0 {
-		return
-	}
-	select {
-	case s.resizeChan <- remotecommand.TerminalSize{Width: uint16(width), Height: uint16(height)}:
-	default:
-	}
-}
-
-// Close terminates the exec session and releases associated resources.
-func (s *ExecSession) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return nil
-	}
-	s.closed = true
-	if s.cancel != nil {
-		s.cancel()
-	}
-	if s.resizeChan != nil {
-		close(s.resizeChan)
-	}
-	if s.stdinWriter != nil {
-		return s.stdinWriter.Close()
-	}
-	return nil
-}
-
-type termSizeQueue struct {
-	resizeChan chan remotecommand.TerminalSize
-}
-
-func (q *termSizeQueue) Next() *remotecommand.TerminalSize {
-	size, ok := <-q.resizeChan
-	if !ok {
-		return nil
-	}
-	return &size
-}
-
-type callbackWriter struct {
-	fn func(string)
-}
-
-func (w *callbackWriter) Write(p []byte) (int, error) {
-	if len(p) > 0 && w.fn != nil {
-		w.fn(string(p))
-	}
-	return len(p), nil
-}
-
-// Option configures a Client during construction.
-type Option func(*Client) error
-
-// WithTimeout sets the request timeout for client calls.
-func WithTimeout(d time.Duration) Option {
-	return func(c *Client) error {
-		if d <= 0 {
-			return fmt.Errorf("timeout must be positive, got %v", d)
-		}
-		c.timeout = d
-		return nil
-	}
-}
-
-// WithProtobuf configures the client to use Protobuf serialization over the wire.
-func WithProtobuf() Option {
-	return func(c *Client) error {
-		c.contentType = runtime.ContentTypeProtobuf
-		return nil
-	}
-}
-
-// WithContentType sets a custom wire serialization content type (e.g. JSON, Protobuf).
-func WithContentType(contentType string) Option {
-	return func(c *Client) error {
-		trimmed := strings.TrimSpace(contentType)
-		if trimmed == "" {
-			return fmt.Errorf("content type cannot be empty")
-		}
-		c.contentType = trimmed
-		return nil
-	}
-}
-
-// New creates a Client from a kubeconfig file path.
-func New(kubeconfig string, opts ...Option) (*Client, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("building kubeconfig: %w", err)
+// NewClientWithOptions creates a Client with custom timeout and protobuf wire format settings.
+func NewClientWithOptions(data []byte, timeoutSeconds int64, useProtobuf bool) (*Client, error) {
+	if len(data) == 0 {
+		return nil, fmt.Errorf("kubeconfig data cannot be empty")
 	}
 
-	return NewFromConfig(config, opts...)
-}
-
-// NewFromData creates a Client from raw kubeconfig YAML bytes.
-func NewFromData(data []byte, opts ...Option) (*Client, error) {
 	config, err := clientcmd.RESTConfigFromKubeConfig(data)
 	if err != nil {
 		return nil, fmt.Errorf("parsing kubeconfig: %w", err)
 	}
 
-	return NewFromConfig(config, opts...)
-}
-
-// NewFromConfig creates a Client from an existing rest.Config.
-func NewFromConfig(config *rest.Config, opts ...Option) (*Client, error) {
-	c := &Client{
-		timeout:         defaultTimeout,
-		executorFactory: defaultExecutorFactory,
+	timeout := defaultTimeout
+	if timeoutSeconds > 0 {
+		timeout = time.Duration(timeoutSeconds) * time.Second
 	}
+	config.Timeout = timeout
 
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			return nil, fmt.Errorf("applying option: %w", err)
-		}
-	}
-
-	config.Timeout = c.timeout
-	if c.contentType != "" {
-		config.ContentType = c.contentType
-		config.AcceptContentTypes = c.contentType + "," + runtime.ContentTypeJSON
+	var contentType string
+	if useProtobuf {
+		contentType = runtime.ContentTypeProtobuf
+		config.ContentType = runtime.ContentTypeProtobuf
+		config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating clientset: %w", err)
 	}
-	c.clientset = clientset
-	c.config = config
 
-	return c, nil
+	return &Client{
+		clientset:       clientset,
+		config:          config,
+		timeout:         timeout,
+		contentType:     contentType,
+		executorFactory: defaultExecutorFactory,
+	}, nil
 }
 
-// ListNamespaces returns all namespaces in the cluster.
-func (c *Client) ListNamespaces(ctx context.Context) ([]Namespace, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	nsList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+// NewFromPath creates a Client from a local kubeconfig file path.
+func NewFromPath(filePath string) (*Client, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", filePath)
 	if err != nil {
-		return nil, fmt.Errorf("listing namespaces: %w", err)
+		return nil, fmt.Errorf("building kubeconfig from %q: %w", filePath, err)
+	}
+	config.Timeout = defaultTimeout
+	config.ContentType = runtime.ContentTypeProtobuf
+	config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("creating clientset: %w", err)
 	}
 
-	namespaces := make([]Namespace, len(nsList.Items))
-	for i, ns := range nsList.Items {
-		namespaces[i] = Namespace{
-			Name:   ns.Name,
-			Status: string(ns.Status.Phase),
+	return &Client{
+		clientset:       clientset,
+		config:          config,
+		timeout:         defaultTimeout,
+		contentType:     runtime.ContentTypeProtobuf,
+		executorFactory: defaultExecutorFactory,
+	}, nil
+}
+
+// SetTimeout updates the client timeout duration in seconds.
+func (c *Client) SetTimeout(timeoutSeconds int64) {
+	if timeoutSeconds > 0 {
+		c.timeout = time.Duration(timeoutSeconds) * time.Second
+		if c.config != nil {
+			c.config.Timeout = c.timeout
 		}
 	}
-	return namespaces, nil
 }
 
-// ListPods returns pod names in the namespace, or all namespaces if empty.
-func (c *Client) ListPods(ctx context.Context, namespace string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("listing pods: %w", err)
-	}
-
-	names := make([]string, len(pods.Items))
-	for i, pod := range pods.Items {
-		names[i] = pod.Name
-	}
-	return names, nil
+// GetTimeout returns the current client timeout in seconds.
+func (c *Client) GetTimeout() int64 {
+	return int64(c.timeout.Seconds())
 }
 
-// ListPodsWide returns pod summaries in the namespace, or all namespaces if empty.
-func (c *Client) ListPodsWide(ctx context.Context, namespace string) ([]Pod, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("listing pods: %w", err)
-	}
-
-	result := make([]Pod, len(pods.Items))
-	for i, pod := range pods.Items {
-		ready, total := countReadyContainers(pod.Spec.Containers, pod.Status.ContainerStatuses)
-		result[i] = Pod{
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
-			Status:    string(pod.Status.Phase),
-			Ready:     fmt.Sprintf("%d/%d", ready, total),
-			Restarts:  countRestarts(pod.Status.ContainerStatuses),
-			Age:       formatAge(pod.CreationTimestamp.Time),
-			Node:      pod.Spec.NodeName,
-			IP:        pod.Status.PodIP,
-		}
-	}
-	return result, nil
+// StringList represents an indexed list of strings for Gomobile / Android JNI binding.
+type StringList struct {
+	items []string
 }
 
-// DescribePod returns detailed information for a specific pod.
-func (c *Client) DescribePod(ctx context.Context, namespace, name string) (*PodDetails, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	pod, err := c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("getting pod: %w", err)
-	}
-
-	details := &PodDetails{
-		Name:          pod.Name,
-		Namespace:     pod.Namespace,
-		Status:        string(pod.Status.Phase),
-		Node:          pod.Spec.NodeName,
-		IP:            pod.Status.PodIP,
-		HostIP:        pod.Status.HostIP,
-		RestartPolicy: string(pod.Spec.RestartPolicy),
-		Labels:        cloneMap(pod.Labels),
-	}
-
-	if pod.Status.StartTime != nil {
-		details.StartTime = pod.Status.StartTime.Format(time.RFC3339)
-	}
-
-	for _, c := range pod.Spec.InitContainers {
-		details.InitContainers = append(details.InitContainers, containerToInfo(c, pod.Status.InitContainerStatuses))
-	}
-	for _, c := range pod.Spec.Containers {
-		details.Containers = append(details.Containers, containerToInfo(c, pod.Status.ContainerStatuses))
-	}
-
-	for _, cond := range pod.Status.Conditions {
-		details.Conditions = append(details.Conditions, PodCondition{
-			Type:               string(cond.Type),
-			Status:             string(cond.Status),
-			LastTransitionTime: cond.LastTransitionTime.Format(time.RFC3339),
-			Reason:             cond.Reason,
-			Message:            cond.Message,
-		})
-	}
-
-	for _, v := range pod.Spec.Volumes {
-		details.Volumes = append(details.Volumes, v.Name)
-	}
-
-	events, err := c.getPodEvents(ctx, namespace, name)
-	if err != nil {
-		details.Events = []PodEvent{}
-	} else {
-		details.Events = events
-	}
-
-	return details, nil
+// newStringList creates a StringList wrapper.
+func newStringList(items []string) *StringList {
+	return &StringList{items: items}
 }
 
-// Logs returns the full log output for a container.
-func (c *Client) Logs(ctx context.Context, namespace, podName, container string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	opts := &corev1.PodLogOptions{}
-	if container != "" {
-		opts.Container = container
+// Len returns the count of items in the list.
+func (l *StringList) Len() int {
+	if l == nil {
+		return 0
 	}
-
-	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
-	stream, err := req.Stream(ctx)
-	if err != nil {
-		return "", fmt.Errorf("opening log stream: %w", err)
-	}
-	defer stream.Close()
-
-	data, err := io.ReadAll(stream)
-	if err != nil {
-		return "", fmt.Errorf("reading logs: %w", err)
-	}
-	return string(data), nil
+	return len(l.items)
 }
 
-// StreamLogs follows pod logs and sends each line to callback until completed or cancelled.
-func (c *Client) StreamLogs(ctx context.Context, namespace, podName, container string, callback LogCallback) {
-	if callback == nil {
-		return
+// Get returns the string at the given index, or empty string if out of bounds.
+func (l *StringList) Get(index int) string {
+	if l == nil || index < 0 || index >= len(l.items) {
+		return ""
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	opts := &corev1.PodLogOptions{
-		Follow: true,
-	}
-	if container != "" {
-		opts.Container = container
-	}
-
-	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
-	stream, err := req.Stream(ctx)
-	if err != nil {
-		callback.OnError(fmt.Sprintf("opening log stream: %v", err))
-		callback.OnDone()
-		return
-	}
-	defer stream.Close()
-
-	scanner := bufio.NewScanner(stream)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) != "" {
-			callback.OnLogLine(line)
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		callback.OnError(fmt.Sprintf("reading logs: %v", err))
-	}
-	callback.OnDone()
-}
-
-// Exec executes a non-interactive command inside a pod container and returns stdout and stderr.
-func (c *Client) Exec(ctx context.Context, namespace, podName, container string, command []string, stdin string) (*ExecResult, error) {
-	if len(command) == 0 {
-		return nil, fmt.Errorf("command cannot be empty")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	opts := &corev1.PodExecOptions{
-		Command: command,
-		Stdout:  true,
-		Stderr:  true,
-		TTY:     false,
-	}
-	if container != "" {
-		opts.Container = container
-	}
-	if stdin != "" {
-		opts.Stdin = true
-	}
-
-	req := c.clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Namespace(namespace).
-		Name(podName).
-		SubResource("exec").
-		VersionedParams(opts, scheme.ParameterCodec)
-
-	execFactory := c.executorFactory
-	if execFactory == nil {
-		execFactory = defaultExecutorFactory
-	}
-
-	exec, err := execFactory(c.config, "POST", req.URL())
-	if err != nil {
-		return nil, fmt.Errorf("creating exec executor: %w", err)
-	}
-
-	var stdout, stderr bytes.Buffer
-	var stdinReader io.Reader
-	if stdin != "" {
-		stdinReader = strings.NewReader(stdin)
-	}
-
-	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:  stdinReader,
-		Stdout: &stdout,
-		Stderr: &stderr,
-		Tty:    false,
-	})
-
-	result := &ExecResult{
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-	}
-
-	if err != nil {
-		return result, fmt.Errorf("executing command: %w", err)
-	}
-
-	return result, nil
-}
-
-// StartTerminal starts an interactive shell session (/bin/sh) with TTY.
-func (c *Client) StartTerminal(ctx context.Context, namespace, podName, container string, callback ExecCallback) (*ExecSession, error) {
-	return c.StartExecSession(ctx, namespace, podName, container, []string{"/bin/sh"}, true, callback)
-}
-
-// StartExecSession starts an interactive exec session in a container with streaming callbacks and TTY support.
-func (c *Client) StartExecSession(ctx context.Context, namespace, podName, container string, command []string, tty bool, callback ExecCallback) (*ExecSession, error) {
-	if callback == nil {
-		return nil, fmt.Errorf("callback cannot be nil")
-	}
-
-	if len(command) == 0 {
-		command = []string{"/bin/sh"}
-	}
-
-	opts := &corev1.PodExecOptions{
-		Command: command,
-		Stdin:   true,
-		Stdout:  true,
-		Stderr:  !tty,
-		TTY:     tty,
-	}
-	if container != "" {
-		opts.Container = container
-	}
-
-	req := c.clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Namespace(namespace).
-		Name(podName).
-		SubResource("exec").
-		VersionedParams(opts, scheme.ParameterCodec)
-
-	execFactory := c.executorFactory
-	if execFactory == nil {
-		execFactory = defaultExecutorFactory
-	}
-
-	exec, err := execFactory(c.config, "POST", req.URL())
-	if err != nil {
-		return nil, fmt.Errorf("creating exec executor: %w", err)
-	}
-
-	sessionCtx, cancel := context.WithCancel(ctx)
-	stdinReader, stdinWriter := io.Pipe()
-
-	session := &ExecSession{
-		stdinWriter: stdinWriter,
-		cancel:      cancel,
-	}
-
-	var sizeQueue remotecommand.TerminalSizeQueue
-	if tty {
-		resizeChan := make(chan remotecommand.TerminalSize, 1)
-		session.resizeChan = resizeChan
-		sizeQueue = &termSizeQueue{resizeChan: resizeChan}
-	}
-
-	stdoutWriter := &callbackWriter{fn: callback.OnStdout}
-	var stderrWriter io.Writer
-	if !tty {
-		stderrWriter = &callbackWriter{fn: callback.OnStderr}
-	}
-
-	go func() {
-		defer callback.OnDone()
-		defer func() {
-			_ = session.Close()
-			_ = stdinReader.Close()
-		}()
-
-		err := exec.StreamWithContext(sessionCtx, remotecommand.StreamOptions{
-			Stdin:             stdinReader,
-			Stdout:            stdoutWriter,
-			Stderr:            stderrWriter,
-			Tty:               tty,
-			TerminalSizeQueue: sizeQueue,
-		})
-		if err != nil && sessionCtx.Err() == nil {
-			callback.OnError(err.Error())
-		}
-	}()
-
-	return session, nil
-}
-
-func countReadyContainers(containers []corev1.Container, statuses []corev1.ContainerStatus) (int, int) {
-	total := len(containers)
-	ready := 0
-	for _, s := range statuses {
-		if s.Ready {
-			ready++
-		}
-	}
-	return ready, total
-}
-
-func countRestarts(statuses []corev1.ContainerStatus) int32 {
-	var total int32
-	for _, s := range statuses {
-		total += s.RestartCount
-	}
-	return total
-}
-
-func formatAge(t time.Time) string {
-	d := time.Since(t).Truncate(time.Second)
-	days := int(d.Hours()) / 24
-	h := int(d.Hours()) % 24
-	m := int(d.Minutes()) % 60
-	if days > 0 {
-		return fmt.Sprintf("%dd%dh", days, h)
-	}
-	if h > 0 {
-		return fmt.Sprintf("%dh%dm", h, m)
-	}
-	return fmt.Sprintf("%dm", m)
-}
-
-func containerToInfo(c corev1.Container, statuses []corev1.ContainerStatus) ContainerInfo {
-	info := ContainerInfo{
-		Name:  c.Name,
-		Image: c.Image,
-	}
-	for _, s := range statuses {
-		if s.Name == c.Name {
-			info.Ready = s.Ready
-			info.RestartCount = s.RestartCount
-			info.State = formatContainerState(s.State)
-			break
-		}
-	}
-	return info
-}
-
-func formatContainerState(state corev1.ContainerState) string {
-	if state.Running != nil {
-		return "Running"
-	}
-	if state.Waiting != nil {
-		return fmt.Sprintf("Waiting (%s)", state.Waiting.Reason)
-	}
-	if state.Terminated != nil {
-		return fmt.Sprintf("Terminated (exit %d)", state.Terminated.ExitCode)
-	}
-	return "Unknown"
-}
-
-func (c *Client) getPodEvents(ctx context.Context, namespace, podName string) ([]PodEvent, error) {
-	eventList, err := c.clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", podName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing pod events: %w", err)
-	}
-
-	events := make([]PodEvent, len(eventList.Items))
-	for i, e := range eventList.Items {
-		events[i] = PodEvent{
-			Type:    e.Type,
-			Reason:  e.Reason,
-			Message: e.Message,
-			Age:     formatAge(e.LastTimestamp.Time),
-		}
-	}
-	return events, nil
-}
-
-func cloneMap(m map[string]string) map[string]string {
-	if m == nil {
-		return nil
-	}
-	res := make(map[string]string, len(m))
-	for k, v := range m {
-		res[k] = v
-	}
-	return res
+	return l.items[index]
 }

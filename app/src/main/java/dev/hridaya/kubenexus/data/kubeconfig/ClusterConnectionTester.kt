@@ -33,13 +33,13 @@ class ClusterConnectionTester(
     fun testConnection(parsed: ParsedKubeconfig): String {
         Log.d(TAG, "Testing connection to server: ${parsed.serverUrl} (context: ${parsed.contextName})")
 
-        // 1. Verify native bridge client
-        val clientResult = nativeBridge.createClient()
-        if (clientResult.isFailure) {
+        val clientResult = nativeBridge.createClient(parsed.rawKubeconfig)
+        if (clientResult.isSuccess) {
+            Log.d(TAG, "Native Client_ instance successfully created for cluster: ${parsed.clusterName}")
+        } else {
             Log.w(TAG, "Native Client_ instance init note: ${clientResult.exceptionOrNull()?.message}")
         }
 
-        // 2. Perform network probe against API server
         val rawUrl = parsed.serverUrl.trim()
         val normalizedUrl = if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
             rawUrl

@@ -1,8 +1,12 @@
 package dev.hridaya.kubenexus.presentation.pods.detail
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +22,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Info
@@ -31,6 +45,7 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,16 +59,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,6 +93,15 @@ import dev.hridaya.kubenexus.domain.model.PodEventDetail
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
 import dev.hridaya.kubenexus.presentation.pods.components.TermuxTerminalLogViewer
+
+private val TermuxBg = Color(0xFF0D1117)
+private val TermuxSurface = Color(0xFF161B22)
+private val TermuxText = Color(0xFFC9D1D9)
+private val TermuxGreen = Color(0xFF3FB950)
+private val TermuxYellow = Color(0xFFD29922)
+private val TermuxRed = Color(0xFFF85149)
+private val TermuxCyan = Color(0xFF58A6FF)
+private val TermuxPurple = Color(0xFFBC8CFF)
 
 @Composable
 fun PodDetailRoute(
@@ -86,6 +117,10 @@ fun PodDetailRoute(
             when (effect) {
                 is PodDetailUiEffect.ShowToast -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
+
+                is PodDetailUiEffect.NavigateBack -> {
+                    onNavigateBack()
                 }
             }
         }
@@ -141,6 +176,17 @@ fun PodDetailScreen(
                             contentDescription = "Refresh"
                         )
                     }
+                    IconButton(
+                        onClick = { onAction(PodDetailUiAction.ShowDeleteDialog(true)) },
+                        colors = androidx.compose.material3.IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = "Delete Pod"
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
@@ -151,7 +197,6 @@ fun PodDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Tabs: Describe vs Logs
             PrimaryTabRow(
                 selectedTabIndex = uiState.selectedTab.ordinal,
                 containerColor = Color.Transparent,
@@ -161,7 +206,22 @@ fun PodDetailScreen(
                     Tab(
                         selected = uiState.selectedTab == tab,
                         onClick = { onAction(PodDetailUiAction.SelectTab(tab)) },
-                        text = { Text(tab.title) }
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val icon = when (tab) {
+                                    PodDetailTab.DESCRIBE -> Icons.Outlined.Info
+                                    PodDetailTab.LOGS -> Icons.Outlined.Description
+                                    PodDetailTab.TERMINAL -> Icons.Outlined.Terminal
+                                }
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(tab.title)
+                            }
+                        }
                     )
                 }
             }
@@ -173,6 +233,10 @@ fun PodDetailScreen(
                         onNavigateToLogs = { containerName ->
                             onAction(PodDetailUiAction.SelectContainer(containerName))
                             onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
+                        },
+                        onNavigateToTerminal = { containerName ->
+                            onAction(PodDetailUiAction.SelectContainer(containerName))
+                            onAction(PodDetailUiAction.SelectTab(PodDetailTab.TERMINAL))
                         }
                     )
                 }
@@ -183,15 +247,66 @@ fun PodDetailScreen(
                         onAction = onAction
                     )
                 }
+
+                PodDetailTab.TERMINAL -> {
+                    TerminalTabContent(
+                        uiState = uiState,
+                        onAction = onAction
+                    )
+                }
             }
         }
+    }
+
+    if (uiState.showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isDeletingPod) {
+                    onAction(PodDetailUiAction.ShowDeleteDialog(false))
+                }
+            },
+            title = {
+                Text(
+                    text = "Delete Pod",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete pod '${uiState.podName}' in namespace '${uiState.namespace}'? This action will terminate running containers.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onAction(PodDetailUiAction.ConfirmDeletePod) },
+                    enabled = !uiState.isDeletingPod,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Text(if (uiState.isDeletingPod) "Deleting..." else "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { onAction(PodDetailUiAction.ShowDeleteDialog(false)) },
+                    enabled = !uiState.isDeletingPod
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
 @Composable
 private fun DescribeTabContent(
     uiState: PodDetailUiState,
-    onNavigateToLogs: (String) -> Unit
+    onNavigateToLogs: (String) -> Unit,
+    onNavigateToTerminal: (String) -> Unit
 ) {
     if (uiState.isLoading) {
         LoadingContent(message = "Executing describe pod...")
@@ -220,7 +335,6 @@ private fun DescribeTabContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        // Overview Card
         item {
             ElevatedCard(
                 shape = RoundedCornerShape(16.dp),
@@ -274,7 +388,26 @@ private fun DescribeTabContent(
             }
         }
 
-        // Containers Section
+        if (details.initContainers.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Init Containers (${details.initContainers.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            items(details.initContainers) { container ->
+                ContainerCard(
+                    container = container,
+                    isInitContainer = true,
+                    onViewLogsClick = { onNavigateToLogs(container.name) },
+                    onOpenTerminalClick = { onNavigateToTerminal(container.name) }
+                )
+            }
+        }
+
         item {
             Text(
                 text = "Containers (${details.containers.size})",
@@ -287,11 +420,12 @@ private fun DescribeTabContent(
         items(details.containers) { container ->
             ContainerCard(
                 container = container,
-                onViewLogsClick = { onNavigateToLogs(container.name) }
+                isInitContainer = false,
+                onViewLogsClick = { onNavigateToLogs(container.name) },
+                onOpenTerminalClick = { onNavigateToTerminal(container.name) }
             )
         }
 
-        // Conditions Section
         if (details.conditions.isNotEmpty()) {
             item {
                 Text(
@@ -320,7 +454,6 @@ private fun DescribeTabContent(
             }
         }
 
-        // Events Section
         if (details.events.isNotEmpty()) {
             item {
                 Text(
@@ -336,7 +469,48 @@ private fun DescribeTabContent(
             }
         }
 
-        // Labels & Annotations Section
+        if (details.volumes.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Volumes (${details.volumes.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            item {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        details.volumes.forEach { volume ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Layers,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = volume,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if (details.labels.isNotEmpty()) {
             item {
                 Text(
@@ -388,14 +562,13 @@ private fun LogsTabContent(
     uiState: PodDetailUiState,
     onAction: (PodDetailUiAction) -> Unit
 ) {
-    val containers = uiState.podDetails?.containers.orEmpty()
+    val containers = (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(12.dp)
     ) {
-        // Container Selector Chips
         if (containers.size > 1) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -424,7 +597,6 @@ private fun LogsTabContent(
             }
         }
 
-        // Action Buttons: Logs vs Stream Logs
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -437,12 +609,12 @@ private fun LogsTabContent(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Terminal,
+                    imageVector = Icons.Outlined.Description,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Logs")
+                Text("Fetch Logs")
             }
 
             if (uiState.isStreamingLogs) {
@@ -475,7 +647,6 @@ private fun LogsTabContent(
             }
         }
 
-        // Termux Log Viewer
         TermuxTerminalLogViewer(
             logs = uiState.logs,
             isStreaming = uiState.isStreamingLogs,
@@ -486,9 +657,280 @@ private fun LogsTabContent(
 }
 
 @Composable
+private fun TerminalTabContent(
+    uiState: PodDetailUiState,
+    onAction: (PodDetailUiAction) -> Unit
+) {
+    val context = LocalContext.current
+    val containers = (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(uiState.terminalLines.size) {
+        if (uiState.terminalLines.isNotEmpty()) {
+            listState.animateScrollToItem(uiState.terminalLines.size - 1)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Target:",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                if (containers.size > 1) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(containers) { c ->
+                            FilterChip(
+                                selected = c.name == uiState.selectedContainer,
+                                onClick = { onAction(PodDetailUiAction.SelectContainer(c.name)) },
+                                label = { Text(c.name) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = uiState.selectedContainer ?: "default",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            if (uiState.isTerminalActive) {
+                Button(
+                    onClick = { onAction(PodDetailUiAction.StopInteractiveTerminal) },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Icon(imageVector = Icons.Outlined.Stop, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Disconnect", fontSize = 12.sp)
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedButton(
+                        onClick = { onAction(PodDetailUiAction.StartInteractiveTerminal("/bin/sh")) },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Attach /bin/sh", fontSize = 12.sp)
+                    }
+                    Button(
+                        onClick = { onAction(PodDetailUiAction.StartInteractiveTerminal("/bin/bash")) },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Attach /bin/bash", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val quickCommands = listOf("ls -la", "cat /etc/os-release", "env", "df -h", "ps aux", "id", "uname -a")
+            quickCommands.forEach { cmd ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    onClick = { onAction(PodDetailUiAction.ExecuteCommand(cmd)) }
+                ) {
+                    Text(
+                        text = "$ $cmd",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+
+        Surface(
+            color = TermuxBg,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(TermuxSurface)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(if (uiState.isTerminalActive) TermuxGreen else TermuxYellow, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (uiState.isTerminalActive) "interactive session (${uiState.activeShellCommand})" else "exec terminal",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            color = TermuxText
+                        )
+                    }
+
+                    Row {
+                        IconButton(
+                            onClick = {
+                                val fullOutput = uiState.terminalLines.joinToString("\n") { it.text }
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Output", fullOutput))
+                                Toast.makeText(context, "Terminal output copied", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(imageVector = Icons.Outlined.ContentCopy, contentDescription = "Copy", tint = TermuxText, modifier = Modifier.size(14.dp))
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = { onAction(PodDetailUiAction.ClearTerminal) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(imageVector = Icons.Outlined.Clear, contentDescription = "Clear", tint = TermuxText, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(8.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    if (uiState.terminalLines.isEmpty()) {
+                        item {
+                            Text(
+                                text = "# Type a command below or tap a quick shortcut to exec into the pod container.\n# Tap 'Attach' above to open an interactive TTY shell session.",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                color = Color(0xFF6E7681)
+                            )
+                        }
+                    } else {
+                        itemsIndexed(uiState.terminalLines) { _, line ->
+                            val textColor = when (line.type) {
+                                TerminalLineType.INPUT -> TermuxGreen
+                                TerminalLineType.STDOUT -> TermuxText
+                                TerminalLineType.STDERR -> TermuxRed
+                                TerminalLineType.SYSTEM -> TermuxCyan
+                                TerminalLineType.ERROR -> TermuxRed
+                            }
+                            Text(
+                                text = line.text,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                color = textColor,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = uiState.execInputText,
+                onValueChange = { onAction(PodDetailUiAction.UpdateExecInput(it)) },
+                placeholder = {
+                    Text(
+                        text = if (uiState.isTerminalActive) "Send stdin/command to shell..." else "Run command (e.g. ps aux)...",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                },
+                prefix = {
+                    Text(
+                        text = "$ ",
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        if (uiState.execInputText.isNotBlank()) {
+                            onAction(PodDetailUiAction.ExecuteCommand(uiState.execInputText))
+                        }
+                    }
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = {
+                    if (uiState.execInputText.isNotBlank()) {
+                        onAction(PodDetailUiAction.ExecuteCommand(uiState.execInputText))
+                    }
+                },
+                enabled = uiState.execInputText.isNotBlank() && !uiState.isExecutingCommand,
+                modifier = Modifier.height(52.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Send",
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ContainerCard(
     container: ContainerDetail,
-    onViewLogsClick: () -> Unit
+    isInitContainer: Boolean = false,
+    onViewLogsClick: () -> Unit,
+    onOpenTerminalClick: () -> Unit
 ) {
     ElevatedCard(
         shape = RoundedCornerShape(12.dp),
@@ -503,12 +945,28 @@ private fun ContainerCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = container.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = container.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (isInitContainer) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Text(
+                                text = "Init",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                }
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -536,18 +994,36 @@ private fun ContainerCard(
                 DetailItem("Ports", container.ports.joinToString(", "))
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedButton(
-                onClick = onViewLogsClick,
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Terminal,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("View Container Logs")
+                OutlinedButton(
+                    onClick = onViewLogsClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Description,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Logs", fontSize = 12.sp)
+                }
+
+                Button(
+                    onClick = onOpenTerminalClick,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Terminal,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Exec Terminal", fontSize = 12.sp)
+                }
             }
         }
     }

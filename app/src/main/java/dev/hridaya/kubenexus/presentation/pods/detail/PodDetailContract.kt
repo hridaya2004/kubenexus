@@ -4,8 +4,23 @@ import dev.hridaya.kubenexus.domain.model.PodDetails
 
 enum class PodDetailTab(val title: String) {
     DESCRIBE("Describe"),
-    LOGS("Logs & Terminal")
+    LOGS("Logs"),
+    TERMINAL("Terminal")
 }
+
+enum class TerminalLineType {
+    INPUT,
+    STDOUT,
+    STDERR,
+    SYSTEM,
+    ERROR
+}
+
+data class TerminalLine(
+    val text: String,
+    val type: TerminalLineType = TerminalLineType.STDOUT,
+    val timestamp: Long = System.currentTimeMillis()
+)
 
 data class PodDetailUiState(
     val isLoading: Boolean = true,
@@ -18,7 +33,14 @@ data class PodDetailUiState(
     val logs: List<String> = emptyList(),
     val isStreamingLogs: Boolean = false,
     val isLoadingLogs: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val terminalLines: List<TerminalLine> = emptyList(),
+    val isTerminalActive: Boolean = false,
+    val isExecutingCommand: Boolean = false,
+    val execInputText: String = "",
+    val activeShellCommand: String = "/bin/sh",
+    val showDeleteConfirmDialog: Boolean = false,
+    val isDeletingPod: Boolean = false
 )
 
 sealed interface PodDetailUiAction {
@@ -29,8 +51,19 @@ sealed interface PodDetailUiAction {
     data object StartStreamingLogs : PodDetailUiAction
     data object StopStreamingLogs : PodDetailUiAction
     data object ClearLogs : PodDetailUiAction
+
+    data class UpdateExecInput(val input: String) : PodDetailUiAction
+    data class ExecuteCommand(val command: String) : PodDetailUiAction
+    data class StartInteractiveTerminal(val shell: String = "/bin/sh") : PodDetailUiAction
+    data object StopInteractiveTerminal : PodDetailUiAction
+    data class SendTerminalInput(val input: String) : PodDetailUiAction
+    data object ClearTerminal : PodDetailUiAction
+
+    data class ShowDeleteDialog(val show: Boolean) : PodDetailUiAction
+    data object ConfirmDeletePod : PodDetailUiAction
 }
 
 sealed interface PodDetailUiEffect {
     data class ShowToast(val message: String) : PodDetailUiEffect
+    data object NavigateBack : PodDetailUiEffect
 }

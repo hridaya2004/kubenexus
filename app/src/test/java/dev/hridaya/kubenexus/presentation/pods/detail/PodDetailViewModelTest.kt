@@ -4,16 +4,22 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
+import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodEventDetail
 import dev.hridaya.kubenexus.domain.model.PodStatus
+import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
+import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
+import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
+import dev.hridaya.kubenexus.domain.usecase.StartExecSessionUseCase
+import dev.hridaya.kubenexus.domain.usecase.StartPodTerminalUseCase
 import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,6 +62,10 @@ class PodDetailViewModelTest {
             describePodUseCase = DescribePodUseCase(fakePodRepository),
             getPodLogsUseCase = GetPodLogsUseCase(fakePodRepository),
             streamPodLogsUseCase = StreamPodLogsUseCase(fakePodRepository),
+            deletePodUseCase = DeletePodUseCase(fakePodRepository),
+            execPodCommandUseCase = ExecPodCommandUseCase(fakePodRepository),
+            startPodTerminalUseCase = StartPodTerminalUseCase(fakePodRepository),
+            startExecSessionUseCase = StartExecSessionUseCase(fakePodRepository),
             dispatcherProvider = testDispatcherProvider
         )
     }
@@ -85,6 +95,49 @@ class PodDetailViewModelTest {
         assertEquals(PodDetailTab.LOGS, state.selectedTab)
         assertFalse(state.logs.isEmpty())
         assertTrue(state.logs.first().contains("Starting service"))
+    }
+
+    @Test
+    fun `switching tab to TERMINAL updates selected tab`() = runTest(testDispatcher) {
+        advanceUntilIdle()
+
+        viewModel.onAction(PodDetailUiAction.SelectTab(PodDetailTab.TERMINAL))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(PodDetailTab.TERMINAL, state.selectedTab)
+    }
+
+    @Test
+    fun `executing command appends input line and stdout`() = runTest(testDispatcher) {
+        advanceUntilIdle()
+
+        viewModel.onAction(PodDetailUiAction.ExecuteCommand("uname -a"))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.terminalLines.any { it.text == "$ uname -a" })
+        assertTrue(state.terminalLines.any { it.text == "Linux k8s-node 5.15.0" })
+    }
+
+    @Test
+    fun `interactive terminal session connects and handles input`() = runTest(testDispatcher) {
+        advanceUntilIdle()
+
+        viewModel.onAction(PodDetailUiAction.StartInteractiveTerminal("/bin/sh"))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isTerminalActive)
+
+        viewModel.onAction(PodDetailUiAction.SendTerminalInput("whoami"))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.terminalLines.any { it.text == "echo: whoami" })
+
+        viewModel.onAction(PodDetailUiAction.StopInteractiveTerminal)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isTerminalActive)
     }
 
     @Test
@@ -150,12 +203,71 @@ class PodDetailViewModelTest {
             return Result.Success(details)
         }
 
+        override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> {
+            return Result.Success(Unit)
+        }
+
         override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Result<String> {
             return Result.Success("Starting service...\nListening on port 8080\nReady to accept connections.")
         }
 
         override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Flow<String> {
             return flowOf("Log line 1", "Log line 2", "Log line 3")
+        }
+
+        override suspend fun execCommand(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            stdin: String
+        ): Result<CommandExecResult> {
+            return Result.Success(CommandExecResult(stdout = "Linux k8s-node 5.15.0", stderr = ""))
+        }
+
+        override suspend fun startTerminalSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<TerminalSession> {
+            val session = object : TerminalSession {
+                override fun write(input: String) {
+                    onStdout("echo: $input")
+                }
+                override fun writeBytes(bytes: ByteArray) {}
+                override fun close() {
+                    onDone()
+                }
+            }
+            return Result.Success(session)
+        }
+
+        override suspend fun startExecSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            tty: Boolean,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<TerminalSession> {
+            val session = object : TerminalSession {
+                override fun write(input: String) {}
+                override fun writeBytes(bytes: ByteArray) {}
+                override fun close() {
+                    onDone()
+                }
+            }
+            return Result.Success(session)
         }
     }
 }

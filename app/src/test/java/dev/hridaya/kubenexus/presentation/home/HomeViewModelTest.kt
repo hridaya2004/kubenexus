@@ -289,12 +289,65 @@ class HomeViewModelTest {
             )
         }
 
+        override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> {
+            return Result.Success(Unit)
+        }
+
         override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Result<String> {
             return Result.Success("Fake logs output")
         }
 
         override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Flow<String> {
             return flowOf("Fake streamed log line")
+        }
+
+        override suspend fun execCommand(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            stdin: String
+        ): Result<dev.hridaya.kubenexus.domain.model.CommandExecResult> {
+            return Result.Success(dev.hridaya.kubenexus.domain.model.CommandExecResult())
+        }
+
+        override suspend fun startTerminalSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> {
+            val session = object : dev.hridaya.kubenexus.domain.model.TerminalSession {
+                override fun write(input: String) {}
+                override fun writeBytes(bytes: ByteArray) {}
+                override fun close() {}
+            }
+            return Result.Success(session)
+        }
+
+        override suspend fun startExecSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            tty: Boolean,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> {
+            val session = object : dev.hridaya.kubenexus.domain.model.TerminalSession {
+                override fun write(input: String) {}
+                override fun writeBytes(bytes: ByteArray) {}
+                override fun close() {}
+            }
+            return Result.Success(session)
         }
     }
 }

@@ -6,9 +6,14 @@ import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.di.AppContainer
+import dev.hridaya.kubenexus.domain.model.TerminalSession
+import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
+import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
+import dev.hridaya.kubenexus.domain.usecase.StartExecSessionUseCase
+import dev.hridaya.kubenexus.domain.usecase.StartPodTerminalUseCase
 import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -28,6 +33,10 @@ class PodDetailViewModel(
     private val describePodUseCase: DescribePodUseCase,
     private val getPodLogsUseCase: GetPodLogsUseCase,
     private val streamPodLogsUseCase: StreamPodLogsUseCase,
+    private val deletePodUseCase: DeletePodUseCase,
+    private val execPodCommandUseCase: ExecPodCommandUseCase,
+    private val startPodTerminalUseCase: StartPodTerminalUseCase,
+    private val startExecSessionUseCase: StartExecSessionUseCase,
     private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
 
@@ -44,6 +53,7 @@ class PodDetailViewModel(
 
     private var activeClusterId: String? = null
     private var streamJob: Job? = null
+    private var activeTerminalSession: TerminalSession? = null
 
     init {
         loadClusterAndDescribe()
@@ -85,7 +95,7 @@ class PodDetailViewModel(
                 _uiState.update { it.copy(selectedContainer = action.containerName) }
                 if (_uiState.value.isStreamingLogs) {
                     startStreaming()
-                } else {
+                } else if (_uiState.value.selectedTab == PodDetailTab.LOGS) {
                     fetchLogs()
                 }
             }
@@ -106,6 +116,38 @@ class PodDetailViewModel(
             is PodDetailUiAction.ClearLogs -> {
                 _uiState.update { it.copy(logs = emptyList()) }
             }
+
+            is PodDetailUiAction.UpdateExecInput -> {
+                _uiState.update { it.copy(execInputText = action.input) }
+            }
+
+            is PodDetailUiAction.ExecuteCommand -> {
+                handleExecuteCommand(action.command)
+            }
+
+            is PodDetailUiAction.StartInteractiveTerminal -> {
+                startTerminal(action.shell)
+            }
+
+            is PodDetailUiAction.StopInteractiveTerminal -> {
+                stopTerminal()
+            }
+
+            is PodDetailUiAction.SendTerminalInput -> {
+                sendInputToTerminal(action.input)
+            }
+
+            is PodDetailUiAction.ClearTerminal -> {
+                _uiState.update { it.copy(terminalLines = emptyList()) }
+            }
+
+            is PodDetailUiAction.ShowDeleteDialog -> {
+                _uiState.update { it.copy(showDeleteConfirmDialog = action.show) }
+            }
+
+            is PodDetailUiAction.ConfirmDeletePod -> {
+                deletePod()
+            }
         }
     }
 
@@ -118,6 +160,7 @@ class PodDetailViewModel(
                 is Result.Success -> {
                     val details = result.data
                     val defaultContainer = details.containers.firstOrNull()?.name
+                        ?: details.initContainers.firstOrNull()?.name
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -212,9 +255,229 @@ class PodDetailViewModel(
         _uiState.update { it.copy(isStreamingLogs = false) }
     }
 
+    private fun handleExecuteCommand(cmd: String) {
+        val command = cmd.trim()
+        if (command.isBlank()) return
+
+        _uiState.update { it.copy(execInputText = "") }
+
+        if (_uiState.value.isTerminalActive && activeTerminalSession != null) {
+            sendInputToTerminal(command)
+            return
+        }
+
+        val cid = activeClusterId ?: return
+        val container = _uiState.value.selectedContainer ?: "default"
+
+        _uiState.update {
+            it.copy(
+                isExecutingCommand = true,
+                terminalLines = it.terminalLines + TerminalLine(text = "$ $command", type = TerminalLineType.INPUT)
+            )
+        }
+
+        viewModelScope.launch(dispatcherProvider.main) {
+            when (val result = execPodCommandUseCase(cid, namespace, podName, container, command, "")) {
+                is Result.Success -> {
+                    val execResult = result.data
+                    val newLines = mutableListOf<TerminalLine>()
+                    val stdout = execResult.stdout
+                    val stderr = execResult.stderr
+
+                    if (stdout.isNotBlank()) {
+                        stdout.lines().forEach { line ->
+                            newLines.add(TerminalLine(text = line, type = TerminalLineType.STDOUT))
+                        }
+                    }
+                    if (stderr.isNotBlank()) {
+                        stderr.lines().forEach { line ->
+                            newLines.add(TerminalLine(text = line, type = TerminalLineType.STDERR))
+                        }
+                    }
+                    if (stdout.isBlank() && stderr.isBlank()) {
+                        newLines.add(TerminalLine(text = "[Exit code 0]", type = TerminalLineType.SYSTEM))
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            isExecutingCommand = false,
+                            terminalLines = it.terminalLines + newLines
+                        )
+                    }
+                }
+
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isExecutingCommand = false,
+                            terminalLines = it.terminalLines + TerminalLine(
+                                text = "Error: ${result.error.message}",
+                                type = TerminalLineType.ERROR
+                            )
+                        )
+                    }
+                }
+
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    private fun startTerminal(shell: String) {
+        stopTerminal()
+        val cid = activeClusterId ?: return
+        val container = _uiState.value.selectedContainer ?: "default"
+
+        _uiState.update {
+            it.copy(
+                isTerminalActive = true,
+                activeShellCommand = shell,
+                terminalLines = it.terminalLines + TerminalLine(
+                    text = "[Connecting interactive shell '$shell' on container '$container' ...]",
+                    type = TerminalLineType.SYSTEM
+                )
+            )
+        }
+
+        viewModelScope.launch(dispatcherProvider.main) {
+            val sessionResult = startPodTerminalUseCase(
+                clusterId = cid,
+                namespace = namespace,
+                podName = podName,
+                containerName = container,
+                onStdout = { output ->
+                    viewModelScope.launch(dispatcherProvider.main) {
+                        output.lines().forEach { line ->
+                            _uiState.update {
+                                it.copy(terminalLines = it.terminalLines + TerminalLine(text = line, type = TerminalLineType.STDOUT))
+                            }
+                        }
+                    }
+                },
+                onStderr = { output ->
+                    viewModelScope.launch(dispatcherProvider.main) {
+                        output.lines().forEach { line ->
+                            _uiState.update {
+                                it.copy(terminalLines = it.terminalLines + TerminalLine(text = line, type = TerminalLineType.STDERR))
+                            }
+                        }
+                    }
+                },
+                onError = { err ->
+                    viewModelScope.launch(dispatcherProvider.main) {
+                        _uiState.update {
+                            it.copy(
+                                terminalLines = it.terminalLines + TerminalLine(text = "[Shell Error: $err]", type = TerminalLineType.ERROR),
+                                isTerminalActive = false
+                            )
+                        }
+                    }
+                },
+                onDone = {
+                    viewModelScope.launch(dispatcherProvider.main) {
+                        _uiState.update {
+                            it.copy(
+                                terminalLines = it.terminalLines + TerminalLine(text = "[Session closed]", type = TerminalLineType.SYSTEM),
+                                isTerminalActive = false
+                            )
+                        }
+                    }
+                }
+            )
+
+            when (sessionResult) {
+                is Result.Success -> {
+                    activeTerminalSession = sessionResult.data
+                    _uiState.update {
+                        it.copy(
+                            terminalLines = it.terminalLines + TerminalLine(
+                                text = "[Interactive session connected. Type commands below]",
+                                type = TerminalLineType.SYSTEM
+                            )
+                        )
+                    }
+                }
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isTerminalActive = false,
+                            terminalLines = it.terminalLines + TerminalLine(
+                                text = "[Failed to attach terminal: ${sessionResult.error.message}]",
+                                type = TerminalLineType.ERROR
+                            )
+                        )
+                    }
+                }
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    private fun sendInputToTerminal(input: String) {
+        val session = activeTerminalSession
+        if (session != null) {
+            try {
+                session.write(input + "\n")
+                _uiState.update {
+                    it.copy(
+                        terminalLines = it.terminalLines + TerminalLine(text = input, type = TerminalLineType.INPUT)
+                    )
+                }
+            } catch (t: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        terminalLines = it.terminalLines + TerminalLine(text = "[Write error: ${t.message}]", type = TerminalLineType.ERROR)
+                    )
+                }
+            }
+        } else {
+            handleExecuteCommand(input)
+        }
+    }
+
+    private fun stopTerminal() {
+        try {
+            activeTerminalSession?.close()
+        } catch (_: Throwable) {}
+        activeTerminalSession = null
+        _uiState.update {
+            if (it.isTerminalActive) {
+                it.copy(
+                    isTerminalActive = false,
+                    terminalLines = it.terminalLines + TerminalLine(text = "[Terminal disconnected]", type = TerminalLineType.SYSTEM)
+                )
+            } else {
+                it
+            }
+        }
+    }
+
+    private fun deletePod() {
+        val cid = activeClusterId ?: return
+        _uiState.update { it.copy(isDeletingPod = true) }
+
+        viewModelScope.launch(dispatcherProvider.main) {
+            when (val result = deletePodUseCase(cid, namespace, podName)) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(isDeletingPod = false, showDeleteConfirmDialog = false) }
+                    _effects.send(PodDetailUiEffect.ShowToast("Pod '$podName' deleted successfully"))
+                    _effects.send(PodDetailUiEffect.NavigateBack)
+                }
+
+                is Result.Error -> {
+                    _uiState.update { it.copy(isDeletingPod = false, showDeleteConfirmDialog = false) }
+                    _effects.send(PodDetailUiEffect.ShowToast("Failed to delete pod: ${result.error.message}"))
+                }
+
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         stopStreaming()
+        stopTerminal()
     }
 
     companion object {
@@ -232,6 +495,10 @@ class PodDetailViewModel(
                     describePodUseCase = container.describePodUseCase,
                     getPodLogsUseCase = container.getPodLogsUseCase,
                     streamPodLogsUseCase = container.streamPodLogsUseCase,
+                    deletePodUseCase = container.deletePodUseCase,
+                    execPodCommandUseCase = container.execPodCommandUseCase,
+                    startPodTerminalUseCase = container.startPodTerminalUseCase,
+                    startExecSessionUseCase = container.startExecSessionUseCase,
                     dispatcherProvider = container.dispatcherProvider
                 ) as T
             }

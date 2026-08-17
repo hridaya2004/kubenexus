@@ -3,27 +3,51 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 const defaultTimeout = 30 * time.Second
 
+type executorFactoryFunc func(config *rest.Config, method string, u *url.URL) (remotecommand.Executor, error)
+
+func defaultExecutorFactory(config *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+	wsExec, err := remotecommand.NewWebSocketExecutor(config, "GET", u.String())
+	if err != nil {
+		return remotecommand.NewSPDYExecutor(config, method, u)
+	}
+
+	spdyExec, err := remotecommand.NewSPDYExecutor(config, method, u)
+	if err != nil {
+		return wsExec, nil
+	}
+
+	return remotecommand.NewFallbackExecutor(wsExec, spdyExec, httpstream.IsUpgradeFailure)
+}
+
 // Client wraps a Kubernetes clientset for cluster operations.
 type Client struct {
-	clientset   *kubernetes.Clientset
-	timeout     time.Duration
-	contentType string
+	clientset       *kubernetes.Clientset
+	config          *rest.Config
+	timeout         time.Duration
+	contentType     string
+	executorFactory executorFactoryFunc
 }
 
 // Namespace contains name and status for a cluster namespace.
@@ -95,6 +119,107 @@ type LogCallback interface {
 	OnDone()
 }
 
+// ExecResult contains the captured stdout and stderr from a command execution.
+type ExecResult struct {
+	Stdout string
+	Stderr string
+}
+
+// ExecCallback receives streamed output and lifecycle events for an interactive exec session.
+type ExecCallback interface {
+	OnStdout(data string)
+	OnStderr(data string)
+	OnError(err string)
+	OnDone()
+}
+
+// ExecSession represents an active interactive exec session in a container.
+type ExecSession struct {
+	stdinWriter io.WriteCloser
+	cancel      context.CancelFunc
+	resizeChan  chan remotecommand.TerminalSize
+	mu          sync.Mutex
+	closed      bool
+}
+
+// Write writes string data to the container's standard input.
+func (s *ExecSession) Write(data string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || s.stdinWriter == nil {
+		return fmt.Errorf("session is closed")
+	}
+	_, err := s.stdinWriter.Write([]byte(data))
+	return err
+}
+
+// WriteBytes writes raw byte data to the container's standard input.
+func (s *ExecSession) WriteBytes(data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || s.stdinWriter == nil {
+		return fmt.Errorf("session is closed")
+	}
+	_, err := s.stdinWriter.Write(data)
+	return err
+}
+
+// Resize updates the terminal dimensions for TTY-enabled sessions.
+func (s *ExecSession) Resize(width, height int32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || s.resizeChan == nil || width <= 0 || height <= 0 {
+		return
+	}
+	select {
+	case s.resizeChan <- remotecommand.TerminalSize{Width: uint16(width), Height: uint16(height)}:
+	default:
+	}
+}
+
+// Close terminates the exec session and releases associated resources.
+func (s *ExecSession) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+	if s.cancel != nil {
+		s.cancel()
+	}
+	if s.resizeChan != nil {
+		close(s.resizeChan)
+	}
+	if s.stdinWriter != nil {
+		return s.stdinWriter.Close()
+	}
+	return nil
+}
+
+type termSizeQueue struct {
+	resizeChan chan remotecommand.TerminalSize
+}
+
+func (q *termSizeQueue) Next() *remotecommand.TerminalSize {
+	size, ok := <-q.resizeChan
+	if !ok {
+		return nil
+	}
+	return &size
+}
+
+type callbackWriter struct {
+	fn func(string)
+}
+
+func (w *callbackWriter) Write(p []byte) (int, error) {
+	if len(p) > 0 && w.fn != nil {
+		w.fn(string(p))
+	}
+	return len(p), nil
+}
+
 // Option configures a Client during construction.
 type Option func(*Client) error
 
@@ -152,7 +277,8 @@ func NewFromData(data []byte, opts ...Option) (*Client, error) {
 // NewFromConfig creates a Client from an existing rest.Config.
 func NewFromConfig(config *rest.Config, opts ...Option) (*Client, error) {
 	c := &Client{
-		timeout: defaultTimeout,
+		timeout:         defaultTimeout,
+		executorFactory: defaultExecutorFactory,
 	}
 
 	for _, opt := range opts {
@@ -172,25 +298,9 @@ func NewFromConfig(config *rest.Config, opts ...Option) (*Client, error) {
 		return nil, fmt.Errorf("creating clientset: %w", err)
 	}
 	c.clientset = clientset
+	c.config = config
 
 	return c, nil
-}
-
-// ListPods returns pod names in the namespace, or all namespaces if empty.
-func (c *Client) ListPods(ctx context.Context, namespace string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("listing pods: %w", err)
-	}
-
-	names := make([]string, len(pods.Items))
-	for i, pod := range pods.Items {
-		names[i] = pod.Name
-	}
-	return names, nil
 }
 
 // ListNamespaces returns all namespaces in the cluster.
@@ -211,6 +321,23 @@ func (c *Client) ListNamespaces(ctx context.Context) ([]Namespace, error) {
 		}
 	}
 	return namespaces, nil
+}
+
+// ListPods returns pod names in the namespace, or all namespaces if empty.
+func (c *Client) ListPods(ctx context.Context, namespace string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("listing pods: %w", err)
+	}
+
+	names := make([]string, len(pods.Items))
+	for i, pod := range pods.Items {
+		names[i] = pod.Name
+	}
+	return names, nil
 }
 
 // ListPodsWide returns pod summaries in the namespace, or all namespaces if empty.
@@ -238,6 +365,276 @@ func (c *Client) ListPodsWide(ctx context.Context, namespace string) ([]Pod, err
 		}
 	}
 	return result, nil
+}
+
+// DescribePod returns detailed information for a specific pod.
+func (c *Client) DescribePod(ctx context.Context, namespace, name string) (*PodDetails, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	pod, err := c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("getting pod: %w", err)
+	}
+
+	details := &PodDetails{
+		Name:          pod.Name,
+		Namespace:     pod.Namespace,
+		Status:        string(pod.Status.Phase),
+		Node:          pod.Spec.NodeName,
+		IP:            pod.Status.PodIP,
+		HostIP:        pod.Status.HostIP,
+		RestartPolicy: string(pod.Spec.RestartPolicy),
+		Labels:        cloneMap(pod.Labels),
+	}
+
+	if pod.Status.StartTime != nil {
+		details.StartTime = pod.Status.StartTime.Format(time.RFC3339)
+	}
+
+	for _, c := range pod.Spec.InitContainers {
+		details.InitContainers = append(details.InitContainers, containerToInfo(c, pod.Status.InitContainerStatuses))
+	}
+	for _, c := range pod.Spec.Containers {
+		details.Containers = append(details.Containers, containerToInfo(c, pod.Status.ContainerStatuses))
+	}
+
+	for _, cond := range pod.Status.Conditions {
+		details.Conditions = append(details.Conditions, PodCondition{
+			Type:               string(cond.Type),
+			Status:             string(cond.Status),
+			LastTransitionTime: cond.LastTransitionTime.Format(time.RFC3339),
+			Reason:             cond.Reason,
+			Message:            cond.Message,
+		})
+	}
+
+	for _, v := range pod.Spec.Volumes {
+		details.Volumes = append(details.Volumes, v.Name)
+	}
+
+	events, err := c.getPodEvents(ctx, namespace, name)
+	if err != nil {
+		details.Events = []PodEvent{}
+	} else {
+		details.Events = events
+	}
+
+	return details, nil
+}
+
+// Logs returns the full log output for a container.
+func (c *Client) Logs(ctx context.Context, namespace, podName, container string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	opts := &corev1.PodLogOptions{}
+	if container != "" {
+		opts.Container = container
+	}
+
+	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("opening log stream: %w", err)
+	}
+	defer stream.Close()
+
+	data, err := io.ReadAll(stream)
+	if err != nil {
+		return "", fmt.Errorf("reading logs: %w", err)
+	}
+	return string(data), nil
+}
+
+// StreamLogs follows pod logs and sends each line to callback until completed or cancelled.
+func (c *Client) StreamLogs(ctx context.Context, namespace, podName, container string, callback LogCallback) {
+	if callback == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	opts := &corev1.PodLogOptions{
+		Follow: true,
+	}
+	if container != "" {
+		opts.Container = container
+	}
+
+	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		callback.OnError(fmt.Sprintf("opening log stream: %v", err))
+		callback.OnDone()
+		return
+	}
+	defer stream.Close()
+
+	scanner := bufio.NewScanner(stream)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) != "" {
+			callback.OnLogLine(line)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		callback.OnError(fmt.Sprintf("reading logs: %v", err))
+	}
+	callback.OnDone()
+}
+
+// Exec executes a non-interactive command inside a pod container and returns stdout and stderr.
+func (c *Client) Exec(ctx context.Context, namespace, podName, container string, command []string, stdin string) (*ExecResult, error) {
+	if len(command) == 0 {
+		return nil, fmt.Errorf("command cannot be empty")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	opts := &corev1.PodExecOptions{
+		Command: command,
+		Stdout:  true,
+		Stderr:  true,
+		TTY:     false,
+	}
+	if container != "" {
+		opts.Container = container
+	}
+	if stdin != "" {
+		opts.Stdin = true
+	}
+
+	req := c.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(podName).
+		SubResource("exec").
+		VersionedParams(opts, scheme.ParameterCodec)
+
+	execFactory := c.executorFactory
+	if execFactory == nil {
+		execFactory = defaultExecutorFactory
+	}
+
+	exec, err := execFactory(c.config, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("creating exec executor: %w", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	var stdinReader io.Reader
+	if stdin != "" {
+		stdinReader = strings.NewReader(stdin)
+	}
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdin:  stdinReader,
+		Stdout: &stdout,
+		Stderr: &stderr,
+		Tty:    false,
+	})
+
+	result := &ExecResult{
+		Stdout: stdout.String(),
+		Stderr: stderr.String(),
+	}
+
+	if err != nil {
+		return result, fmt.Errorf("executing command: %w", err)
+	}
+
+	return result, nil
+}
+
+// StartTerminal starts an interactive shell session (/bin/sh) with TTY.
+func (c *Client) StartTerminal(ctx context.Context, namespace, podName, container string, callback ExecCallback) (*ExecSession, error) {
+	return c.StartExecSession(ctx, namespace, podName, container, []string{"/bin/sh"}, true, callback)
+}
+
+// StartExecSession starts an interactive exec session in a container with streaming callbacks and TTY support.
+func (c *Client) StartExecSession(ctx context.Context, namespace, podName, container string, command []string, tty bool, callback ExecCallback) (*ExecSession, error) {
+	if callback == nil {
+		return nil, fmt.Errorf("callback cannot be nil")
+	}
+
+	if len(command) == 0 {
+		command = []string{"/bin/sh"}
+	}
+
+	opts := &corev1.PodExecOptions{
+		Command: command,
+		Stdin:   true,
+		Stdout:  true,
+		Stderr:  !tty,
+		TTY:     tty,
+	}
+	if container != "" {
+		opts.Container = container
+	}
+
+	req := c.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(podName).
+		SubResource("exec").
+		VersionedParams(opts, scheme.ParameterCodec)
+
+	execFactory := c.executorFactory
+	if execFactory == nil {
+		execFactory = defaultExecutorFactory
+	}
+
+	exec, err := execFactory(c.config, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("creating exec executor: %w", err)
+	}
+
+	sessionCtx, cancel := context.WithCancel(ctx)
+	stdinReader, stdinWriter := io.Pipe()
+
+	session := &ExecSession{
+		stdinWriter: stdinWriter,
+		cancel:      cancel,
+	}
+
+	var sizeQueue remotecommand.TerminalSizeQueue
+	if tty {
+		resizeChan := make(chan remotecommand.TerminalSize, 1)
+		session.resizeChan = resizeChan
+		sizeQueue = &termSizeQueue{resizeChan: resizeChan}
+	}
+
+	stdoutWriter := &callbackWriter{fn: callback.OnStdout}
+	var stderrWriter io.Writer
+	if !tty {
+		stderrWriter = &callbackWriter{fn: callback.OnStderr}
+	}
+
+	go func() {
+		defer callback.OnDone()
+		defer func() {
+			_ = session.Close()
+			_ = stdinReader.Close()
+		}()
+
+		err := exec.StreamWithContext(sessionCtx, remotecommand.StreamOptions{
+			Stdin:             stdinReader,
+			Stdout:            stdoutWriter,
+			Stderr:            stderrWriter,
+			Tty:               tty,
+			TerminalSizeQueue: sizeQueue,
+		})
+		if err != nil && sessionCtx.Err() == nil {
+			callback.OnError(err.Error())
+		}
+	}()
+
+	return session, nil
 }
 
 func countReadyContainers(containers []corev1.Container, statuses []corev1.ContainerStatus) (int, int) {
@@ -273,63 +670,6 @@ func formatAge(t time.Time) string {
 	return fmt.Sprintf("%dm", m)
 }
 
-// DescribePod returns detailed information for a specific pod.
-func (c *Client) DescribePod(ctx context.Context, namespace, name string) (*PodDetails, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	pod, err := c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("getting pod: %w", err)
-	}
-
-	details := &PodDetails{
-		Name:          pod.Name,
-		Namespace:     pod.Namespace,
-		Status:        string(pod.Status.Phase),
-		Node:          pod.Spec.NodeName,
-		IP:            pod.Status.PodIP,
-		HostIP:        pod.Status.HostIP,
-		RestartPolicy: string(pod.Spec.RestartPolicy),
-		Labels:        cloneMap(pod.Labels),
-	}
-
-	if pod.Status.StartTime != nil {
-		details.StartTime = pod.Status.StartTime.Format(time.RFC3339)
-	}
-
-	for _, c := range pod.Spec.InitContainers {
-		details.InitContainers = append(details.InitContainers, containerToInfo(c, pod.Status.InitContainerStatuses))
-	}
-	for _, c := range pod.Spec.Containers {
-		details.Containers = append(details.Containers, containerToInfo(c, pod.Status.ContainerStatuses))
-	}
-
-	for _, v := range pod.Spec.Volumes {
-		details.Volumes = append(details.Volumes, v.Name)
-	}
-
-	for _, cond := range pod.Status.Conditions {
-		details.Conditions = append(details.Conditions, PodCondition{
-			Type:               string(cond.Type),
-			Status:             string(cond.Status),
-			LastTransitionTime: cond.LastTransitionTime.Format(time.RFC3339),
-			Reason:             cond.Reason,
-			Message:            cond.Message,
-		})
-	}
-
-	events, err := c.getPodEvents(ctx, namespace, name)
-	if err != nil {
-		// Best effort: lack of event permissions or missing events shouldn't fail pod description.
-		details.Events = []PodEvent{}
-	} else {
-		details.Events = events
-	}
-
-	return details, nil
-}
-
 func containerToInfo(c corev1.Container, statuses []corev1.ContainerStatus) ContainerInfo {
 	info := ContainerInfo{
 		Name:  c.Name,
@@ -359,17 +699,6 @@ func formatContainerState(state corev1.ContainerState) string {
 	return "Unknown"
 }
 
-func cloneMap(m map[string]string) map[string]string {
-	if m == nil {
-		return nil
-	}
-	clone := make(map[string]string, len(m))
-	for k, v := range m {
-		clone[k] = v
-	}
-	return clone
-}
-
 func (c *Client) getPodEvents(ctx context.Context, namespace, podName string) ([]PodEvent, error) {
 	eventList, err := c.clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", podName),
@@ -390,59 +719,13 @@ func (c *Client) getPodEvents(ctx context.Context, namespace, podName string) ([
 	return events, nil
 }
 
-// Logs returns the full log output for a container.
-func (c *Client) Logs(ctx context.Context, namespace, podName, container string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	opts := &corev1.PodLogOptions{}
-	if container != "" {
-		opts.Container = container
+func cloneMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
 	}
-
-	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
-	stream, err := req.Stream(ctx)
-	if err != nil {
-		return "", fmt.Errorf("opening log stream: %w", err)
+	res := make(map[string]string, len(m))
+	for k, v := range m {
+		res[k] = v
 	}
-	defer stream.Close()
-
-	data, err := io.ReadAll(stream)
-	if err != nil {
-		return "", fmt.Errorf("reading logs: %w", err)
-	}
-	return string(data), nil
-}
-
-// StreamLogs follows pod logs and sends each line to callback until completed or cancelled.
-func (c *Client) StreamLogs(ctx context.Context, namespace, podName, container string, callback LogCallback) {
-	opts := &corev1.PodLogOptions{
-		Follow: true,
-	}
-	if container != "" {
-		opts.Container = container
-	}
-
-	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
-	stream, err := req.Stream(ctx)
-	if err != nil {
-		callback.OnError(fmt.Sprintf("opening log stream: %v", err))
-		callback.OnDone()
-		return
-	}
-	defer stream.Close()
-
-	scanner := bufio.NewScanner(stream)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) != "" {
-			callback.OnLogLine(line)
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		callback.OnError(fmt.Sprintf("reading logs: %v", err))
-	}
-	callback.OnDone()
+	return res
 }

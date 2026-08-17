@@ -1,12 +1,18 @@
 package client
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"net/url"
+	"sync"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 func TestWithTimeout(t *testing.T) {
@@ -467,5 +473,270 @@ func TestCloneMapNil(t *testing.T) {
 	clone := cloneMap(nil)
 	if clone != nil {
 		t.Errorf("cloneMap(nil) = %v, want nil", clone)
+	}
+}
+
+type mockExecCallback struct {
+	mu     sync.Mutex
+	stdout []string
+	stderr []string
+	errors []string
+	done   bool
+}
+
+func (m *mockExecCallback) OnStdout(data string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stdout = append(m.stdout, data)
+}
+
+func (m *mockExecCallback) OnStderr(data string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stderr = append(m.stderr, data)
+}
+
+func (m *mockExecCallback) OnError(err string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.errors = append(m.errors, err)
+}
+
+func (m *mockExecCallback) OnDone() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.done = true
+}
+
+func (m *mockExecCallback) isDone() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.done
+}
+
+type mockExecutor struct {
+	streamFunc func(ctx context.Context, options remotecommand.StreamOptions) error
+}
+
+func (m *mockExecutor) Stream(options remotecommand.StreamOptions) error {
+	return m.StreamWithContext(context.Background(), options)
+}
+
+func (m *mockExecutor) StreamWithContext(ctx context.Context, options remotecommand.StreamOptions) error {
+	if m.streamFunc != nil {
+		return m.streamFunc(ctx, options)
+	}
+	return nil
+}
+
+func TestExecResultStruct(t *testing.T) {
+	res := ExecResult{
+		Stdout: "output",
+		Stderr: "error output",
+	}
+	if res.Stdout != "output" || res.Stderr != "error output" {
+		t.Errorf("ExecResult = %+v, want stdout 'output' and stderr 'error output'", res)
+	}
+}
+
+func TestDefaultExecutorFactory(t *testing.T) {
+	config := &rest.Config{Host: "http://localhost:8080"}
+	u, err := url.Parse("http://localhost:8080/api/v1/namespaces/default/pods/pod-1/exec")
+	if err != nil {
+		t.Fatalf("url.Parse() error = %v", err)
+	}
+
+	exec, err := defaultExecutorFactory(config, "POST", u)
+	if err != nil {
+		t.Fatalf("defaultExecutorFactory() error = %v", err)
+	}
+	if exec == nil {
+		t.Fatal("defaultExecutorFactory() returned nil executor")
+	}
+}
+
+func TestExec_EmptyCommand(t *testing.T) {
+	c := &Client{timeout: defaultTimeout}
+	_, err := c.Exec(context.Background(), "default", "pod-1", "container-1", nil, "")
+	if err == nil {
+		t.Fatal("Exec with empty command expected error, got nil")
+	}
+}
+
+func TestExec_Success(t *testing.T) {
+	config := &rest.Config{Host: "http://localhost:8080"}
+	c, err := NewFromConfig(config)
+	if err != nil {
+		t.Fatalf("NewFromConfig() error = %v", err)
+	}
+
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				if options.Stdin != nil {
+					var inBuf bytes.Buffer
+					_, _ = inBuf.ReadFrom(options.Stdin)
+					if inBuf.String() != "input data" {
+						return fmt.Errorf("unexpected stdin: %q", inBuf.String())
+					}
+				}
+				if options.Stdout != nil {
+					_, _ = options.Stdout.Write([]byte("command stdout"))
+				}
+				if options.Stderr != nil {
+					_, _ = options.Stderr.Write([]byte("command stderr"))
+				}
+				return nil
+			},
+		}, nil
+	}
+
+	res, err := c.Exec(context.Background(), "default", "pod-1", "container-1", []string{"echo", "hi"}, "input data")
+	if err != nil {
+		t.Fatalf("Exec() error = %v", err)
+	}
+	if res.Stdout != "command stdout" {
+		t.Errorf("res.Stdout = %q, want 'command stdout'", res.Stdout)
+	}
+	if res.Stderr != "command stderr" {
+		t.Errorf("res.Stderr = %q, want 'command stderr'", res.Stderr)
+	}
+}
+
+func TestExec_ExecutorError(t *testing.T) {
+	config := &rest.Config{Host: "http://localhost:8080"}
+	c, err := NewFromConfig(config)
+	if err != nil {
+		t.Fatalf("NewFromConfig() error = %v", err)
+	}
+
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				return fmt.Errorf("stream failed")
+			},
+		}, nil
+	}
+
+	_, err = c.Exec(context.Background(), "default", "pod-1", "container-1", []string{"ls"}, "")
+	if err == nil {
+		t.Fatal("Exec expected stream error, got nil")
+	}
+}
+
+func TestStartExecSession_NilCallback(t *testing.T) {
+	c := &Client{timeout: defaultTimeout}
+	_, err := c.StartExecSession(context.Background(), "default", "pod-1", "container-1", []string{"/bin/sh"}, true, nil)
+	if err == nil {
+		t.Fatal("StartExecSession with nil callback expected error, got nil")
+	}
+}
+
+func TestStartExecSession_Success(t *testing.T) {
+	config := &rest.Config{Host: "http://localhost:8080"}
+	c, err := NewFromConfig(config)
+	if err != nil {
+		t.Fatalf("NewFromConfig() error = %v", err)
+	}
+
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				if options.Stdout != nil {
+					_, _ = options.Stdout.Write([]byte("session started\n"))
+				}
+				return nil
+			},
+		}, nil
+	}
+
+	cb := &mockExecCallback{}
+	session, err := c.StartExecSession(context.Background(), "default", "pod-1", "container-1", []string{"/bin/sh"}, true, cb)
+	if err != nil {
+		t.Fatalf("StartExecSession() error = %v", err)
+	}
+	defer session.Close()
+
+	if err := session.Write("ls\n"); err != nil {
+		t.Errorf("session.Write() error = %v", err)
+	}
+	if err := session.WriteBytes([]byte("pwd\n")); err != nil {
+		t.Errorf("session.WriteBytes() error = %v", err)
+	}
+	session.Resize(80, 24)
+
+	// Wait for goroutine to finish
+	time.Sleep(10 * time.Millisecond)
+	if !cb.isDone() {
+		t.Error("expected callback OnDone to have been called")
+	}
+}
+
+func TestExecSession_ClosedOperations(t *testing.T) {
+	s := &ExecSession{}
+	if err := s.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+	// Calling Close multiple times should be safe
+	if err := s.Close(); err != nil {
+		t.Errorf("second Close() error = %v", err)
+	}
+
+	if err := s.Write("data"); err == nil {
+		t.Error("Write() on closed session expected error, got nil")
+	}
+	if err := s.WriteBytes([]byte("data")); err == nil {
+		t.Error("WriteBytes() on closed session expected error, got nil")
+	}
+	// Resize should be safe
+	s.Resize(80, 24)
+}
+
+func TestTermSizeQueue(t *testing.T) {
+	ch := make(chan remotecommand.TerminalSize, 2)
+	q := &termSizeQueue{resizeChan: ch}
+
+	ch <- remotecommand.TerminalSize{Width: 80, Height: 24}
+	ch <- remotecommand.TerminalSize{Width: 120, Height: 40}
+	close(ch)
+
+	s1 := q.Next()
+	if s1 == nil || s1.Width != 80 || s1.Height != 24 {
+		t.Errorf("first Next() = %v, want 80x24", s1)
+	}
+
+	s2 := q.Next()
+	if s2 == nil || s2.Width != 120 || s2.Height != 40 {
+		t.Errorf("second Next() = %v, want 120x40", s2)
+	}
+
+	s3 := q.Next()
+	if s3 != nil {
+		t.Errorf("Next() after close = %v, want nil", s3)
+	}
+}
+
+func TestCallbackWriter(t *testing.T) {
+	var written []string
+	cw := &callbackWriter{
+		fn: func(s string) {
+			written = append(written, s)
+		},
+	}
+
+	n, err := cw.Write([]byte("hello"))
+	if err != nil || n != 5 {
+		t.Errorf("Write() n = %d, err = %v", n, err)
+	}
+	if len(written) != 1 || written[0] != "hello" {
+		t.Errorf("written = %v, want ['hello']", written)
+	}
+
+	n, err = cw.Write([]byte(""))
+	if err != nil || n != 0 {
+		t.Errorf("Write('') n = %d, err = %v", n, err)
+	}
+	if len(written) != 1 {
+		t.Errorf("written length after empty write = %d, want 1", len(written))
 	}
 }

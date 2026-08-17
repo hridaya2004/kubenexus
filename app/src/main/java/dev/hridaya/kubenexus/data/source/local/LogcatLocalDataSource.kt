@@ -51,6 +51,14 @@ class DefaultLogcatLocalDataSource(
             while (isActive) {
                 val line = reader.readLine() ?: break
                 val entry = parseLogLine(line)
+
+                if (entry.pid.isNotEmpty() && entry.pid != pid) {
+                    continue
+                }
+                if (entry.level == LogLevel.UNKNOWN && entry.tag == "System" && !entry.message.contains(pid)) {
+                    continue
+                }
+
                 if (buffer.size >= maxBufferSize) {
                     buffer.removeFirst()
                 }
@@ -91,7 +99,12 @@ class DefaultLogcatLocalDataSource(
 
             var line: String?
             while (reader.readLine().also { line = it } != null) {
-                line?.let { entries.add(parseLogLine(it)) }
+                line?.let {
+                    val entry = parseLogLine(it)
+                    if (entry.pid.isEmpty() || entry.pid == pid) {
+                        entries.add(entry)
+                    }
+                }
             }
             process.waitFor()
             process.destroy()
@@ -101,7 +114,12 @@ class DefaultLogcatLocalDataSource(
                 val reader = BufferedReader(InputStreamReader(process.inputStream))
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
-                    line?.let { entries.add(parseLogLine(it)) }
+                    line?.let {
+                        val entry = parseLogLine(it)
+                        if (entry.pid == pid) {
+                            entries.add(entry)
+                        }
+                    }
                 }
                 process.waitFor()
                 process.destroy()

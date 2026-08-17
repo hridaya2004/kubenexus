@@ -178,7 +178,7 @@ fun LogcatScreen(
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                text = "${uiState.filteredLogs.size} lines",
+                                text = "dev.hridaya.kubenexus • ${uiState.filteredLogs.size} lines",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

@@ -1,6 +1,7 @@
 package dev.hridaya.kubenexus.data.repository
 
 import android.util.Log
+import client.LogCallback
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
@@ -13,15 +14,35 @@ import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
 import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
 import dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient
+import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.PodRepository
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+class NativeTerminalSession(
+    private val session: client.ExecSession
+) : TerminalSession {
+    override fun write(input: String) {
+        session.write(input)
+    }
+
+    override fun writeBytes(bytes: ByteArray) {
+        session.writeBytes(bytes)
+    }
+
+    override fun close() {
+        session.close()
+    }
+}
 
 class PodRepositoryImpl(
     private val clusterDao: ClusterDao,
@@ -78,10 +99,9 @@ class PodRepositoryImpl(
                 ?: return@withContext Result.Error(AppError.NotFound("Cluster with ID '$clusterId' not found"))
 
             try {
-                // 1. Fetch live Pods (try native or REST API)
                 val livePods: List<Pod> = try {
-                    val nativeResult = nativeBridge.listPodsWide(namespace).getOrNull()
-                    if (!nativeResult.isNullOrEmpty()) {
+                    val nativeResult = nativeBridge.listPodsWide(cluster.rawKubeconfig, namespace).getOrNull()
+                    if (nativeResult != null) {
                         nativeResult.map { it.toDomain() }
                     } else {
                         apiClient.fetchPods(
@@ -91,13 +111,16 @@ class PodRepositoryImpl(
                         )
                     }
                 } catch (t: Throwable) {
-                    Log.e(TAG, "Failed to fetch live pods: ${t.message}", t)
-                    throw t
+                    Log.w(TAG, "Native listPodsWide fallback to HTTP client: ${t.message}")
+                    apiClient.fetchPods(
+                        serverUrl = cluster.serverUrl,
+                        rawKubeconfig = cluster.rawKubeconfig,
+                        namespace = namespace
+                    )
                 }
 
-                // 2. Fetch live Namespaces
                 val liveNamespaces: List<String> = try {
-                    val nativeNsResult = nativeBridge.listNamespaces().getOrNull()
+                    val nativeNsResult = nativeBridge.listNamespaces(cluster.rawKubeconfig).getOrNull()
                     if (!nativeNsResult.isNullOrEmpty()) {
                         nativeNsResult.map { it.toDomainName() }
                     } else {
@@ -107,11 +130,13 @@ class PodRepositoryImpl(
                         )
                     }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "Failed to fetch live namespaces: ${t.message}")
-                    emptyList()
+                    Log.w(TAG, "Native listNamespaces fallback: ${t.message}")
+                    apiClient.fetchNamespaces(
+                        serverUrl = cluster.serverUrl,
+                        rawKubeconfig = cluster.rawKubeconfig
+                    )
                 }
 
-                // 3. Persist to Room local database
                 val podEntities = livePods.map { it.toEntity(clusterId) }
                 podDao.syncPods(
                     clusterId = clusterId,
@@ -151,6 +176,12 @@ class PodRepositoryImpl(
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
         try {
+            val nativeResult = nativeBridge.describePod(cluster.rawKubeconfig, namespace, podName)
+            if (nativeResult.isSuccess) {
+                val nativePodDetails = nativeResult.getOrThrow()
+                return@withContext Result.Success(nativePodDetails.toDomain())
+            }
+
             val details = apiClient.describePod(
                 serverUrl = cluster.serverUrl,
                 rawKubeconfig = cluster.rawKubeconfig,
@@ -161,6 +192,31 @@ class PodRepositoryImpl(
         } catch (t: Throwable) {
             Log.e(TAG, "Failed to describe pod '$podName': ${t.message}", t)
             Result.Error(AppError.Network(t.message ?: "Failed to describe pod from cluster API"))
+        }
+    }
+
+    override suspend fun deletePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        try {
+            val nativeResult = nativeBridge.deletePod(cluster.rawKubeconfig, namespace, podName)
+            if (nativeResult.isSuccess) {
+                val podId = "${clusterId}_${namespace}_$podName"
+                podDao.deletePod(podId)
+                Result.Success(Unit)
+            } else {
+                val error = nativeResult.exceptionOrNull()
+                Result.Error(AppError.Network(error?.message ?: "Failed to delete pod $podName"))
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to delete pod '$podName': ${t.message}", t)
+            Result.Error(AppError.Network(t.message ?: "Failed to delete pod"))
         }
     }
 
@@ -175,6 +231,11 @@ class PodRepositoryImpl(
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
         try {
+            val nativeResult = nativeBridge.getPodLogs(cluster.rawKubeconfig, namespace, podName, containerName)
+            if (nativeResult.isSuccess) {
+                return@withContext Result.Success(nativeResult.getOrThrow())
+            }
+
             val logs = apiClient.fetchPodLogs(
                 serverUrl = cluster.serverUrl,
                 rawKubeconfig = cluster.rawKubeconfig,
@@ -194,25 +255,214 @@ class PodRepositoryImpl(
         namespace: String,
         podName: String,
         containerName: String?
-    ): Flow<String> = flow {
+    ): Flow<String> = callbackFlow {
         if (clusterId == null) {
-            emit("Error: No active cluster selected")
-            return@flow
+            trySend("Error: No active cluster selected")
+            close()
+            return@callbackFlow
         }
         val cluster = clusterDao.getClusterById(clusterId)
         if (cluster == null) {
-            emit("Error: Cluster '$clusterId' not found in database")
-            return@flow
+            trySend("Error: Cluster '$clusterId' not found in database")
+            close()
+            return@callbackFlow
         }
 
-        apiClient.streamPodLogs(
-            serverUrl = cluster.serverUrl,
+        var isStreamClosed = false
+        val logCallback = object : LogCallback {
+            override fun onLogLine(line: String) {
+                if (!isStreamClosed) {
+                    trySend(line)
+                }
+            }
+
+            override fun onError(err: String) {
+                if (!isStreamClosed) {
+                    trySend("[Log error] $err")
+                }
+            }
+
+            override fun onDone() {
+                if (!isStreamClosed) {
+                    isStreamClosed = true
+                    close()
+                }
+            }
+        }
+
+        val nativeResult = nativeBridge.streamPodLogs(
             rawKubeconfig = cluster.rawKubeconfig,
             namespace = namespace,
             podName = podName,
-            containerName = containerName
-        ).collect { line ->
-            emit(line)
+            container = containerName,
+            callback = logCallback
+        )
+
+        if (nativeResult.isFailure) {
+            Log.w(TAG, "Native streamLogs fallback to HTTP: ${nativeResult.exceptionOrNull()?.message}")
+            val job = launch(dispatcherProvider.io) {
+                apiClient.streamPodLogs(
+                    serverUrl = cluster.serverUrl,
+                    rawKubeconfig = cluster.rawKubeconfig,
+                    namespace = namespace,
+                    podName = podName,
+                    containerName = containerName
+                ).collect { line ->
+                    trySend(line)
+                }
+            }
+            awaitClose { job.cancel() }
+        } else {
+            awaitClose {
+                isStreamClosed = true
+            }
         }
     }.flowOn(dispatcherProvider.io)
+
+    override suspend fun execCommand(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        command: String,
+        stdin: String
+    ): Result<CommandExecResult> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        try {
+            val result = nativeBridge.exec(
+                rawKubeconfig = cluster.rawKubeconfig,
+                namespace = namespace,
+                podName = podName,
+                container = containerName,
+                command = command,
+                stdin = stdin
+            )
+            if (result.isSuccess) {
+                val nativeRes = result.getOrThrow()
+                Result.Success(
+                    CommandExecResult(
+                        stdout = nativeRes.stdout.orEmpty(),
+                        stderr = nativeRes.stderr.orEmpty()
+                    )
+                )
+            } else {
+                val ex = result.exceptionOrNull()
+                Result.Error(AppError.Network(ex?.message ?: "Failed to exec command"))
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Exec command error on pod '$podName': ${t.message}", t)
+            Result.Error(AppError.Network(t.message ?: "Failed to exec command"))
+        }
+    }
+
+    override suspend fun startTerminalSession(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        onStdout: (String) -> Unit,
+        onStderr: (String) -> Unit,
+        onError: (String) -> Unit,
+        onDone: () -> Unit
+    ): Result<TerminalSession> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        try {
+            val callback = object : client.ExecCallback {
+                override fun onStdout(output: String) {
+                    onStdout(output)
+                }
+
+                override fun onStderr(output: String) {
+                    onStderr(output)
+                }
+
+                override fun onError(err: String) {
+                    onError(err)
+                }
+
+                override fun onDone() {
+                    onDone()
+                }
+            }
+
+            val result = nativeBridge.startTerminal(
+                rawKubeconfig = cluster.rawKubeconfig,
+                namespace = namespace,
+                podName = podName,
+                container = containerName,
+                callback = callback
+            )
+            if (result.isSuccess) {
+                Result.Success(NativeTerminalSession(result.getOrThrow()))
+            } else {
+                val ex = result.exceptionOrNull()
+                Result.Error(AppError.Network(ex?.message ?: "Failed to start terminal session"))
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Start terminal error on pod '$podName': ${t.message}", t)
+            Result.Error(AppError.Network(t.message ?: "Failed to start terminal session"))
+        }
+    }
+
+    override suspend fun startExecSession(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        command: String,
+        tty: Boolean,
+        onStdout: (String) -> Unit,
+        onStderr: (String) -> Unit,
+        onError: (String) -> Unit,
+        onDone: () -> Unit
+    ): Result<TerminalSession> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        try {
+            val callback = object : client.ExecCallback {
+                override fun onStdout(output: String) {
+                    onStdout(output)
+                }
+
+                override fun onStderr(output: String) {
+                    onStderr(output)
+                }
+
+                override fun onError(err: String) {
+                    onError(err)
+                }
+
+                override fun onDone() {
+                    onDone()
+                }
+            }
+
+            val result = nativeBridge.startExecSession(
+                rawKubeconfig = cluster.rawKubeconfig,
+                namespace = namespace,
+                podName = podName,
+                container = containerName,
+                command = command,
+                tty = tty,
+                callback = callback
+            )
+            if (result.isSuccess) {
+                Result.Success(NativeTerminalSession(result.getOrThrow()))
+            } else {
+                val ex = result.exceptionOrNull()
+                Result.Error(AppError.Network(ex?.message ?: "Failed to start exec session"))
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Start exec session error on pod '$podName': ${t.message}", t)
+            Result.Error(AppError.Network(t.message ?: "Failed to start exec session"))
+        }
+    }
 }

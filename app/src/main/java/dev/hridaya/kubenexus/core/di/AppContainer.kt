@@ -17,7 +17,9 @@ import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
+import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
@@ -26,6 +28,8 @@ import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
 import dev.hridaya.kubenexus.domain.usecase.RefreshWorkloadsUseCase
 import dev.hridaya.kubenexus.domain.usecase.SetActiveClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.StartExecSessionUseCase
+import dev.hridaya.kubenexus.domain.usecase.StartPodTerminalUseCase
 import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
 import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
@@ -43,8 +47,12 @@ interface AppContainer {
     val getLastRefreshedUseCase: GetLastRefreshedUseCase
     val refreshWorkloadsUseCase: RefreshWorkloadsUseCase
     val describePodUseCase: DescribePodUseCase
+    val deletePodUseCase: DeletePodUseCase
     val getPodLogsUseCase: GetPodLogsUseCase
     val streamPodLogsUseCase: StreamPodLogsUseCase
+    val execPodCommandUseCase: ExecPodCommandUseCase
+    val startPodTerminalUseCase: StartPodTerminalUseCase
+    val startExecSessionUseCase: StartExecSessionUseCase
     val addClusterUseCase: AddClusterUseCase
     val setActiveClusterUseCase: SetActiveClusterUseCase
     val deleteClusterUseCase: DeleteClusterUseCase
@@ -152,6 +160,12 @@ class DefaultAppContainer(
         )
     }
 
+    override val deletePodUseCase: DeletePodUseCase by lazy {
+        DeletePodUseCase(
+            podRepository = podRepository
+        )
+    }
+
     override val getPodLogsUseCase: GetPodLogsUseCase by lazy {
         GetPodLogsUseCase(
             podRepository = podRepository
@@ -160,6 +174,24 @@ class DefaultAppContainer(
 
     override val streamPodLogsUseCase: StreamPodLogsUseCase by lazy {
         StreamPodLogsUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val execPodCommandUseCase: ExecPodCommandUseCase by lazy {
+        ExecPodCommandUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val startPodTerminalUseCase: StartPodTerminalUseCase by lazy {
+        StartPodTerminalUseCase(
+            podRepository = podRepository
+        )
+    }
+
+    override val startExecSessionUseCase: StartExecSessionUseCase by lazy {
+        StartExecSessionUseCase(
             podRepository = podRepository
         )
     }

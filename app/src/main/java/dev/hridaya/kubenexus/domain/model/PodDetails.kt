@@ -34,6 +34,7 @@ data class PodDetails(
     val restartPolicy: String? = "Always",
     val startTime: String? = null,
     val containers: List<ContainerDetail> = emptyList(),
+    val initContainers: List<ContainerDetail> = emptyList(),
     val conditions: List<PodConditionDetail> = emptyList(),
     val events: List<PodEventDetail> = emptyList(),
     val labels: Map<String, String> = emptyMap(),

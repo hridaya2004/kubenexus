@@ -30,6 +30,9 @@ interface PodDao {
     @Query("DELETE FROM pods WHERE clusterId = :clusterId AND namespace = :namespace")
     suspend fun deletePodsForNamespace(clusterId: String, namespace: String)
 
+    @Query("DELETE FROM pods WHERE id = :podId")
+    suspend fun deletePod(podId: String)
+
     @Transaction
     suspend fun syncPods(clusterId: String, namespace: String?, pods: List<PodEntity>, timestamp: Long) {
         if (namespace.isNullOrBlank() || namespace == "All Namespaces") {

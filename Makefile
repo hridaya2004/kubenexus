@@ -7,7 +7,7 @@ ANDROID_API ?= 35
 export CGO_LDFLAGS := -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384
 
 build-android:
-	gomobile bind -androidapi $(ANDROID_API) -target android/arm,android/arm64 -o kubenexus.aar ./pkg/client
+	gomobile bind -androidapi $(ANDROID_API) -ldflags="-s -w" -target android/arm64 -o kubenexus.aar ./pkg/client
 
 clean:
 	rm -f kubenexus.aar kubenexus-sources.jar

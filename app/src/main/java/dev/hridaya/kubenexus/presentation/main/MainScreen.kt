@@ -21,6 +21,8 @@ import dev.hridaya.kubenexus.presentation.home.HomeRoute
 import dev.hridaya.kubenexus.presentation.home.HomeUiEffect
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.home.ManageClustersScreen
+import dev.hridaya.kubenexus.presentation.logcat.LogcatRoute
+import dev.hridaya.kubenexus.presentation.logcat.LogcatViewModel
 import dev.hridaya.kubenexus.presentation.navigation.AppNavigationBar
 import dev.hridaya.kubenexus.presentation.navigation.Destination
 import dev.hridaya.kubenexus.presentation.pods.PodsScreen
@@ -37,6 +39,7 @@ fun MainScreen(
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
     var isViewingPods by rememberSaveable { mutableStateOf(false) }
+    var isViewingLogcat by rememberSaveable { mutableStateOf(false) }
     var selectedPodName by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPodNamespace by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -45,6 +48,7 @@ fun MainScreen(
             if (effect is HomeUiEffect.NavigateToHome) {
                 isManagingClusters = false
                 isViewingPods = false
+                isViewingLogcat = false
                 selectedPodName = null
                 selectedPodNamespace = null
                 currentDestination = Destination.Home
@@ -104,6 +108,18 @@ fun MainScreen(
             )
         }
 
+        isViewingLogcat -> {
+            val logcatViewModel: LogcatViewModel = viewModel(
+                factory = LogcatViewModel.provideFactory(appContainer)
+            )
+            BackHandler { isViewingLogcat = false }
+            LogcatRoute(
+                viewModel = logcatViewModel,
+                onNavigateBack = { isViewingLogcat = false },
+                modifier = modifier
+            )
+        }
+
         else -> {
             Scaffold(
                 modifier = modifier.fillMaxSize(),
@@ -137,7 +153,9 @@ fun MainScreen(
                         }
 
                         Destination.Settings -> {
-                            SettingsScreen()
+                            SettingsScreen(
+                                onNavigateToLogcat = { isViewingLogcat = true }
+                            )
                         }
                     }
                 }

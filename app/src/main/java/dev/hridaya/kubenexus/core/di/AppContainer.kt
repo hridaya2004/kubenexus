@@ -58,6 +58,10 @@ interface AppContainer {
     val deleteClusterUseCase: DeleteClusterUseCase
     val updateClusterNameUseCase: UpdateClusterNameUseCase
     val testClusterConnectionUseCase: TestClusterConnectionUseCase
+    val logcatRepository: dev.hridaya.kubenexus.domain.repository.LogcatRepository
+    val getLogcatStreamUseCase: dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase
+    val dumpLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase
+    val clearLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase
 }
 
 class DefaultAppContainer(
@@ -227,6 +231,37 @@ class DefaultAppContainer(
         TestClusterConnectionUseCase(
             repository = clusterRepository,
             dispatcherProvider = dispatcherProvider
+        )
+    }
+
+    private val logcatLocalDataSource: dev.hridaya.kubenexus.data.source.local.LogcatLocalDataSource by lazy {
+        dev.hridaya.kubenexus.data.source.local.DefaultLogcatLocalDataSource(
+            dispatcherProvider = dispatcherProvider
+        )
+    }
+
+    override val logcatRepository: dev.hridaya.kubenexus.domain.repository.LogcatRepository by lazy {
+        dev.hridaya.kubenexus.data.repository.LogcatRepositoryImpl(
+            localDataSource = logcatLocalDataSource,
+            dispatcherProvider = dispatcherProvider
+        )
+    }
+
+    override val getLogcatStreamUseCase: dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase by lazy {
+        dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase(
+            repository = logcatRepository
+        )
+    }
+
+    override val dumpLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase by lazy {
+        dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase(
+            repository = logcatRepository
+        )
+    }
+
+    override val clearLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase by lazy {
+        dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase(
+            repository = logcatRepository
         )
     }
 }

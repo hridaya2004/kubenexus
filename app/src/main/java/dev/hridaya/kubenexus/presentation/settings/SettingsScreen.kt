@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.presentation.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
@@ -50,6 +53,7 @@ import dev.hridaya.kubenexus.ui.theme.ThemeMode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    onNavigateToLogcat: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentThemeMode = LocalThemeMode.current
@@ -112,6 +116,25 @@ fun SettingsScreen(
                     checked = amoledDark && isDark,
                     enabled = isDark,
                     onCheckedChange = onAmoledDarkChange
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Diagnostics",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+
+            item {
+                PreferenceNavigationCard(
+                    icon = Icons.Outlined.BugReport,
+                    title = "Logcat",
+                    subtitle = "Inspect, filter, and share runtime application logs",
+                    onClick = onNavigateToLogcat
                 )
             }
 
@@ -265,6 +288,59 @@ private fun PreferenceSwitchCard(
                 checked = checked,
                 enabled = enabled,
                 onCheckedChange = onCheckedChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun PreferenceNavigationCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
             )
         }
     }

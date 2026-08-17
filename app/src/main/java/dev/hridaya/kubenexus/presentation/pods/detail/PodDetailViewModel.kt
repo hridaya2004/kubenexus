@@ -486,6 +486,8 @@ class PodDetailViewModel(
 
         return when (sessionResult) {
             is Result.Success -> {
+                // Brief delay to let error callbacks (e.g. "executable not found") fire
+                kotlinx.coroutines.delay(500)
                 if (!hadFatalError) {
                     activeTerminalSession = sessionResult.data
                     _uiState.update {
@@ -500,6 +502,8 @@ class PodDetailViewModel(
                     }
                     true
                 } else {
+                    activeTerminalSession?.close()
+                    activeTerminalSession = null
                     false
                 }
             }

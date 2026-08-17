@@ -21,6 +21,13 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+
         create("release") {
             val keystorePath = project.findProperty("KEYSTORE_PATH") as? String
                 ?: System.getenv("KEYSTORE_PATH")

@@ -233,6 +233,7 @@ class PodDetailViewModelTest {
         override suspend fun testConnection(kubeconfigRaw: String): Result<String> = Result.Success("OK")
         override suspend fun testClusterById(id: String): Result<String> = Result.Success("OK")
         override suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit> = Result.Success(Unit)
+        override suspend fun migratePlaintextClusters(): Result<Int> = Result.Success(0)
     }
 
     private class FakePodRepository : PodRepository {

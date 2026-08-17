@@ -2,6 +2,7 @@ package dev.hridaya.kubenexus.data.source.remote
 
 import android.util.Base64
 import android.util.Log
+import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
@@ -58,7 +59,7 @@ class KubernetesApiClient {
             val jsonString = executeGet(endpoint, rawKubeconfig)
             parseNamespacesJson(jsonString)
         } catch (t: Throwable) {
-            Log.w(TAG, "Failed to fetch namespaces from $endpoint: ${t.message}")
+            Log.w(TAG, "Failed to fetch namespaces from $endpoint: ${LogSanitizer.sanitize(t.message)}")
             listOf("All Namespaces", "default", "kube-system")
         }
     }
@@ -136,10 +137,10 @@ class KubernetesApiClient {
                 }
             } else {
                 val err = connection.errorStream?.let { BufferedReader(InputStreamReader(it)).readText() } ?: ""
-                emit("Error streaming logs (HTTP $responseCode): $err")
+                emit("Error streaming logs (HTTP $responseCode): ${LogSanitizer.sanitize(err)}")
             }
         } catch (t: Throwable) {
-            emit("Log stream terminated: ${t.message}")
+            emit("Log stream terminated: ${LogSanitizer.sanitize(t.message)}")
         } finally {
             connection?.disconnect()
         }
@@ -186,13 +187,13 @@ class KubernetesApiClient {
                     401 -> "Authentication failed (HTTP 401 Unauthorized): Check token or credentials."
                     403 -> "Forbidden (HTTP 403): User lacks RBAC permissions for $endpointUrl."
                     404 -> "Resource not found (HTTP 404): $endpointUrl"
-                    else -> "API server returned HTTP $responseCode $responseMessage ${errorBody.take(200)}"
+                    else -> "API server returned HTTP $responseCode $responseMessage ${LogSanitizer.sanitize(errorBody.take(200))}"
                 }
-                Log.e(TAG, failureMsg)
+                Log.e(TAG, LogSanitizer.sanitize(failureMsg))
                 throw RuntimeException(failureMsg)
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "Failed to execute GET $endpointUrl: ${t.message}", t)
+            Log.e(TAG, "Failed to execute GET $endpointUrl: ${LogSanitizer.sanitize(t.message)}", t)
             throw t
         } finally {
             connection?.disconnect()
@@ -542,7 +543,7 @@ class KubernetesApiClient {
             httpsConnection.sslSocketFactory = sc.socketFactory
             httpsConnection.setHostnameVerifier { _, _ -> true }
         } catch (e: Exception) {
-            Log.w(TAG, "SSL configuration fallback: ${e.message}")
+            Log.w(TAG, "SSL configuration fallback: ${LogSanitizer.sanitize(e.message)}")
         }
     }
 
@@ -567,7 +568,7 @@ class KubernetesApiClient {
             kmf.init(keyStore, "".toCharArray())
             kmf.keyManagers
         } catch (e: Exception) {
-            Log.e(TAG, "Client mTLS cert setup failed: ${e.message}", e)
+            Log.e(TAG, "Client mTLS cert setup failed: ${LogSanitizer.sanitize(e.message)}")
             null
         }
     }

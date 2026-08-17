@@ -307,6 +307,8 @@ class HomeViewModelTest {
             }
             return Result.Success(Unit)
         }
+
+        override suspend fun migratePlaintextClusters(): Result<Int> = Result.Success(0)
     }
 
     private class FakePodRepository : PodRepository {

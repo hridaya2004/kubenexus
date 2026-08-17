@@ -2,6 +2,7 @@ package dev.hridaya.kubenexus.data.kubeconfig
 
 import android.util.Log
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.domain.model.ParsedKubeconfig
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -9,13 +10,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
-import java.util.concurrent.TimeUnit
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
-class ClusterConnectionTester(
+open class ClusterConnectionTester(
     private val nativeBridge: KubeNexusNativeBridge
 ) {
 
@@ -30,14 +30,14 @@ class ClusterConnectionTester(
      * Also verifies native client bridge readiness.
      * Returns a descriptive string on success, or throws an exception with detailed error trace on failure.
      */
-    fun testConnection(parsed: ParsedKubeconfig): String {
+    open fun testConnection(parsed: ParsedKubeconfig): String {
         Log.d(TAG, "Testing connection to server: ${parsed.serverUrl} (context: ${parsed.contextName})")
 
         val clientResult = nativeBridge.createClient(parsed.rawKubeconfig)
         if (clientResult.isSuccess) {
             Log.d(TAG, "Native Client_ instance successfully created for cluster: ${parsed.clusterName}")
         } else {
-            Log.w(TAG, "Native Client_ instance init note: ${clientResult.exceptionOrNull()?.message}")
+            Log.w(TAG, "Native Client_ instance init note: ${LogSanitizer.sanitize(clientResult.exceptionOrNull()?.message)}")
         }
 
         val rawUrl = parsed.serverUrl.trim()
@@ -48,12 +48,11 @@ class ClusterConnectionTester(
         }
 
         val versionEndpoint = if (normalizedUrl.endsWith("/")) "${normalizedUrl}version" else "$normalizedUrl/version"
-        val livezEndpoint = if (normalizedUrl.endsWith("/")) "${normalizedUrl}livez" else "$normalizedUrl/livez"
 
         val targetUrl = try {
             URL(versionEndpoint)
         } catch (e: Exception) {
-            throw IllegalArgumentException("Invalid Kubernetes Server URL: '$normalizedUrl'.\nError: ${e.message}", e)
+            throw IllegalArgumentException("Invalid Kubernetes Server URL: '$normalizedUrl'.\nError: ${LogSanitizer.sanitize(e.message)}", e)
         }
 
         var connection: HttpURLConnection? = null
@@ -92,17 +91,19 @@ class ClusterConnectionTester(
                 throw IllegalStateException("API Server returned unexpected error response: HTTP $responseCode $responseMessage")
             }
         } catch (e: Throwable) {
-            // Re-throw formatted with diagnostic information
+            // Re-throw formatted with sanitized diagnostic information
             val stringWriter = StringWriter()
             e.printStackTrace(PrintWriter(stringWriter))
+            val sanitizedTrace = LogSanitizer.sanitize(stringWriter.toString().take(1200))
+            val sanitizedErrorMsg = LogSanitizer.sanitize(e.message) ?: "Connection timed out or host unreachable"
             val errorReport = buildString {
                 appendLine("Failed to connect to Kubernetes Cluster: '${parsed.clusterName}'")
                 appendLine("Target Server: $normalizedUrl")
                 appendLine("Context: ${parsed.contextName}")
                 appendLine("Error Type: ${e.javaClass.simpleName}")
-                appendLine("Message: ${e.message ?: "Connection timed out or host unreachable"}")
+                appendLine("Message: $sanitizedErrorMsg")
                 appendLine("\n--- Stack Trace ---")
-                appendLine(stringWriter.toString().take(1200))
+                appendLine(sanitizedTrace)
             }
             throw Exception(errorReport, e)
         } finally {
@@ -130,7 +131,7 @@ class ClusterConnectionTester(
             httpsConnection.sslSocketFactory = sc.socketFactory
             httpsConnection.setHostnameVerifier { _, _ -> true }
         } catch (e: Exception) {
-            Log.w(TAG, "TLS configuration fallback: ${e.message}")
+            Log.w(TAG, "TLS configuration fallback: ${LogSanitizer.sanitize(e.message)}")
         }
     }
 
@@ -155,7 +156,7 @@ class ClusterConnectionTester(
             kmf.init(keyStore, "".toCharArray())
             kmf.keyManagers
         } catch (e: Exception) {
-            Log.e(TAG, "Client mTLS cert setup failed: ${e.message}", e)
+            Log.e(TAG, "Client mTLS cert setup failed: ${LogSanitizer.sanitize(e.message)}")
             null
         }
     }

@@ -6,6 +6,9 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
+import dev.hridaya.kubenexus.core.security.LogSanitizer
+import dev.hridaya.kubenexus.core.security.NoOpKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.mapper.toDomain
 import dev.hridaya.kubenexus.data.mapper.toDomainName
 import dev.hridaya.kubenexus.data.mapper.toEntity
@@ -50,6 +53,7 @@ class PodRepositoryImpl(
     private val namespaceDao: NamespaceDao,
     private val apiClient: KubernetesApiClient,
     private val nativeBridge: KubeNexusNativeBridge,
+    private val encryptor: KubeconfigEncryptor = NoOpKubeconfigEncryptor,
     private val dispatcherProvider: DispatcherProvider
 ) : PodRepository {
 
@@ -98,44 +102,45 @@ class PodRepositoryImpl(
             val cluster = clusterDao.getClusterById(clusterId)
                 ?: return@withContext Result.Error(AppError.NotFound("Cluster with ID '$clusterId' not found"))
 
+            val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
             val queryNamespace = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) null else namespace.trim()
 
             try {
                 val livePods: List<Pod> = try {
-                    val nativeResult = nativeBridge.listPodsWide(cluster.rawKubeconfig, queryNamespace).getOrNull()
+                    val nativeResult = nativeBridge.listPodsWide(decryptedKubeconfig, queryNamespace).getOrNull()
                     if (nativeResult != null) {
                         nativeResult.map { it.toDomain() }
                     } else {
                         apiClient.fetchPods(
                             serverUrl = cluster.serverUrl,
-                            rawKubeconfig = cluster.rawKubeconfig,
+                            rawKubeconfig = decryptedKubeconfig,
                             namespace = queryNamespace
                         )
                     }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "Native listPodsWide fallback to HTTP client: ${t.message}")
+                    Log.w(TAG, "Native listPodsWide fallback to HTTP client: ${LogSanitizer.sanitize(t.message)}")
                     apiClient.fetchPods(
                         serverUrl = cluster.serverUrl,
-                        rawKubeconfig = cluster.rawKubeconfig,
+                        rawKubeconfig = decryptedKubeconfig,
                         namespace = queryNamespace
                     )
                 }
 
                 val liveNamespaces: List<String> = try {
-                    val nativeNsResult = nativeBridge.listNamespaces(cluster.rawKubeconfig).getOrNull()
+                    val nativeNsResult = nativeBridge.listNamespaces(decryptedKubeconfig).getOrNull()
                     if (!nativeNsResult.isNullOrEmpty()) {
                         nativeNsResult.map { it.toDomainName() }
                     } else {
                         apiClient.fetchNamespaces(
                             serverUrl = cluster.serverUrl,
-                            rawKubeconfig = cluster.rawKubeconfig
+                            rawKubeconfig = decryptedKubeconfig
                         )
                     }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "Native listNamespaces fallback: ${t.message}")
+                    Log.w(TAG, "Native listNamespaces fallback: ${LogSanitizer.sanitize(t.message)}")
                     apiClient.fetchNamespaces(
                         serverUrl = cluster.serverUrl,
-                        rawKubeconfig = cluster.rawKubeconfig
+                        rawKubeconfig = decryptedKubeconfig
                     )
                 }
 
@@ -162,8 +167,9 @@ class PodRepositoryImpl(
 
                 Result.Success(Unit)
             } catch (t: Throwable) {
-                Log.e(TAG, "Failed to refresh workloads for cluster '$clusterId': ${t.message}", t)
-                Result.Error(AppError.Network(t.message ?: "Failed to connect to cluster API"))
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                Log.e(TAG, "Failed to refresh workloads for cluster '$clusterId': $sanitizedMsg", t)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to connect to cluster API" }))
             }
         }
     }
@@ -177,8 +183,10 @@ class PodRepositoryImpl(
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
         try {
-            val nativeResult = nativeBridge.describePod(cluster.rawKubeconfig, namespace, podName)
+            val nativeResult = nativeBridge.describePod(decryptedKubeconfig, namespace, podName)
             if (nativeResult.isSuccess) {
                 val nativePodDetails = nativeResult.getOrThrow()
                 return@withContext Result.Success(nativePodDetails.toDomain())
@@ -186,14 +194,15 @@ class PodRepositoryImpl(
 
             val details = apiClient.describePod(
                 serverUrl = cluster.serverUrl,
-                rawKubeconfig = cluster.rawKubeconfig,
+                rawKubeconfig = decryptedKubeconfig,
                 namespace = namespace,
                 podName = podName
             )
             Result.Success(details)
         } catch (t: Throwable) {
-            Log.e(TAG, "Failed to describe pod '$podName': ${t.message}", t)
-            Result.Error(AppError.Network(t.message ?: "Failed to describe pod from cluster API"))
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to describe pod '$podName': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to describe pod from cluster API" }))
         }
     }
 
@@ -206,19 +215,23 @@ class PodRepositoryImpl(
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
         try {
-            val nativeResult = nativeBridge.deletePod(cluster.rawKubeconfig, namespace, podName)
+            val nativeResult = nativeBridge.deletePod(decryptedKubeconfig, namespace, podName)
             if (nativeResult.isSuccess) {
                 val podId = "${clusterId}_${namespace}_$podName"
                 podDao.deletePod(podId)
                 Result.Success(Unit)
             } else {
                 val error = nativeResult.exceptionOrNull()
-                Result.Error(AppError.Network(error?.message ?: "Failed to delete pod $podName"))
+                val sanitizedMsg = LogSanitizer.sanitize(error?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to delete pod $podName" }))
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "Failed to delete pod '$podName': ${t.message}", t)
-            Result.Error(AppError.Network(t.message ?: "Failed to delete pod"))
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to delete pod '$podName': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to delete pod" }))
         }
     }
 
@@ -232,23 +245,26 @@ class PodRepositoryImpl(
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
         try {
-            val nativeResult = nativeBridge.getPodLogs(cluster.rawKubeconfig, namespace, podName, containerName)
+            val nativeResult = nativeBridge.getPodLogs(decryptedKubeconfig, namespace, podName, containerName)
             if (nativeResult.isSuccess) {
                 return@withContext Result.Success(nativeResult.getOrThrow())
             }
 
             val logs = apiClient.fetchPodLogs(
                 serverUrl = cluster.serverUrl,
-                rawKubeconfig = cluster.rawKubeconfig,
+                rawKubeconfig = decryptedKubeconfig,
                 namespace = namespace,
                 podName = podName,
                 containerName = containerName
             )
             Result.Success(logs)
         } catch (t: Throwable) {
-            Log.e(TAG, "Failed to fetch logs for pod '$podName': ${t.message}", t)
-            Result.Error(AppError.Network(t.message ?: "Failed to fetch logs from cluster API"))
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to fetch logs for pod '$podName': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch logs from cluster API" }))
         }
     }
 
@@ -270,6 +286,8 @@ class PodRepositoryImpl(
             return@callbackFlow
         }
 
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
         var isStreamClosed = false
         val logCallback = object : LogCallback {
             override fun onLogLine(line: String) {
@@ -280,7 +298,7 @@ class PodRepositoryImpl(
 
             override fun onError(err: String) {
                 if (!isStreamClosed) {
-                    trySend("[Log error] $err")
+                    trySend("[Log error] ${LogSanitizer.sanitize(err)}")
                 }
             }
 
@@ -293,7 +311,7 @@ class PodRepositoryImpl(
         }
 
         val nativeResult = nativeBridge.streamPodLogs(
-            rawKubeconfig = cluster.rawKubeconfig,
+            rawKubeconfig = decryptedKubeconfig,
             namespace = namespace,
             podName = podName,
             container = containerName,
@@ -301,11 +319,11 @@ class PodRepositoryImpl(
         )
 
         if (nativeResult.isFailure) {
-            Log.w(TAG, "Native streamLogs fallback to HTTP: ${nativeResult.exceptionOrNull()?.message}")
+            Log.w(TAG, "Native streamLogs fallback to HTTP: ${LogSanitizer.sanitize(nativeResult.exceptionOrNull()?.message)}")
             val job = launch(dispatcherProvider.io) {
                 apiClient.streamPodLogs(
                     serverUrl = cluster.serverUrl,
-                    rawKubeconfig = cluster.rawKubeconfig,
+                    rawKubeconfig = decryptedKubeconfig,
                     namespace = namespace,
                     podName = podName,
                     containerName = containerName
@@ -333,9 +351,11 @@ class PodRepositoryImpl(
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
         try {
             val result = nativeBridge.exec(
-                rawKubeconfig = cluster.rawKubeconfig,
+                rawKubeconfig = decryptedKubeconfig,
                 namespace = namespace,
                 podName = podName,
                 container = containerName,
@@ -352,11 +372,13 @@ class PodRepositoryImpl(
                 )
             } else {
                 val ex = result.exceptionOrNull()
-                Result.Error(AppError.Network(ex?.message ?: "Failed to exec command"))
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to exec command" }))
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "Exec command error on pod '$podName': ${t.message}", t)
-            Result.Error(AppError.Network(t.message ?: "Failed to exec command"))
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Exec command error on pod '$podName': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to exec command" }))
         }
     }
 
@@ -374,6 +396,8 @@ class PodRepositoryImpl(
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
         try {
             val callback = object : client.ExecCallback {
                 override fun onStdout(output: String) {
@@ -385,7 +409,7 @@ class PodRepositoryImpl(
                 }
 
                 override fun onError(err: String) {
-                    onError(err)
+                    onError(LogSanitizer.sanitize(err))
                 }
 
                 override fun onDone() {
@@ -394,7 +418,7 @@ class PodRepositoryImpl(
             }
 
             val result = nativeBridge.startTerminal(
-                rawKubeconfig = cluster.rawKubeconfig,
+                rawKubeconfig = decryptedKubeconfig,
                 namespace = namespace,
                 podName = podName,
                 container = containerName,
@@ -404,11 +428,13 @@ class PodRepositoryImpl(
                 Result.Success(NativeTerminalSession(result.getOrThrow()))
             } else {
                 val ex = result.exceptionOrNull()
-                Result.Error(AppError.Network(ex?.message ?: "Failed to start terminal session"))
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to start terminal session" }))
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "Start terminal error on pod '$podName': ${t.message}", t)
-            Result.Error(AppError.Network(t.message ?: "Failed to start terminal session"))
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Start terminal error on pod '$podName': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to start terminal session" }))
         }
     }
 
@@ -428,6 +454,8 @@ class PodRepositoryImpl(
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
 
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
         try {
             val callback = object : client.ExecCallback {
                 override fun onStdout(output: String) {
@@ -439,7 +467,7 @@ class PodRepositoryImpl(
                 }
 
                 override fun onError(err: String) {
-                    onError(err)
+                    onError(LogSanitizer.sanitize(err))
                 }
 
                 override fun onDone() {
@@ -448,7 +476,7 @@ class PodRepositoryImpl(
             }
 
             val result = nativeBridge.startExecSession(
-                rawKubeconfig = cluster.rawKubeconfig,
+                rawKubeconfig = decryptedKubeconfig,
                 namespace = namespace,
                 podName = podName,
                 container = containerName,
@@ -460,11 +488,13 @@ class PodRepositoryImpl(
                 Result.Success(NativeTerminalSession(result.getOrThrow()))
             } else {
                 val ex = result.exceptionOrNull()
-                Result.Error(AppError.Network(ex?.message ?: "Failed to start exec session"))
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to start exec session" }))
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "Start exec session error on pod '$podName': ${t.message}", t)
-            Result.Error(AppError.Network(t.message ?: "Failed to start exec session"))
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Start exec session error on pod '$podName': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to start exec session" }))
         }
     }
 }

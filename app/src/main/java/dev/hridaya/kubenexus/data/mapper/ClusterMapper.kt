@@ -1,10 +1,12 @@
 package dev.hridaya.kubenexus.data.mapper
 
+import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
+import dev.hridaya.kubenexus.core.security.NoOpKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 
-fun ClusterEntity.toDomain(): Cluster {
+fun ClusterEntity.toDomain(encryptor: KubeconfigEncryptor = NoOpKubeconfigEncryptor): Cluster {
     val clusterStatus = try {
         ClusterStatus.valueOf(status)
     } catch (_: Exception) {
@@ -15,7 +17,7 @@ fun ClusterEntity.toDomain(): Cluster {
         id = id,
         name = name,
         serverUrl = serverUrl,
-        rawKubeconfig = rawKubeconfig,
+        rawKubeconfig = encryptor.decrypt(rawKubeconfig),
         contextName = contextName,
         userName = userName,
         namespace = namespace,
@@ -26,12 +28,12 @@ fun ClusterEntity.toDomain(): Cluster {
     )
 }
 
-fun Cluster.toEntity(): ClusterEntity {
+fun Cluster.toEntity(encryptor: KubeconfigEncryptor = NoOpKubeconfigEncryptor): ClusterEntity {
     return ClusterEntity(
         id = id,
         name = name,
         serverUrl = serverUrl,
-        rawKubeconfig = rawKubeconfig,
+        rawKubeconfig = encryptor.encrypt(rawKubeconfig),
         contextName = contextName,
         userName = userName,
         namespace = namespace,

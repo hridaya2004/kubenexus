@@ -63,6 +63,7 @@ interface AppContainer {
     val dumpLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase
     val clearLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase
     val networkMonitor: dev.hridaya.kubenexus.core.common.network.NetworkMonitor
+    val kubeconfigEncryptor: dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 }
 
 class DefaultAppContainer(
@@ -71,6 +72,10 @@ class DefaultAppContainer(
 
     override val dispatcherProvider: DispatcherProvider by lazy {
         DefaultDispatcherProvider()
+    }
+
+    override val kubeconfigEncryptor: dev.hridaya.kubenexus.core.security.KubeconfigEncryptor by lazy {
+        dev.hridaya.kubenexus.core.security.AndroidKeystoreKubeconfigEncryptor()
     }
 
     override val nativeBridge: KubeNexusNativeBridge by lazy {
@@ -89,6 +94,7 @@ class DefaultAppContainer(
         ClusterRepositoryImpl(
             clusterDao = database.clusterDao(),
             connectionTester = clusterConnectionTester,
+            encryptor = kubeconfigEncryptor,
             dispatcherProvider = dispatcherProvider
         )
     }
@@ -104,6 +110,7 @@ class DefaultAppContainer(
             namespaceDao = database.namespaceDao(),
             apiClient = kubernetesApiClient,
             nativeBridge = nativeBridge,
+            encryptor = kubeconfigEncryptor,
             dispatcherProvider = dispatcherProvider
         )
     }

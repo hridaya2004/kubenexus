@@ -1,9 +1,11 @@
 package dev.hridaya.kubenexus.data.mapper
 
+import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ClusterMapperTest {
@@ -31,6 +33,7 @@ class ClusterMapperTest {
         assertEquals("https://k8s.example.com:6443", domain.serverUrl)
         assertEquals(true, domain.isActive)
         assertEquals(ClusterStatus.CONNECTED, domain.status)
+        assertEquals("apiVersion: v1...", domain.rawKubeconfig)
     }
 
     @Test
@@ -55,5 +58,26 @@ class ClusterMapperTest {
         assertEquals("Staging", entity.name)
         assertEquals(false, entity.isActive)
         assertEquals("DISCONNECTED", entity.status)
+        assertEquals("apiVersion: v1...", entity.rawKubeconfig)
+    }
+
+    @Test
+    fun `toEntity with encryptor encrypts rawKubeconfig and toDomain decrypts it`() {
+        val encryptor = AesGcmKubeconfigEncryptor(AesGcmKubeconfigEncryptor.generateKey())
+        val plainKubeconfig = "apiVersion: v1\nkind: Config\nusers:\n- name: admin\n  user:\n    token: test-token"
+
+        val domain = Cluster(
+            id = "c-3",
+            name = "Secure Cluster",
+            serverUrl = "https://secure.k8s.example.com",
+            rawKubeconfig = plainKubeconfig,
+            contextName = "secure-ctx"
+        )
+
+        val entity = domain.toEntity(encryptor)
+        assertTrue(entity.rawKubeconfig.startsWith("enc:v1:"))
+
+        val restoredDomain = entity.toDomain(encryptor)
+        assertEquals(plainKubeconfig, restoredDomain.rawKubeconfig)
     }
 }

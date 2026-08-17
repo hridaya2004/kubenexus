@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
@@ -29,7 +31,13 @@ abstract class KubeNexusDatabase : RoomDatabase() {
     abstract fun namespaceDao(): NamespaceDao
 
     companion object {
-        private const val DATABASE_NAME = "kubenexus.db"
+        const val DATABASE_NAME = "kubenexus.db"
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Preserves existing database structure across schema upgrades
+            }
+        }
 
         @Volatile
         private var INSTANCE: KubeNexusDatabase? = null
@@ -41,7 +49,7 @@ abstract class KubeNexusDatabase : RoomDatabase() {
                     KubeNexusDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .addMigrations(MIGRATION_1_2)
                     .build()
                     .also { INSTANCE = it }
             }

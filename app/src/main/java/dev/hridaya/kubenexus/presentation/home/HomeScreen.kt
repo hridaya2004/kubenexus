@@ -242,7 +242,7 @@ fun HomeScreen(
                                 title = "Pods",
                                 subtitle = "Container instances and workload state",
                                 icon = Icons.Outlined.Layers,
-                                badgeText = "${uiState.pods.size}",
+                                badgeText = "${uiState.totalPodsCount}",
                                 onClick = onNavigateToPods
                             )
                         }

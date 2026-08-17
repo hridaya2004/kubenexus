@@ -219,6 +219,31 @@ class HomeViewModelTest {
         assertNotNull(viewModel.uiState.value.activeCluster)
     }
 
+    @Test
+    fun `totalPodsCount always reflects all namespaces count even when specific namespace is selected`() = runTest(testDispatcher) {
+        val validYaml = """
+            apiVersion: v1
+            kind: Config
+            clusters:
+            - cluster:
+                server: https://127.0.0.1:6443
+              name: test-cluster
+            current-context: test-cluster
+        """.trimIndent()
+
+        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+        advanceUntilIdle()
+
+        viewModel.onAction(HomeUiAction.SelectNamespace("default"))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("default", state.selectedNamespace)
+        assertEquals(1, state.pods.size)
+        assertEquals(2, state.totalPodsCount)
+    }
+
     private class FakeClusterRepository : ClusterRepository {
         private val clustersFlow = MutableStateFlow<List<Cluster>>(emptyList())
 

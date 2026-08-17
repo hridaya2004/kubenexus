@@ -103,10 +103,11 @@ class HomeViewModel(
                 val clusterId = activeCluster?.id
                 combine(
                     getPodsUseCase(clusterId, ns),
+                    getPodsUseCase(clusterId, null),
                     getNamespacesUseCase(clusterId),
                     getLastRefreshedUseCase(clusterId)
-                ) { pods, namespaces, lastRefreshed ->
-                    LocalWorkloadData(clusters, activeCluster, pods, namespaces, ns, lastRefreshed)
+                ) { pods, allPods, namespaces, lastRefreshed ->
+                    LocalWorkloadData(clusters, activeCluster, pods, allPods.size, namespaces, ns, lastRefreshed)
                 }.catch { t ->
                     _uiState.update {
                         it.copy(
@@ -129,6 +130,7 @@ class HomeViewModel(
                         clusters = data.clusters,
                         activeCluster = data.activeCluster,
                         pods = data.pods,
+                        totalPodsCount = data.totalPodsCount,
                         availableNamespaces = if (data.namespaces.isNotEmpty()) data.namespaces else state.availableNamespaces,
                         selectedNamespace = data.selectedNamespace,
                         lastRefreshedAt = data.lastRefreshed ?: state.lastRefreshedAt,
@@ -150,6 +152,7 @@ class HomeViewModel(
         val clusters: List<Cluster>,
         val activeCluster: Cluster?,
         val pods: List<Pod>,
+        val totalPodsCount: Int,
         val namespaces: List<String>,
         val selectedNamespace: String,
         val lastRefreshed: Long?

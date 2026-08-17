@@ -11,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -20,8 +21,9 @@ const defaultTimeout = 30 * time.Second
 
 // Client wraps a Kubernetes clientset for cluster operations.
 type Client struct {
-	clientset *kubernetes.Clientset
-	timeout   time.Duration
+	clientset   *kubernetes.Clientset
+	timeout     time.Duration
+	contentType string
 }
 
 // Namespace contains name and status for a cluster namespace.
@@ -107,6 +109,26 @@ func WithTimeout(d time.Duration) Option {
 	}
 }
 
+// WithProtobuf configures the client to use Protobuf serialization over the wire.
+func WithProtobuf() Option {
+	return func(c *Client) error {
+		c.contentType = runtime.ContentTypeProtobuf
+		return nil
+	}
+}
+
+// WithContentType sets a custom wire serialization content type (e.g. JSON, Protobuf).
+func WithContentType(contentType string) Option {
+	return func(c *Client) error {
+		trimmed := strings.TrimSpace(contentType)
+		if trimmed == "" {
+			return fmt.Errorf("content type cannot be empty")
+		}
+		c.contentType = trimmed
+		return nil
+	}
+}
+
 // New creates a Client from a kubeconfig file path.
 func New(kubeconfig string, opts ...Option) (*Client, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
@@ -140,6 +162,10 @@ func NewFromConfig(config *rest.Config, opts ...Option) (*Client, error) {
 	}
 
 	config.Timeout = c.timeout
+	if c.contentType != "" {
+		config.ContentType = c.contentType
+		config.AcceptContentTypes = c.contentType + "," + runtime.ContentTypeJSON
+	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {

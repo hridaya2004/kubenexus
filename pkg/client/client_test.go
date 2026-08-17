@@ -5,6 +5,8 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 )
 
 func TestWithTimeout(t *testing.T) {
@@ -49,6 +51,110 @@ func TestDefaultTimeout(t *testing.T) {
 	c := &Client{}
 	if c.timeout != 0 {
 		t.Errorf("zero-value Client timeout = %v, want 0", c.timeout)
+	}
+}
+
+func TestWithProtobuf(t *testing.T) {
+	c := &Client{timeout: defaultTimeout}
+	err := WithProtobuf()(c)
+	if err != nil {
+		t.Fatalf("WithProtobuf() unexpected error: %v", err)
+	}
+	if c.contentType != runtime.ContentTypeProtobuf {
+		t.Errorf("contentType = %q, want %q", c.contentType, runtime.ContentTypeProtobuf)
+	}
+}
+
+func TestWithContentType(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		wantType    string
+		wantErr     bool
+	}{
+		{
+			name:        "protobuf content type",
+			contentType: runtime.ContentTypeProtobuf,
+			wantType:    runtime.ContentTypeProtobuf,
+			wantErr:     false,
+		},
+		{
+			name:        "json content type",
+			contentType: runtime.ContentTypeJSON,
+			wantType:    runtime.ContentTypeJSON,
+			wantErr:     false,
+		},
+		{
+			name:        "empty content type",
+			contentType: "",
+			wantErr:     true,
+		},
+		{
+			name:        "whitespace only content type",
+			contentType: "   ",
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Client{timeout: defaultTimeout}
+			err := WithContentType(tt.contentType)(c)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("WithContentType(%q) error = %v, wantErr %v", tt.contentType, err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && c.contentType != tt.wantType {
+				t.Errorf("contentType = %q, want %q", c.contentType, tt.wantType)
+			}
+		})
+	}
+}
+
+func TestNewFromConfig_ContentType(t *testing.T) {
+	tests := []struct {
+		name               string
+		opts               []Option
+		wantContentType    string
+		wantAcceptContents string
+	}{
+		{
+			name:               "default (no option)",
+			opts:               nil,
+			wantContentType:    "",
+			wantAcceptContents: "",
+		},
+		{
+			name:               "with protobuf",
+			opts:               []Option{WithProtobuf()},
+			wantContentType:    runtime.ContentTypeProtobuf,
+			wantAcceptContents: runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON,
+		},
+		{
+			name:               "with custom content type",
+			opts:               []Option{WithContentType(runtime.ContentTypeJSON)},
+			wantContentType:    runtime.ContentTypeJSON,
+			wantAcceptContents: runtime.ContentTypeJSON + "," + runtime.ContentTypeJSON,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &rest.Config{Host: "http://localhost:8080"}
+			c, err := NewFromConfig(config, tt.opts...)
+			if err != nil {
+				t.Fatalf("NewFromConfig() unexpected error: %v", err)
+			}
+			if c == nil {
+				t.Fatal("NewFromConfig() returned nil client")
+			}
+			if config.ContentType != tt.wantContentType {
+				t.Errorf("config.ContentType = %q, want %q", config.ContentType, tt.wantContentType)
+			}
+			if config.AcceptContentTypes != tt.wantAcceptContents {
+				t.Errorf("config.AcceptContentTypes = %q, want %q", config.AcceptContentTypes, tt.wantAcceptContents)
+			}
+		})
 	}
 }
 

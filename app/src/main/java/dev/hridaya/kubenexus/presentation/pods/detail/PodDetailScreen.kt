@@ -87,6 +87,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.hridaya.kubenexus.core.common.util.TimeFormatter
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
 import dev.hridaya.kubenexus.domain.model.PodDetails
@@ -384,7 +385,7 @@ private fun DescribeTabContent(
                     DetailItem("Pod IP", details.ip ?: "Pending")
                     DetailItem("Host IP", details.hostIp ?: "Pending")
                     DetailItem("Restart Policy", details.restartPolicy ?: "Always")
-                    DetailItem("Start Time", details.startTime ?: "N/A")
+                    DetailItem("Start Time", TimeFormatter.formatIsoToLocal(details.startTime))
                 }
             }
         }
@@ -646,7 +647,7 @@ private fun LogsTabContent(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (uiState.isOnline) "Stream Logs (-f)" else "Offline")
+                    Text(if (uiState.isOnline) "Stream Logs" else "Offline")
                 }
             }
         }

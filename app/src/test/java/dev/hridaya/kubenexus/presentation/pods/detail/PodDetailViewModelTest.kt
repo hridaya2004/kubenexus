@@ -147,14 +147,22 @@ class PodDetailViewModelTest {
     }
 
     @Test
-    fun `streaming logs updates isStreamingLogs state and appends lines`() = runTest(testDispatcher) {
+    fun `streaming logs clears existing logs first and then streams new lines`() = runTest(testDispatcher) {
         advanceUntilIdle()
 
+        // Fetch logs first to populate old logs
+        viewModel.onAction(PodDetailUiAction.FetchLogs)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.logs.any { it.contains("Starting service") })
+
+        // Now start streaming logs
         viewModel.onAction(PodDetailUiAction.StartStreamingLogs)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertTrue(state.logs.isNotEmpty())
+        assertTrue(state.isStreamingLogs)
+        assertFalse(state.logs.any { it.contains("Starting service") })
+        assertTrue(state.logs.any { it.contains("Log line 1") || it.contains("Streaming logs initiated") })
 
         viewModel.onAction(PodDetailUiAction.StopStreamingLogs)
         assertFalse(viewModel.uiState.value.isStreamingLogs)

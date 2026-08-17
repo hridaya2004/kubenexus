@@ -265,6 +265,7 @@ class PodDetailViewModel(
 
         _uiState.update {
             it.copy(
+                logs = emptyList(),
                 isStreamingLogs = true,
                 isLoadingLogs = false
             )
@@ -273,7 +274,7 @@ class PodDetailViewModel(
         streamJob = viewModelScope.launch(dispatcherProvider.main) {
             streamPodLogsUseCase(cid, namespace, podName, container)
                 .onStart {
-                    _uiState.update { it.copy(logs = it.logs + "[Streaming logs initiated for container '${container ?: "default"}']...") }
+                    _uiState.update { it.copy(logs = listOf("[Streaming logs initiated for container '${container ?: "default"}']...")) }
                 }
                 .catch { t ->
                     _uiState.update {

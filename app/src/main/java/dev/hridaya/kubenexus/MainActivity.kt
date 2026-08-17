@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
         val themeRepo = app.container.themePreferencesRepository
 
         setContent {
-            val themeMode by themeRepo.getThemeModeStream().collectAsStateWithLifecycle(initialValue = ThemeMode.LIGHT)
+            val themeMode by themeRepo.getThemeModeStream().collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
             val amoledDark by themeRepo.getAmoledDarkStream().collectAsStateWithLifecycle(initialValue = false)
 
             CompositionLocalProvider(

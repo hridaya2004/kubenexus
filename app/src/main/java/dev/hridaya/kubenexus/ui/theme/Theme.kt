@@ -1,6 +1,7 @@
 package dev.hridaya.kubenexus.ui.theme
 
 import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -17,11 +18,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 enum class ThemeMode(val title: String) {
-    LIGHT("Light"),
-    DARK("Dark")
+    DARK("Dark"),
+    SYSTEM("System"),
+    LIGHT("Light")
 }
 
-val LocalThemeMode = compositionLocalOf { ThemeMode.LIGHT }
+val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
 val LocalOnThemeModeChange = compositionLocalOf<(ThemeMode) -> Unit> { {} }
 val LocalAmoledDark = compositionLocalOf { false }
 val LocalOnAmoledDarkChange = compositionLocalOf<(Boolean) -> Unit> { {} }
@@ -32,7 +34,12 @@ fun KubeNexusTheme(
     amoledDark: Boolean = LocalAmoledDark.current,
     content: @Composable () -> Unit
 ) {
-    val isDark = themeMode == ThemeMode.DARK
+    val systemInDark = isSystemInDarkTheme()
+    val isDark = when (themeMode) {
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> systemInDark
+    }
     val context = LocalContext.current
 
     val dynamicLight = remember(context) { dynamicLightColorScheme(context) }

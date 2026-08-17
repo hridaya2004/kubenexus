@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.presentation.settings
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,7 +57,12 @@ fun SettingsScreen(
     val amoledDark = LocalAmoledDark.current
     val onAmoledDarkChange = LocalOnAmoledDarkChange.current
 
-    val isDark = currentThemeMode == ThemeMode.DARK
+    val systemInDark = isSystemInDarkTheme()
+    val isDark = when (currentThemeMode) {
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> systemInDark
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -166,7 +173,7 @@ fun AppThemeModePreferenceWidget(
     onItemClick: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val options = listOf(ThemeMode.LIGHT, ThemeMode.DARK)
+    val options = listOf(ThemeMode.DARK, ThemeMode.SYSTEM, ThemeMode.LIGHT)
 
     SingleChoiceSegmentedButtonRow(
         modifier = modifier.fillMaxWidth()
@@ -179,8 +186,13 @@ fun AppThemeModePreferenceWidget(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 icon = {
                     SegmentedButtonDefaults.Icon(active = isSelected) {
+                        val icon = when (mode) {
+                            ThemeMode.DARK -> Icons.Outlined.DarkMode
+                            ThemeMode.SYSTEM -> Icons.Outlined.SettingsBrightness
+                            ThemeMode.LIGHT -> Icons.Outlined.LightMode
+                        }
                         Icon(
-                            imageVector = if (mode == ThemeMode.DARK) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
+                            imageVector = icon,
                             contentDescription = null,
                             modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
                         )

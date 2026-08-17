@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -402,6 +403,7 @@ private fun DescribeTabContent(
                 ContainerCard(
                     container = container,
                     isInitContainer = true,
+                    isOnline = uiState.isOnline,
                     onViewLogsClick = { onNavigateToLogs(container.name) },
                     onOpenTerminalClick = { onNavigateToTerminal(container.name) }
                 )
@@ -421,6 +423,7 @@ private fun DescribeTabContent(
             ContainerCard(
                 container = container,
                 isInitContainer = false,
+                isOnline = uiState.isOnline,
                 onViewLogsClick = { onNavigateToLogs(container.name) },
                 onOpenTerminalClick = { onNavigateToTerminal(container.name) }
             )
@@ -605,7 +608,7 @@ private fun LogsTabContent(
         ) {
             OutlinedButton(
                 onClick = { onAction(PodDetailUiAction.FetchLogs) },
-                enabled = !uiState.isLoadingLogs,
+                enabled = uiState.isOnline && !uiState.isLoadingLogs,
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
@@ -614,7 +617,7 @@ private fun LogsTabContent(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Fetch Logs")
+                Text(if (uiState.isOnline) "Fetch Logs" else "Offline")
             }
 
             if (uiState.isStreamingLogs) {
@@ -634,6 +637,7 @@ private fun LogsTabContent(
             } else {
                 Button(
                     onClick = { onAction(PodDetailUiAction.StartStreamingLogs) },
+                    enabled = uiState.isOnline,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -642,7 +646,7 @@ private fun LogsTabContent(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Stream Logs (-f)")
+                    Text(if (uiState.isOnline) "Stream Logs (-f)" else "Offline")
                 }
             }
         }
@@ -675,15 +679,19 @@ private fun TerminalTabContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(12.dp)
+            .imePadding()
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 6.dp)
+                .padding(bottom = 8.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
                 Text(
                     text = "Target:",
                     style = MaterialTheme.typography.labelMedium,
@@ -713,58 +721,35 @@ private fun TerminalTabContent(
                 }
             }
 
+            Spacer(modifier = Modifier.width(8.dp))
+
             if (uiState.isTerminalActive) {
                 Button(
                     onClick = { onAction(PodDetailUiAction.StopInteractiveTerminal) },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.height(32.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(34.dp)
                 ) {
                     Icon(imageVector = Icons.Outlined.Stop, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Disconnect", fontSize = 12.sp)
                 }
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedButton(
-                        onClick = { onAction(PodDetailUiAction.StartInteractiveTerminal("/bin/sh")) },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("Attach /bin/sh", fontSize = 12.sp)
-                    }
-                    Button(
-                        onClick = { onAction(PodDetailUiAction.StartInteractiveTerminal("/bin/bash")) },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("Attach /bin/bash", fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 6.dp)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            val quickCommands = listOf("ls -la", "cat /etc/os-release", "env", "df -h", "ps aux", "id", "uname -a")
-            quickCommands.forEach { cmd ->
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    onClick = { onAction(PodDetailUiAction.ExecuteCommand(cmd)) }
+                Button(
+                    onClick = { onAction(PodDetailUiAction.StartInteractiveTerminal()) },
+                    enabled = uiState.isContainerAttachable && !uiState.isExecutingCommand,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(34.dp)
                 ) {
+                    Icon(imageVector = Icons.Outlined.Terminal, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "$ $cmd",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        text = when {
+                            !uiState.isOnline -> "Offline"
+                            !uiState.isContainerAttachable -> "Detached"
+                            else -> "Attach"
+                        },
+                        fontSize = 12.sp
                     )
                 }
             }
@@ -834,7 +819,7 @@ private fun TerminalTabContent(
                     if (uiState.terminalLines.isEmpty()) {
                         item {
                             Text(
-                                text = "# Type a command below or tap a quick shortcut to exec into the pod container.\n# Tap 'Attach' above to open an interactive TTY shell session.",
+                                text = "# Type a command below to exec into the pod container.\n# Tap 'Attach' above to open an interactive TTY shell session.",
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 12.sp,
                                 color = Color(0xFF6E7681)
@@ -871,9 +856,14 @@ private fun TerminalTabContent(
             OutlinedTextField(
                 value = uiState.execInputText,
                 onValueChange = { onAction(PodDetailUiAction.UpdateExecInput(it)) },
+                enabled = uiState.isOnline && !uiState.isExecutingCommand,
                 placeholder = {
                     Text(
-                        text = if (uiState.isTerminalActive) "Send stdin/command to shell..." else "Run command (e.g. ps aux)...",
+                        text = when {
+                            !uiState.isOnline -> "Network offline..."
+                            uiState.isTerminalActive -> "Send stdin/command to shell..."
+                            else -> "Run command (e.g. ps aux)..."
+                        },
                         fontFamily = FontFamily.Monospace,
                         fontSize = 12.sp
                     )
@@ -890,7 +880,7 @@ private fun TerminalTabContent(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(
                     onSend = {
-                        if (uiState.execInputText.isNotBlank()) {
+                        if (uiState.execInputText.isNotBlank() && uiState.isOnline) {
                             onAction(PodDetailUiAction.ExecuteCommand(uiState.execInputText))
                         }
                     }
@@ -908,11 +898,11 @@ private fun TerminalTabContent(
 
             Button(
                 onClick = {
-                    if (uiState.execInputText.isNotBlank()) {
+                    if (uiState.execInputText.isNotBlank() && uiState.isOnline) {
                         onAction(PodDetailUiAction.ExecuteCommand(uiState.execInputText))
                     }
                 },
-                enabled = uiState.execInputText.isNotBlank() && !uiState.isExecutingCommand,
+                enabled = uiState.isOnline && uiState.execInputText.isNotBlank() && !uiState.isExecutingCommand,
                 modifier = Modifier.height(52.dp)
             ) {
                 Icon(
@@ -929,9 +919,12 @@ private fun TerminalTabContent(
 private fun ContainerCard(
     container: ContainerDetail,
     isInitContainer: Boolean = false,
+    isOnline: Boolean = true,
     onViewLogsClick: () -> Unit,
     onOpenTerminalClick: () -> Unit
 ) {
+    val isAttachable = isOnline && (container.ready || container.state.equals("Running", ignoreCase = true))
+
     ElevatedCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.elevatedCardColors(
@@ -1014,6 +1007,7 @@ private fun ContainerCard(
 
                 Button(
                     onClick = onOpenTerminalClick,
+                    enabled = isAttachable,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -1022,7 +1016,7 @@ private fun ContainerCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Exec Terminal", fontSize = 12.sp)
+                    Text(if (isAttachable) "Exec Terminal" else "Detached", fontSize = 12.sp)
                 }
             }
         }

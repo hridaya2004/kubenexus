@@ -31,7 +31,8 @@ data class HomeUiState(
     val kubeconfigInput: String = "",
     val customClusterName: String = "",
     val kubeconfigError: String? = null,
-    val errorDialogData: ErrorDialogData? = null
+    val errorDialogData: ErrorDialogData? = null,
+    val isOnline: Boolean = true
 )
 
 sealed interface HomeUiAction {

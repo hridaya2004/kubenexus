@@ -50,12 +50,17 @@ class HomeViewModelTest {
 
     private lateinit var fakeClusterRepository: FakeClusterRepository
     private lateinit var fakePodRepository: FakePodRepository
+    private val onlineFlow = MutableStateFlow(true)
+    private val fakeNetworkMonitor = object : dev.hridaya.kubenexus.core.common.network.NetworkMonitor {
+        override val isOnline: Flow<Boolean> = onlineFlow
+    }
     private lateinit var viewModel: HomeViewModel
 
     @Before
     fun setUp() {
         fakeClusterRepository = FakeClusterRepository()
         fakePodRepository = FakePodRepository()
+        onlineFlow.value = true
         viewModel = HomeViewModel(
             getClustersUseCase = GetClustersUseCase(fakeClusterRepository, testDispatcherProvider),
             getActiveClusterUseCase = GetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
@@ -68,6 +73,7 @@ class HomeViewModelTest {
             deleteClusterUseCase = DeleteClusterUseCase(fakeClusterRepository, testDispatcherProvider),
             updateClusterNameUseCase = UpdateClusterNameUseCase(fakeClusterRepository),
             testClusterConnectionUseCase = TestClusterConnectionUseCase(fakeClusterRepository, testDispatcherProvider),
+            networkMonitor = fakeNetworkMonitor,
             dispatcherProvider = testDispatcherProvider
         )
     }
@@ -182,6 +188,35 @@ class HomeViewModelTest {
         val afterRefresh = viewModel.uiState.value.lastRefreshedAt
         assertFalse(viewModel.uiState.value.isRefreshing)
         assertNotNull(afterRefresh)
+    }
+
+    @Test
+    fun `network reconnection triggers auto-refresh when active cluster exists`() = runTest(testDispatcher) {
+        val validYaml = """
+            apiVersion: v1
+            kind: Config
+            clusters:
+            - cluster:
+                server: https://127.0.0.1:6443
+              name: test-cluster
+            current-context: test-cluster
+        """.trimIndent()
+
+        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+        advanceUntilIdle()
+
+        // Network goes offline
+        onlineFlow.value = false
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isOnline)
+        assertEquals(ClusterConnectionStatus.DISCONNECTED, viewModel.uiState.value.clusterConnectionStatus)
+
+        // Network comes back online
+        onlineFlow.value = true
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isOnline)
+        assertNotNull(viewModel.uiState.value.activeCluster)
     }
 
     private class FakeClusterRepository : ClusterRepository {

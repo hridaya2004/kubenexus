@@ -40,8 +40,17 @@ data class PodDetailUiState(
     val execInputText: String = "",
     val activeShellCommand: String = "/bin/sh",
     val showDeleteConfirmDialog: Boolean = false,
-    val isDeletingPod: Boolean = false
-)
+    val isDeletingPod: Boolean = false,
+    val isOnline: Boolean = true
+) {
+    val isContainerAttachable: Boolean
+        get() {
+            if (!isOnline) return false
+            val currentContainer = (podDetails?.containers.orEmpty() + podDetails?.initContainers.orEmpty())
+                .find { it.name == selectedContainer }
+            return currentContainer == null || currentContainer.state.equals("Running", ignoreCase = true) || currentContainer.ready
+        }
+}
 
 sealed interface PodDetailUiAction {
     data object RefreshDescribe : PodDetailUiAction
@@ -54,7 +63,7 @@ sealed interface PodDetailUiAction {
 
     data class UpdateExecInput(val input: String) : PodDetailUiAction
     data class ExecuteCommand(val command: String) : PodDetailUiAction
-    data class StartInteractiveTerminal(val shell: String = "/bin/sh") : PodDetailUiAction
+    data class StartInteractiveTerminal(val shell: String? = null) : PodDetailUiAction
     data object StopInteractiveTerminal : PodDetailUiAction
     data class SendTerminalInput(val input: String) : PodDetailUiAction
     data object ClearTerminal : PodDetailUiAction

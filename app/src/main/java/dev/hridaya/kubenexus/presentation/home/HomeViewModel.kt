@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -45,6 +46,7 @@ class HomeViewModel(
     private val deleteClusterUseCase: DeleteClusterUseCase,
     private val updateClusterNameUseCase: UpdateClusterNameUseCase,
     private val testClusterConnectionUseCase: TestClusterConnectionUseCase,
+    private val networkMonitor: NetworkMonitor,
     private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
 
@@ -58,7 +60,35 @@ class HomeViewModel(
     val effects = _effects.receiveAsFlow()
 
     init {
+        observeNetworkConnectivity()
         observeLocalDatabase()
+    }
+
+    private fun observeNetworkConnectivity() {
+        viewModelScope.launch(dispatcherProvider.main) {
+            networkMonitor.isOnline.collect { online ->
+                val wasOffline = !_uiState.value.isOnline
+                _uiState.update { it.copy(isOnline = online) }
+                if (online) {
+                    val activeCluster = _uiState.value.activeCluster
+                    if (activeCluster != null && wasOffline) {
+                        performRefresh(
+                            clusterId = activeCluster.id,
+                            namespace = _selectedNamespace.value,
+                            showLoading = false
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        if (it.activeCluster != null) {
+                            it.copy(clusterConnectionStatus = ClusterConnectionStatus.DISCONNECTED)
+                        } else {
+                            it.copy(clusterConnectionStatus = ClusterConnectionStatus.OFFLINE)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun observeLocalDatabase() {
@@ -490,6 +520,7 @@ class HomeViewModel(
                         deleteClusterUseCase = container.deleteClusterUseCase,
                         updateClusterNameUseCase = container.updateClusterNameUseCase,
                         testClusterConnectionUseCase = container.testClusterConnectionUseCase,
+                        networkMonitor = container.networkMonitor,
                         dispatcherProvider = container.dispatcherProvider
                     ) as T
                 }

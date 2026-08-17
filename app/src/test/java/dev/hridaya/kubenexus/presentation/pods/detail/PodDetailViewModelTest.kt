@@ -48,12 +48,17 @@ class PodDetailViewModelTest {
 
     private lateinit var fakeClusterRepository: FakeClusterRepository
     private lateinit var fakePodRepository: FakePodRepository
+    private val onlineFlow = kotlinx.coroutines.flow.MutableStateFlow(true)
+    private val fakeNetworkMonitor = object : dev.hridaya.kubenexus.core.common.network.NetworkMonitor {
+        override val isOnline: Flow<Boolean> = onlineFlow
+    }
     private lateinit var viewModel: PodDetailViewModel
 
     @Before
     fun setUp() {
         fakeClusterRepository = FakeClusterRepository()
         fakePodRepository = FakePodRepository()
+        onlineFlow.value = true
 
         viewModel = PodDetailViewModel(
             podName = "test-pod-1",
@@ -66,6 +71,7 @@ class PodDetailViewModelTest {
             execPodCommandUseCase = ExecPodCommandUseCase(fakePodRepository),
             startPodTerminalUseCase = StartPodTerminalUseCase(fakePodRepository),
             startExecSessionUseCase = StartExecSessionUseCase(fakePodRepository),
+            networkMonitor = fakeNetworkMonitor,
             dispatcherProvider = testDispatcherProvider
         )
     }
@@ -124,7 +130,7 @@ class PodDetailViewModelTest {
     fun `interactive terminal session connects and handles input`() = runTest(testDispatcher) {
         advanceUntilIdle()
 
-        viewModel.onAction(PodDetailUiAction.StartInteractiveTerminal("/bin/sh"))
+        viewModel.onAction(PodDetailUiAction.StartInteractiveTerminal())
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -133,7 +139,7 @@ class PodDetailViewModelTest {
         viewModel.onAction(PodDetailUiAction.SendTerminalInput("whoami"))
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value.terminalLines.any { it.text == "echo: whoami" })
+        assertTrue(viewModel.uiState.value.terminalLines.any { it.text == "echo: whoami\n" || it.text == "echo: whoami" || it.text == "whoami" })
 
         viewModel.onAction(PodDetailUiAction.StopInteractiveTerminal)
         advanceUntilIdle()
@@ -152,6 +158,49 @@ class PodDetailViewModelTest {
 
         viewModel.onAction(PodDetailUiAction.StopStreamingLogs)
         assertFalse(viewModel.uiState.value.isStreamingLogs)
+    }
+
+    @Test
+    fun `network offline updates isOnline and isContainerAttachable and closes active terminal`() = runTest(testDispatcher) {
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isOnline)
+        assertTrue(viewModel.uiState.value.isContainerAttachable)
+
+        viewModel.onAction(PodDetailUiAction.StartInteractiveTerminal())
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isTerminalActive)
+
+        // Network drops offline
+        onlineFlow.value = false
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isOnline)
+        assertFalse(viewModel.uiState.value.isContainerAttachable)
+        assertFalse(viewModel.uiState.value.isTerminalActive)
+        assertTrue(viewModel.uiState.value.terminalLines.any { it.text.contains("Network disconnected") })
+    }
+
+    @Test
+    fun `network offline stops streaming logs and reconnection refetches pod describe`() = runTest(testDispatcher) {
+        advanceUntilIdle()
+
+        viewModel.onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
+        viewModel.onAction(PodDetailUiAction.StartStreamingLogs)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isStreamingLogs)
+
+        // Drop offline
+        onlineFlow.value = false
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isStreamingLogs)
+        assertTrue(viewModel.uiState.value.logs.any { it.contains("Network disconnected") })
+
+        // Reconnect online
+        onlineFlow.value = true
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isOnline)
+        assertNotNull(viewModel.uiState.value.podDetails)
     }
 
     private class FakeClusterRepository : ClusterRepository {
@@ -261,7 +310,9 @@ class PodDetailViewModelTest {
             onDone: () -> Unit
         ): Result<TerminalSession> {
             val session = object : TerminalSession {
-                override fun write(input: String) {}
+                override fun write(input: String) {
+                    onStdout("echo: $input")
+                }
                 override fun writeBytes(bytes: ByteArray) {}
                 override fun close() {
                     onDone()

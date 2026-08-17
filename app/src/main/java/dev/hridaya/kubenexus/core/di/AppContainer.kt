@@ -62,6 +62,7 @@ interface AppContainer {
     val getLogcatStreamUseCase: dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase
     val dumpLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase
     val clearLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase
+    val networkMonitor: dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 }
 
 class DefaultAppContainer(
@@ -262,6 +263,13 @@ class DefaultAppContainer(
     override val clearLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase by lazy {
         dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase(
             repository = logcatRepository
+        )
+    }
+
+    override val networkMonitor: dev.hridaya.kubenexus.core.common.network.NetworkMonitor by lazy {
+        dev.hridaya.kubenexus.core.common.network.ConnectivityNetworkMonitor(
+            context = appContext,
+            dispatcherProvider = dispatcherProvider
         )
     }
 }

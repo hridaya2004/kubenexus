@@ -182,7 +182,8 @@ class KubeNexusNativeBridgeImpl(
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
-            val nativeList = client.listPods(namespace.orEmpty())
+            val ns = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) "" else namespace.trim()
+            val nativeList = client.listPods(ns)
             val result = mutableListOf<String>()
             val len = nativeList.len()
             for (i in 0 until len) {
@@ -201,7 +202,8 @@ class KubeNexusNativeBridgeImpl(
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
-            val nativeList = client.listPodsWide(namespace.orEmpty())
+            val ns = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) "" else namespace.trim()
+            val nativeList = client.listPodsWide(ns)
             val result = mutableListOf<NativePod>()
             val len = nativeList.len()
             for (i in 0 until len) {

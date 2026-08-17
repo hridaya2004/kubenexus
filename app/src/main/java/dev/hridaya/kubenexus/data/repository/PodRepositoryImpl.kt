@@ -60,10 +60,10 @@ class PodRepositoryImpl(
     override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> {
         if (clusterId == null) return flowOf(emptyList())
 
-        val stream = if (namespace.isNullOrBlank() || namespace == "All Namespaces") {
+        val stream = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) {
             podDao.getPodsStream(clusterId)
         } else {
-            podDao.getPodsByNamespaceStream(clusterId, namespace)
+            podDao.getPodsByNamespaceStream(clusterId, namespace.trim())
         }
 
         return stream.map { entities ->
@@ -98,16 +98,18 @@ class PodRepositoryImpl(
             val cluster = clusterDao.getClusterById(clusterId)
                 ?: return@withContext Result.Error(AppError.NotFound("Cluster with ID '$clusterId' not found"))
 
+            val queryNamespace = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) null else namespace.trim()
+
             try {
                 val livePods: List<Pod> = try {
-                    val nativeResult = nativeBridge.listPodsWide(cluster.rawKubeconfig, namespace).getOrNull()
+                    val nativeResult = nativeBridge.listPodsWide(cluster.rawKubeconfig, queryNamespace).getOrNull()
                     if (nativeResult != null) {
                         nativeResult.map { it.toDomain() }
                     } else {
                         apiClient.fetchPods(
                             serverUrl = cluster.serverUrl,
                             rawKubeconfig = cluster.rawKubeconfig,
-                            namespace = namespace
+                            namespace = queryNamespace
                         )
                     }
                 } catch (t: Throwable) {
@@ -115,7 +117,7 @@ class PodRepositoryImpl(
                     apiClient.fetchPods(
                         serverUrl = cluster.serverUrl,
                         rawKubeconfig = cluster.rawKubeconfig,
-                        namespace = namespace
+                        namespace = queryNamespace
                     )
                 }
 
@@ -140,7 +142,7 @@ class PodRepositoryImpl(
                 val podEntities = livePods.map { it.toEntity(clusterId) }
                 podDao.syncPods(
                     clusterId = clusterId,
-                    namespace = namespace,
+                    namespace = queryNamespace,
                     pods = podEntities,
                     timestamp = System.currentTimeMillis()
                 )

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.di.AppContainer
 import dev.hridaya.kubenexus.domain.model.Cluster
@@ -27,7 +28,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -107,7 +107,15 @@ class HomeViewModel(
                     getNamespacesUseCase(clusterId),
                     getLastRefreshedUseCase(clusterId)
                 ) { pods, allPods, namespaces, lastRefreshed ->
-                    LocalWorkloadData(clusters, activeCluster, pods, allPods.size, namespaces, ns, lastRefreshed)
+                    LocalWorkloadData(
+                        clusters,
+                        activeCluster,
+                        pods,
+                        allPods.size,
+                        namespaces,
+                        ns,
+                        lastRefreshed
+                    )
                 }.catch { t ->
                     _uiState.update {
                         it.copy(
@@ -141,7 +149,11 @@ class HomeViewModel(
                 if (data.activeCluster != null && lastSyncedClusterId != data.activeCluster.id) {
                     lastSyncedClusterId = data.activeCluster.id
                     if (data.pods.isEmpty()) {
-                        performRefresh(data.activeCluster.id, data.selectedNamespace, showLoading = true)
+                        performRefresh(
+                            data.activeCluster.id,
+                            data.selectedNamespace,
+                            showLoading = true
+                        )
                     }
                 }
             }
@@ -162,7 +174,11 @@ class HomeViewModel(
         when (action) {
             is HomeUiAction.RefreshWorkloads -> {
                 val activeClusterId = _uiState.value.activeCluster?.id
-                performRefresh(activeClusterId, _uiState.value.selectedNamespace, showLoading = true)
+                performRefresh(
+                    activeClusterId,
+                    _uiState.value.selectedNamespace,
+                    showLoading = true
+                )
             }
 
             is HomeUiAction.OpenClusterDrawer -> {
@@ -402,8 +418,7 @@ class HomeViewModel(
         }
 
         viewModelScope.launch(dispatcherProvider.main) {
-            val result = setActiveClusterUseCase(clusterId)
-            when (result) {
+            when (val result = setActiveClusterUseCase(clusterId)) {
                 is Result.Success -> {
                     _uiState.update {
                         it.copy(
@@ -442,8 +457,7 @@ class HomeViewModel(
         }
 
         viewModelScope.launch(dispatcherProvider.main) {
-            val result = testClusterConnectionUseCase.testCluster(clusterId)
-            when (result) {
+            when (val result = testClusterConnectionUseCase.testCluster(clusterId)) {
                 is Result.Success -> {
                     _uiState.update {
                         it.copy(

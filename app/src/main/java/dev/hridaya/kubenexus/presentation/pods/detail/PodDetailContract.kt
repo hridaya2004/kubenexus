@@ -48,9 +48,13 @@ data class PodDetailUiState(
     val isContainerAttachable: Boolean
         get() {
             if (!isOnline) return false
-            val currentContainer = (podDetails?.containers.orEmpty() + podDetails?.initContainers.orEmpty())
-                .find { it.name == selectedContainer }
-            return currentContainer == null || currentContainer.state.equals("Running", ignoreCase = true) || currentContainer.ready
+            val currentContainer =
+                (podDetails?.containers.orEmpty() + podDetails?.initContainers.orEmpty())
+                    .find { it.name == selectedContainer }
+            return currentContainer == null || currentContainer.state.equals(
+                "Running",
+                ignoreCase = true
+            ) || currentContainer.ready
         }
 }
 

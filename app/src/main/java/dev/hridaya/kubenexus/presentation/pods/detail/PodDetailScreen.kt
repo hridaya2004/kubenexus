@@ -4,10 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +24,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -44,7 +41,6 @@ import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.AlertDialog
@@ -75,9 +71,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,7 +85,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
-import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodEventDetail
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
@@ -379,7 +371,10 @@ private fun DescribeTabContent(
                     DetailItem("Restart Policy", details.restartPolicy ?: "Always")
                     DetailItem("Start Time", TimeFormatter.formatIsoToLocal(details.startTime))
                     if (uiState.lastRefreshedAt != null) {
-                        DetailItem("Last Refreshed", TimeFormatter.formatLastRefreshed(uiState.lastRefreshedAt))
+                        DetailItem(
+                            "Last Refreshed",
+                            TimeFormatter.formatLastRefreshed(uiState.lastRefreshedAt)
+                        )
                     }
                 }
             }
@@ -484,7 +479,10 @@ private fun DescribeTabContent(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         details.volumes.forEach { volume ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -592,7 +590,8 @@ private fun LogsTabContent(
     uiState: PodDetailUiState,
     onAction: (PodDetailUiAction) -> Unit
 ) {
-    val containers = (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
+    val containers =
+        (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
 
     Column(
         modifier = Modifier
@@ -693,7 +692,8 @@ private fun TerminalTabContent(
     onAction: (PodDetailUiAction) -> Unit
 ) {
     val context = LocalContext.current
-    val containers = (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
+    val containers =
+        (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
     val listState = rememberLazyListState()
 
     LaunchedEffect(uiState.terminalLines.size) {
@@ -757,7 +757,11 @@ private fun TerminalTabContent(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                     modifier = Modifier.height(34.dp)
                 ) {
-                    Icon(imageVector = Icons.Outlined.Stop, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(
+                        imageVector = Icons.Outlined.Stop,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Disconnect", fontSize = 12.sp)
                 }
@@ -768,7 +772,11 @@ private fun TerminalTabContent(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                     modifier = Modifier.height(34.dp)
                 ) {
-                    Icon(imageVector = Icons.Outlined.Terminal, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(
+                        imageVector = Icons.Outlined.Terminal,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = when {
@@ -803,7 +811,10 @@ private fun TerminalTabContent(
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
-                                .background(if (uiState.isTerminalActive) TermuxGreen else TermuxYellow, CircleShape)
+                                .background(
+                                    if (uiState.isTerminalActive) TermuxGreen else TermuxYellow,
+                                    CircleShape
+                                )
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -817,21 +828,42 @@ private fun TerminalTabContent(
                     Row {
                         IconButton(
                             onClick = {
-                                val fullOutput = uiState.terminalLines.joinToString("\n") { it.text }
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Output", fullOutput))
-                                Toast.makeText(context, "Terminal output copied", Toast.LENGTH_SHORT).show()
+                                val fullOutput =
+                                    uiState.terminalLines.joinToString("\n") { it.text }
+                                val clipboard =
+                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(
+                                    ClipData.newPlainText(
+                                        "Terminal Output",
+                                        fullOutput
+                                    )
+                                )
+                                Toast.makeText(
+                                    context,
+                                    "Terminal output copied",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             },
                             modifier = Modifier.size(24.dp)
                         ) {
-                            Icon(imageVector = Icons.Outlined.ContentCopy, contentDescription = "Copy", tint = TermuxText, modifier = Modifier.size(14.dp))
+                            Icon(
+                                imageVector = Icons.Outlined.ContentCopy,
+                                contentDescription = "Copy",
+                                tint = TermuxText,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
                             onClick = { onAction(PodDetailUiAction.ClearTerminal) },
                             modifier = Modifier.size(24.dp)
                         ) {
-                            Icon(imageVector = Icons.Outlined.Clear, contentDescription = "Clear", tint = TermuxText, modifier = Modifier.size(14.dp))
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = "Clear",
+                                tint = TermuxText,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 }
@@ -950,7 +982,8 @@ private fun ContainerCard(
     onViewLogsClick: () -> Unit,
     onOpenTerminalClick: () -> Unit
 ) {
-    val isAttachable = isOnline && (container.ready || container.state.equals("Running", ignoreCase = true))
+    val isAttachable =
+        isOnline && (container.ready || container.state.equals("Running", ignoreCase = true))
 
     ElevatedCard(
         shape = RoundedCornerShape(12.dp),
@@ -1096,7 +1129,11 @@ private fun EventCard(event: PodEventDetail) {
             Icon(
                 imageVector = Icons.Outlined.Event,
                 contentDescription = null,
-                tint = if (event.type.equals("Warning", ignoreCase = true)) Color(0xFFD29922) else MaterialTheme.colorScheme.primary,
+                tint = if (event.type.equals(
+                        "Warning",
+                        ignoreCase = true
+                    )
+                ) Color(0xFFD29922) else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))

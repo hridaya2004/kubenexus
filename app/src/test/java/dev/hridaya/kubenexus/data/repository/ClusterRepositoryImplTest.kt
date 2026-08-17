@@ -7,7 +7,6 @@ import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.kubeconfig.ClusterConnectionTester
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
-import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,32 +73,94 @@ class ClusterRepositoryImplTest {
             override fun touch(): Boolean = true
             override fun createClient(rawKubeconfig: String): kotlin.Result<client.Client_> =
                 kotlin.Result.failure(UnsupportedOperationException("Test mock"))
-            override fun createClientWithOptions(rawKubeconfig: String, timeoutSec: Long, insecure: Boolean): kotlin.Result<client.Client_> =
+
+            override fun createClientWithOptions(
+                rawKubeconfig: String,
+                timeoutSec: Long,
+                insecure: Boolean
+            ): kotlin.Result<client.Client_> =
                 kotlin.Result.failure(UnsupportedOperationException("Test mock"))
-            override fun listPods(rawKubeconfig: String, namespace: String?): kotlin.Result<List<String>> =
+
+            override fun listPods(
+                rawKubeconfig: String,
+                namespace: String?
+            ): kotlin.Result<List<String>> =
                 kotlin.Result.success(emptyList())
-            override fun listPodsWide(rawKubeconfig: String, namespace: String?): kotlin.Result<List<client.Pod>> =
+
+            override fun listPodsWide(
+                rawKubeconfig: String,
+                namespace: String?
+            ): kotlin.Result<List<client.Pod>> =
                 kotlin.Result.success(emptyList())
+
             override fun listNamespaces(rawKubeconfig: String): kotlin.Result<List<client.Namespace>> =
                 kotlin.Result.success(emptyList())
-            override fun describePod(rawKubeconfig: String, namespace: String, podName: String): kotlin.Result<client.PodDetails> =
+
+            override fun describePod(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String
+            ): kotlin.Result<client.PodDetails> =
                 kotlin.Result.failure(UnsupportedOperationException("Test mock"))
-            override fun deletePod(rawKubeconfig: String, namespace: String, podName: String): kotlin.Result<Unit> =
+
+            override fun deletePod(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String
+            ): kotlin.Result<Unit> =
                 kotlin.Result.success(Unit)
-            override fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?): kotlin.Result<String> =
+
+            override fun getPodLogs(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String,
+                container: String?
+            ): kotlin.Result<String> =
                 kotlin.Result.success("")
-            override fun streamPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?, callback: client.LogCallback): kotlin.Result<Unit> =
+
+            override fun streamPodLogs(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String,
+                container: String?,
+                callback: client.LogCallback
+            ): kotlin.Result<Unit> =
                 kotlin.Result.success(Unit)
-            override fun exec(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, stdin: String): kotlin.Result<client.ExecResult> =
+
+            override fun exec(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String,
+                container: String,
+                command: String,
+                stdin: String
+            ): kotlin.Result<client.ExecResult> =
                 kotlin.Result.failure(UnsupportedOperationException("Test mock"))
-            override fun startTerminal(rawKubeconfig: String, namespace: String, podName: String, container: String, callback: client.ExecCallback): kotlin.Result<client.ExecSession> =
+
+            override fun startTerminal(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String,
+                container: String,
+                callback: client.ExecCallback
+            ): kotlin.Result<client.ExecSession> =
                 kotlin.Result.failure(UnsupportedOperationException("Test mock"))
-            override fun startExecSession(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, tty: Boolean, callback: client.ExecCallback): kotlin.Result<client.ExecSession> =
+
+            override fun startExecSession(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String,
+                container: String,
+                command: String,
+                tty: Boolean,
+                callback: client.ExecCallback
+            ): kotlin.Result<client.ExecSession> =
                 kotlin.Result.failure(UnsupportedOperationException("Test mock"))
         }
 
         fakeTester = object : ClusterConnectionTester(fakeNativeBridge) {
-            override fun testConnection(parsed: dev.hridaya.kubenexus.domain.model.ParsedKubeconfig): String = "Reachable & Healthy (HTTP 200 OK)"
+            override fun testConnection(parsed: dev.hridaya.kubenexus.domain.model.ParsedKubeconfig): String =
+                "Reachable & Healthy (HTTP 200 OK)"
         }
 
         repository = ClusterRepositoryImpl(
@@ -132,90 +193,92 @@ class ClusterRepositoryImplTest {
     }
 
     @Test
-    fun `getClustersStream and getClusterById decrypt stored encrypted kubeconfig`() = runTest(testDispatcher) {
-        val encryptedKubeconfig = encryptor.encrypt(sampleKubeconfig)
-        fakeDao.insertCluster(
-            ClusterEntity(
-                id = "c-100",
-                name = "Test Prod",
-                serverUrl = "https://k8s.example.com",
-                rawKubeconfig = encryptedKubeconfig,
-                contextName = "prod-ctx",
-                userName = "admin",
+    fun `getClustersStream and getClusterById decrypt stored encrypted kubeconfig`() =
+        runTest(testDispatcher) {
+            val encryptedKubeconfig = encryptor.encrypt(sampleKubeconfig)
+            fakeDao.insertCluster(
+                ClusterEntity(
+                    id = "c-100",
+                    name = "Test Prod",
+                    serverUrl = "https://k8s.example.com",
+                    rawKubeconfig = encryptedKubeconfig,
+                    contextName = "prod-ctx",
+                    userName = "admin",
+                    namespace = "default",
+                    isActive = true,
+                    createdAt = 1000L,
+                    lastConnectedAt = null,
+                    status = "CONNECTED"
+                )
+            )
+
+            val cluster = repository.getClusterById("c-100")
+            assertNotNull(cluster)
+            assertEquals(sampleKubeconfig, cluster!!.rawKubeconfig)
+
+            val streamList = repository.getClustersStream().first()
+            assertEquals(1, streamList.size)
+            assertEquals(sampleKubeconfig, streamList[0].rawKubeconfig)
+        }
+
+    @Test
+    fun `migratePlaintextClusters encrypts all plaintext records without losing data`() =
+        runTest(testDispatcher) {
+            // Insert legacy plaintext clusters
+            val legacy1 = ClusterEntity(
+                id = "c-legacy-1",
+                name = "Legacy Cluster 1",
+                serverUrl = "https://10.0.0.1:6443",
+                rawKubeconfig = sampleKubeconfig,
+                contextName = "ctx-1",
+                userName = "user-1",
                 namespace = "default",
                 isActive = true,
                 createdAt = 1000L,
                 lastConnectedAt = null,
                 status = "CONNECTED"
             )
-        )
+            val legacy2 = ClusterEntity(
+                id = "c-legacy-2",
+                name = "Legacy Cluster 2",
+                serverUrl = "https://10.0.0.2:6443",
+                rawKubeconfig = sampleKubeconfig,
+                contextName = "ctx-2",
+                userName = "user-2",
+                namespace = "kube-system",
+                isActive = false,
+                createdAt = 2000L,
+                lastConnectedAt = null,
+                status = "DISCONNECTED"
+            )
+            fakeDao.insertCluster(legacy1)
+            fakeDao.insertCluster(legacy2)
 
-        val cluster = repository.getClusterById("c-100")
-        assertNotNull(cluster)
-        assertEquals(sampleKubeconfig, cluster!!.rawKubeconfig)
+            // Prior to migration, DAO stores plaintext
+            assertEquals(sampleKubeconfig, fakeDao.getClusterById("c-legacy-1")!!.rawKubeconfig)
 
-        val streamList = repository.getClustersStream().first()
-        assertEquals(1, streamList.size)
-        assertEquals(sampleKubeconfig, streamList[0].rawKubeconfig)
-    }
+            // Run migration
+            val migrationResult = repository.migratePlaintextClusters()
+            assertTrue(migrationResult is Result.Success)
+            assertEquals(2, (migrationResult as Result.Success).data)
 
-    @Test
-    fun `migratePlaintextClusters encrypts all plaintext records without losing data`() = runTest(testDispatcher) {
-        // Insert legacy plaintext clusters
-        val legacy1 = ClusterEntity(
-            id = "c-legacy-1",
-            name = "Legacy Cluster 1",
-            serverUrl = "https://10.0.0.1:6443",
-            rawKubeconfig = sampleKubeconfig,
-            contextName = "ctx-1",
-            userName = "user-1",
-            namespace = "default",
-            isActive = true,
-            createdAt = 1000L,
-            lastConnectedAt = null,
-            status = "CONNECTED"
-        )
-        val legacy2 = ClusterEntity(
-            id = "c-legacy-2",
-            name = "Legacy Cluster 2",
-            serverUrl = "https://10.0.0.2:6443",
-            rawKubeconfig = sampleKubeconfig,
-            contextName = "ctx-2",
-            userName = "user-2",
-            namespace = "kube-system",
-            isActive = false,
-            createdAt = 2000L,
-            lastConnectedAt = null,
-            status = "DISCONNECTED"
-        )
-        fakeDao.insertCluster(legacy1)
-        fakeDao.insertCluster(legacy2)
+            // After migration, both records in DAO are encrypted at rest
+            val entity1 = fakeDao.getClusterById("c-legacy-1")!!
+            val entity2 = fakeDao.getClusterById("c-legacy-2")!!
+            assertTrue(entity1.rawKubeconfig.startsWith("enc:v1:"))
+            assertTrue(entity2.rawKubeconfig.startsWith("enc:v1:"))
 
-        // Prior to migration, DAO stores plaintext
-        assertEquals(sampleKubeconfig, fakeDao.getClusterById("c-legacy-1")!!.rawKubeconfig)
+            // Verify repository reading still decrypts both properly
+            val domain1 = repository.getClusterById("c-legacy-1")!!
+            val domain2 = repository.getClusterById("c-legacy-2")!!
+            assertEquals(sampleKubeconfig, domain1.rawKubeconfig)
+            assertEquals(sampleKubeconfig, domain2.rawKubeconfig)
 
-        // Run migration
-        val migrationResult = repository.migratePlaintextClusters()
-        assertTrue(migrationResult is Result.Success)
-        assertEquals(2, (migrationResult as Result.Success).data)
-
-        // After migration, both records in DAO are encrypted at rest
-        val entity1 = fakeDao.getClusterById("c-legacy-1")!!
-        val entity2 = fakeDao.getClusterById("c-legacy-2")!!
-        assertTrue(entity1.rawKubeconfig.startsWith("enc:v1:"))
-        assertTrue(entity2.rawKubeconfig.startsWith("enc:v1:"))
-
-        // Verify repository reading still decrypts both properly
-        val domain1 = repository.getClusterById("c-legacy-1")!!
-        val domain2 = repository.getClusterById("c-legacy-2")!!
-        assertEquals(sampleKubeconfig, domain1.rawKubeconfig)
-        assertEquals(sampleKubeconfig, domain2.rawKubeconfig)
-
-        // Running migration again is idempotent (0 records migrated)
-        val secondMigration = repository.migratePlaintextClusters()
-        assertTrue(secondMigration is Result.Success)
-        assertEquals(0, (secondMigration as Result.Success).data)
-    }
+            // Running migration again is idempotent (0 records migrated)
+            val secondMigration = repository.migratePlaintextClusters()
+            assertTrue(secondMigration is Result.Success)
+            assertEquals(0, (secondMigration as Result.Success).data)
+        }
 
     private class FakeClusterDao : ClusterDao() {
         private val storage = mutableMapOf<String, ClusterEntity>()

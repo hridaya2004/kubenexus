@@ -1,6 +1,5 @@
 package dev.hridaya.kubenexus.presentation.home.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

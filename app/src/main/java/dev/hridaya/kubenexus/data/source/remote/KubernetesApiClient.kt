@@ -59,15 +59,24 @@ class KubernetesApiClient {
             val jsonString = executeGet(endpoint, rawKubeconfig)
             parseNamespacesJson(jsonString)
         } catch (t: Throwable) {
-            Log.w(TAG, "Failed to fetch namespaces from $endpoint: ${LogSanitizer.sanitize(t.message)}")
+            Log.w(
+                TAG,
+                "Failed to fetch namespaces from $endpoint: ${LogSanitizer.sanitize(t.message)}"
+            )
             listOf("All Namespaces", "default", "kube-system")
         }
     }
 
-    fun describePod(serverUrl: String, rawKubeconfig: String, namespace: String, podName: String): PodDetails {
+    fun describePod(
+        serverUrl: String,
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String
+    ): PodDetails {
         val normalizedServer = normalizeUrl(serverUrl)
         val podEndpoint = "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName"
-        val eventsEndpoint = "$normalizedServer/api/v1/namespaces/$namespace/events?fieldSelector=involvedObject.name=$podName"
+        val eventsEndpoint =
+            "$normalizedServer/api/v1/namespaces/$namespace/events?fieldSelector=involvedObject.name=$podName"
 
         val podJson = executeGet(podEndpoint, rawKubeconfig)
         val eventsJson = try {
@@ -89,7 +98,8 @@ class KubernetesApiClient {
     ): String {
         val normalizedServer = normalizeUrl(serverUrl)
         val containerParam = if (!containerName.isNullOrBlank()) "&container=$containerName" else ""
-        val endpoint = "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName/log?tailLines=$tailLines$containerParam"
+        val endpoint =
+            "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName/log?tailLines=$tailLines$containerParam"
         return executeGet(endpoint, rawKubeconfig)
     }
 
@@ -102,7 +112,8 @@ class KubernetesApiClient {
     ): Flow<String> = flow {
         val normalizedServer = normalizeUrl(serverUrl)
         val containerParam = if (!containerName.isNullOrBlank()) "&container=$containerName" else ""
-        val endpoint = "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName/log?follow=true&tailLines=200$containerParam"
+        val endpoint =
+            "$normalizedServer/api/v1/namespaces/$namespace/pods/$podName/log?follow=true&tailLines=200$containerParam"
 
         var connection: HttpURLConnection? = null
         try {
@@ -132,11 +143,15 @@ class KubernetesApiClient {
             if (responseCode in 200..299) {
                 val reader = BufferedReader(InputStreamReader(connection.inputStream))
                 var line: String? = null
-                while (currentCoroutineContext().isActive && reader.readLine().also { line = it } != null) {
+                while (currentCoroutineContext().isActive && reader.readLine()
+                        .also { line = it } != null
+                ) {
                     emit(line ?: "")
                 }
             } else {
-                val err = connection.errorStream?.let { BufferedReader(InputStreamReader(it)).readText() } ?: ""
+                val err =
+                    connection.errorStream?.let { BufferedReader(InputStreamReader(it)).readText() }
+                        ?: ""
                 emit("Error streaming logs (HTTP $responseCode): ${LogSanitizer.sanitize(err)}")
             }
         } catch (t: Throwable) {
@@ -187,7 +202,11 @@ class KubernetesApiClient {
                     401 -> "Authentication failed (HTTP 401 Unauthorized): Check token or credentials."
                     403 -> "Forbidden (HTTP 403): User lacks RBAC permissions for $endpointUrl."
                     404 -> "Resource not found (HTTP 404): $endpointUrl"
-                    else -> "API server returned HTTP $responseCode $responseMessage ${LogSanitizer.sanitize(errorBody.take(200))}"
+                    else -> "API server returned HTTP $responseCode $responseMessage ${
+                        LogSanitizer.sanitize(
+                            errorBody.take(200)
+                        )
+                    }"
                 }
                 Log.e(TAG, LogSanitizer.sanitize(failureMsg))
                 throw RuntimeException(failureMsg)
@@ -242,7 +261,8 @@ class KubernetesApiClient {
                     if (containers != null) {
                         totalCount = containers.length()
                         if (containers.length() > 0) {
-                            primaryImage = containers.getJSONObject(0).optString("image").takeIf { it.isNotBlank() }
+                            primaryImage = containers.getJSONObject(0).optString("image")
+                                .takeIf { it.isNotBlank() }
                         }
                     }
                 }
@@ -334,7 +354,10 @@ class KubernetesApiClient {
                 val stateObj = cs?.optJSONObject("state")
                 val stateStr = when {
                     stateObj?.has("running") == true -> "Running"
-                    stateObj?.has("waiting") == true -> "Waiting: ${stateObj.optJSONObject("waiting")?.optString("reason", "Waiting")}"
+                    stateObj?.has("waiting") == true -> "Waiting: ${
+                        stateObj.optJSONObject("waiting")?.optString("reason", "Waiting")
+                    }"
+
                     stateObj?.has("terminated") == true -> "Terminated"
                     else -> "Running"
                 }
@@ -405,7 +428,8 @@ class KubernetesApiClient {
                         )
                     }
                 }
-            } catch (ignored: Exception) {}
+            } catch (ignored: Exception) {
+            }
         }
 
         val volumesList = mutableListOf<String>()
@@ -512,13 +536,20 @@ class KubernetesApiClient {
     }
 
     private fun extractToken(content: String): String {
-        val regex = Regex("""(?:^|\n)\s*token\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+        val regex =
+            Regex("""(?:^|\n)\s*token\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
         return regex.find(content)?.groupValues?.get(1)?.trim().orEmpty()
     }
 
     private fun extractBasicAuth(content: String): String {
-        val usernameRegex = Regex("""(?:^|\n)\s*username\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
-        val passwordRegex = Regex("""(?:^|\n)\s*password\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+        val usernameRegex = Regex(
+            """(?:^|\n)\s*username\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
+            RegexOption.IGNORE_CASE
+        )
+        val passwordRegex = Regex(
+            """(?:^|\n)\s*password\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
+            RegexOption.IGNORE_CASE
+        )
         val user = usernameRegex.find(content)?.groupValues?.get(1)?.trim().orEmpty()
         val pass = passwordRegex.find(content)?.groupValues?.get(1)?.trim().orEmpty()
         return if (user.isNotBlank() && pass.isNotBlank()) {
@@ -532,8 +563,17 @@ class KubernetesApiClient {
         try {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
                 override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-                override fun checkClientTrusted(certs: Array<X509Certificate>?, authType: String?) {}
-                override fun checkServerTrusted(certs: Array<X509Certificate>?, authType: String?) {}
+                override fun checkClientTrusted(
+                    certs: Array<X509Certificate>?,
+                    authType: String?
+                ) {
+                }
+
+                override fun checkServerTrusted(
+                    certs: Array<X509Certificate>?,
+                    authType: String?
+                ) {
+                }
             })
 
             val keyManagers = createKeyManagersFromKubeconfig(rawKubeconfig)
@@ -549,16 +589,25 @@ class KubernetesApiClient {
 
     private fun createKeyManagersFromKubeconfig(rawKubeconfig: String): Array<KeyManager>? {
         return try {
-            val certDataRegex = Regex("""client-certificate-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
-            val keyDataRegex = Regex("""client-key-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+            val certDataRegex = Regex(
+                """client-certificate-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
+                RegexOption.IGNORE_CASE
+            )
+            val keyDataRegex = Regex(
+                """client-key-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
+                RegexOption.IGNORE_CASE
+            )
 
-            val certBase64 = certDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
+            val certBase64 =
+                certDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
             val keyBase64 = keyDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
 
             if (certBase64.isBlank() || keyBase64.isBlank()) return null
 
-            val cert = dev.hridaya.kubenexus.data.kubeconfig.PemKeyParser.parseCertificate(certBase64)
-            val privateKey = dev.hridaya.kubenexus.data.kubeconfig.PemKeyParser.parsePrivateKey(keyBase64)
+            val cert =
+                dev.hridaya.kubenexus.data.kubeconfig.PemKeyParser.parseCertificate(certBase64)
+            val privateKey =
+                dev.hridaya.kubenexus.data.kubeconfig.PemKeyParser.parsePrivateKey(keyBase64)
 
             val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
             keyStore.load(null, null)

@@ -6,7 +6,11 @@ import dev.hridaya.kubenexus.domain.repository.PodRepository
 class DeletePodUseCase(
     private val podRepository: PodRepository
 ) {
-    suspend operator fun invoke(clusterId: String?, namespace: String, podName: String): Result<Unit> {
+    suspend operator fun invoke(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<Unit> {
         return podRepository.deletePod(clusterId, namespace, podName)
     }
 }

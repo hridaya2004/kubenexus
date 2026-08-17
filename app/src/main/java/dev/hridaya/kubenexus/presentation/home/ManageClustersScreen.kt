@@ -1,7 +1,6 @@
 package dev.hridaya.kubenexus.presentation.home
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,14 +102,25 @@ fun ManageClustersScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = 96.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(uiState.clusters, key = { it.id }) { cluster ->
                     ManageClusterCard(
                         cluster = cluster,
                         onSelectActive = { onAction(HomeUiAction.SelectClusterClicked(cluster.id)) },
-                        onTestConnection = { onAction(HomeUiAction.TestClusterConnectionClicked(cluster.id)) },
+                        onTestConnection = {
+                            onAction(
+                                HomeUiAction.TestClusterConnectionClicked(
+                                    cluster.id
+                                )
+                            )
+                        },
                         onEdit = { onAction(HomeUiAction.RequestEditCluster(cluster)) },
                         onDelete = { onAction(HomeUiAction.RequestDeleteCluster(cluster)) }
                     )
@@ -128,7 +137,14 @@ fun ManageClustersScreen(
             isConnecting = uiState.isConnecting,
             onKubeconfigChanged = { onAction(HomeUiAction.KubeconfigInputChanged(it)) },
             onClusterNameChanged = { onAction(HomeUiAction.ClusterNameChanged(it)) },
-            onFileImported = { content, name -> onAction(HomeUiAction.FileImported(content, name)) },
+            onFileImported = { content, name ->
+                onAction(
+                    HomeUiAction.FileImported(
+                        content,
+                        name
+                    )
+                )
+            },
             onConnectAndSave = { onAction(HomeUiAction.ConnectAndSaveSubmitted) },
             onDismiss = { onAction(HomeUiAction.DismissAddClusterSheet) }
         )
@@ -189,7 +205,10 @@ private fun ManageClusterCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Dns,
                         contentDescription = null,
@@ -230,7 +249,10 @@ private fun ManageClusterCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
                     text = "Context: ${cluster.contextName}",
                     style = MaterialTheme.typography.bodySmall,

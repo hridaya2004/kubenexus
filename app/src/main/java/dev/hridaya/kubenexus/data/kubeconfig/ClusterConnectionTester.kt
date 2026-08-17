@@ -31,13 +31,22 @@ open class ClusterConnectionTester(
      * Returns a descriptive string on success, or throws an exception with detailed error trace on failure.
      */
     open fun testConnection(parsed: ParsedKubeconfig): String {
-        Log.d(TAG, "Testing connection to server: ${parsed.serverUrl} (context: ${parsed.contextName})")
+        Log.d(
+            TAG,
+            "Testing connection to server: ${parsed.serverUrl} (context: ${parsed.contextName})"
+        )
 
         val clientResult = nativeBridge.createClient(parsed.rawKubeconfig)
         if (clientResult.isSuccess) {
-            Log.d(TAG, "Native Client_ instance successfully created for cluster: ${parsed.clusterName}")
+            Log.d(
+                TAG,
+                "Native Client_ instance successfully created for cluster: ${parsed.clusterName}"
+            )
         } else {
-            Log.w(TAG, "Native Client_ instance init note: ${LogSanitizer.sanitize(clientResult.exceptionOrNull()?.message)}")
+            Log.w(
+                TAG,
+                "Native Client_ instance init note: ${LogSanitizer.sanitize(clientResult.exceptionOrNull()?.message)}"
+            )
         }
 
         val rawUrl = parsed.serverUrl.trim()
@@ -47,12 +56,19 @@ open class ClusterConnectionTester(
             "https://$rawUrl"
         }
 
-        val versionEndpoint = if (normalizedUrl.endsWith("/")) "${normalizedUrl}version" else "$normalizedUrl/version"
+        val versionEndpoint =
+            if (normalizedUrl.endsWith("/")) "${normalizedUrl}version" else "$normalizedUrl/version"
 
         val targetUrl = try {
             URL(versionEndpoint)
         } catch (e: Exception) {
-            throw IllegalArgumentException("Invalid Kubernetes Server URL: '$normalizedUrl'.\nError: ${LogSanitizer.sanitize(e.message)}", e)
+            throw IllegalArgumentException(
+                "Invalid Kubernetes Server URL: '$normalizedUrl'.\nError: ${
+                    LogSanitizer.sanitize(
+                        e.message
+                    )
+                }", e
+            )
         }
 
         var connection: HttpURLConnection? = null
@@ -95,7 +111,8 @@ open class ClusterConnectionTester(
             val stringWriter = StringWriter()
             e.printStackTrace(PrintWriter(stringWriter))
             val sanitizedTrace = LogSanitizer.sanitize(stringWriter.toString().take(1200))
-            val sanitizedErrorMsg = LogSanitizer.sanitize(e.message) ?: "Connection timed out or host unreachable"
+            val sanitizedErrorMsg =
+                LogSanitizer.sanitize(e.message) ?: "Connection timed out or host unreachable"
             val errorReport = buildString {
                 appendLine("Failed to connect to Kubernetes Cluster: '${parsed.clusterName}'")
                 appendLine("Target Server: $normalizedUrl")
@@ -112,7 +129,8 @@ open class ClusterConnectionTester(
     }
 
     private fun extractToken(content: String): String {
-        val regex = Regex("""(?:^|\n)\s*token\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+        val regex =
+            Regex("""(?:^|\n)\s*token\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
         return regex.find(content)?.groupValues?.get(1)?.trim().orEmpty()
     }
 
@@ -120,8 +138,17 @@ open class ClusterConnectionTester(
         try {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
                 override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-                override fun checkClientTrusted(certs: Array<X509Certificate>?, authType: String?) {}
-                override fun checkServerTrusted(certs: Array<X509Certificate>?, authType: String?) {}
+                override fun checkClientTrusted(
+                    certs: Array<X509Certificate>?,
+                    authType: String?
+                ) {
+                }
+
+                override fun checkServerTrusted(
+                    certs: Array<X509Certificate>?,
+                    authType: String?
+                ) {
+                }
             })
 
             val keyManagers = createKeyManagersFromKubeconfig(rawKubeconfig)
@@ -137,10 +164,17 @@ open class ClusterConnectionTester(
 
     private fun createKeyManagersFromKubeconfig(rawKubeconfig: String): Array<javax.net.ssl.KeyManager>? {
         return try {
-            val certDataRegex = Regex("""client-certificate-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
-            val keyDataRegex = Regex("""client-key-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+            val certDataRegex = Regex(
+                """client-certificate-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
+                RegexOption.IGNORE_CASE
+            )
+            val keyDataRegex = Regex(
+                """client-key-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
+                RegexOption.IGNORE_CASE
+            )
 
-            val certBase64 = certDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
+            val certBase64 =
+                certDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
             val keyBase64 = keyDataRegex.find(rawKubeconfig)?.groupValues?.get(1)?.trim().orEmpty()
 
             if (certBase64.isBlank() || keyBase64.isBlank()) return null
@@ -148,11 +182,13 @@ open class ClusterConnectionTester(
             val cert = PemKeyParser.parseCertificate(certBase64)
             val privateKey = PemKeyParser.parsePrivateKey(keyBase64)
 
-            val keyStore = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+            val keyStore =
+                java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
             keyStore.load(null, null)
             keyStore.setKeyEntry("client-key", privateKey, "".toCharArray(), arrayOf(cert))
 
-            val kmf = javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm())
+            val kmf =
+                javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm())
             kmf.init(keyStore, "".toCharArray())
             kmf.keyManagers
         } catch (e: Exception) {

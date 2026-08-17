@@ -9,7 +9,8 @@ class LogSanitizerTest {
 
     @Test
     fun `sanitize redacts bearer tokens and jwt tokens`() {
-        val input = "Error: token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdWJlcm5ldGVzIn0 failed"
+        val input =
+            "Error: token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdWJlcm5ldGVzIn0 failed"
         val output = LogSanitizer.sanitize(input)
 
         assertFalse(output.contains("eyJhbGciOiJSUzI1Ni"))

@@ -22,18 +22,23 @@ class SharedPrefsThemePreferencesDataSource(
     private val dispatcherProvider: DispatcherProvider
 ) : ThemePreferencesLocalDataSource {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences("app_theme_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("app_theme_prefs", Context.MODE_PRIVATE)
 
     override fun getThemeModeStream(): Flow<ThemeMode> = callbackFlow {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == KEY_THEME_MODE || key == null) {
-                val modeName = prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name
-                val mode = runCatching { ThemeMode.valueOf(modeName) }.getOrDefault(ThemeMode.SYSTEM)
+                val modeName =
+                    prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name
+                val mode =
+                    runCatching { ThemeMode.valueOf(modeName) }.getOrDefault(ThemeMode.SYSTEM)
                 trySend(mode)
             }
         }
-        val initialName = prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name
-        val initialMode = runCatching { ThemeMode.valueOf(initialName) }.getOrDefault(ThemeMode.SYSTEM)
+        val initialName =
+            prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name
+        val initialMode =
+            runCatching { ThemeMode.valueOf(initialName) }.getOrDefault(ThemeMode.SYSTEM)
         trySend(initialMode)
 
         prefs.registerOnSharedPreferenceChangeListener(listener)

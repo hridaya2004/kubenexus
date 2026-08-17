@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -126,7 +125,8 @@ fun LogcatRoute(
                 }
 
                 is LogcatUiEvent.CopyToClipboard -> {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clipboard =
+                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     val clip = ClipData.newPlainText(event.label, event.text)
                     clipboard.setPrimaryClip(clip)
                 }
@@ -383,7 +383,9 @@ fun LogcatScreen(
                         IconButton(
                             onClick = {
                                 scope.launch {
-                                    if (uiState.filteredLogs.isNotEmpty()) listState.animateScrollToItem(0)
+                                    if (uiState.filteredLogs.isNotEmpty()) listState.animateScrollToItem(
+                                        0
+                                    )
                                 }
                             },
                             modifier = Modifier.size(32.dp)

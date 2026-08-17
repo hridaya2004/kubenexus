@@ -68,7 +68,8 @@ object PemKeyParser {
                     KeyFactory.getInstance("RSA").generatePrivate(keySpec)
                 } catch (e: Exception) {
                     val pkcs8FromPkcs1 = pkcs1ToPkcs8(derBytes)
-                    KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(pkcs8FromPkcs1))
+                    KeyFactory.getInstance("RSA")
+                        .generatePrivate(PKCS8EncodedKeySpec(pkcs8FromPkcs1))
                 }
             }
         }
@@ -129,10 +130,21 @@ object PemKeyParser {
      */
     fun pkcs1ToPkcs8(pkcs1Bytes: ByteArray): ByteArray {
         val rsaAlgorithmIdentifier = byteArrayOf(
-            0x30.toByte(), 0x0d.toByte(),
-            0x06.toByte(), 0x09.toByte(),
-            0x2a.toByte(), 0x86.toByte(), 0x48.toByte(), 0x86.toByte(), 0xf7.toByte(), 0x0d.toByte(), 0x01.toByte(), 0x01.toByte(), 0x01.toByte(),
-            0x05.toByte(), 0x00.toByte()
+            0x30.toByte(),
+            0x0d.toByte(),
+            0x06.toByte(),
+            0x09.toByte(),
+            0x2a.toByte(),
+            0x86.toByte(),
+            0x48.toByte(),
+            0x86.toByte(),
+            0xf7.toByte(),
+            0x0d.toByte(),
+            0x01.toByte(),
+            0x01.toByte(),
+            0x01.toByte(),
+            0x05.toByte(),
+            0x00.toByte()
         )
 
         val version = byteArrayOf(0x02.toByte(), 0x01.toByte(), 0x00.toByte())
@@ -149,9 +161,27 @@ object PemKeyParser {
      */
     private fun sec1ToPkcs8(sec1Bytes: ByteArray): ByteArray {
         val ecAlgorithmIdentifier = byteArrayOf(
-            0x30.toByte(), 0x13.toByte(),
-            0x06.toByte(), 0x07.toByte(), 0x2a.toByte(), 0x86.toByte(), 0x48.toByte(), 0xce.toByte(), 0x3d.toByte(), 0x02.toByte(), 0x01.toByte(),
-            0x06.toByte(), 0x08.toByte(), 0x2a.toByte(), 0x86.toByte(), 0x48.toByte(), 0xce.toByte(), 0x3d.toByte(), 0x03.toByte(), 0x01.toByte(), 0x07.toByte()
+            0x30.toByte(),
+            0x13.toByte(),
+            0x06.toByte(),
+            0x07.toByte(),
+            0x2a.toByte(),
+            0x86.toByte(),
+            0x48.toByte(),
+            0xce.toByte(),
+            0x3d.toByte(),
+            0x02.toByte(),
+            0x01.toByte(),
+            0x06.toByte(),
+            0x08.toByte(),
+            0x2a.toByte(),
+            0x86.toByte(),
+            0x48.toByte(),
+            0xce.toByte(),
+            0x3d.toByte(),
+            0x03.toByte(),
+            0x01.toByte(),
+            0x07.toByte()
         )
         val version = byteArrayOf(0x02.toByte(), 0x01.toByte(), 0x00.toByte())
         val octetString = encodeAsn1(0x04.toByte(), sec1Bytes)

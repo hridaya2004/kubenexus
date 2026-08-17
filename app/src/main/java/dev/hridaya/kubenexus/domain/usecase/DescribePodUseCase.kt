@@ -7,7 +7,11 @@ import dev.hridaya.kubenexus.domain.repository.PodRepository
 class DescribePodUseCase(
     private val podRepository: PodRepository
 ) {
-    suspend operator fun invoke(clusterId: String?, namespace: String, podName: String): Result<PodDetails> {
+    suspend operator fun invoke(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<PodDetails> {
         return podRepository.describePod(clusterId, namespace, podName)
     }
 }

@@ -156,7 +156,14 @@ fun AddClusterBottomSheet(
                     lineHeight = 18.sp
                 ),
                 isError = kubeconfigError != null,
-                supportingText = kubeconfigError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                supportingText = kubeconfigError?.let {
+                    {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
                 minLines = 7,
                 maxLines = 14,
                 enabled = !isConnecting,

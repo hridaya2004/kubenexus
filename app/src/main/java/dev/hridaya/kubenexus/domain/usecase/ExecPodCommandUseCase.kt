@@ -15,6 +15,13 @@ class ExecPodCommandUseCase(
         command: String,
         stdin: String = ""
     ): Result<CommandExecResult> {
-        return podRepository.execCommand(clusterId, namespace, podName, containerName, command, stdin)
+        return podRepository.execCommand(
+            clusterId,
+            namespace,
+            podName,
+            containerName,
+            command,
+            stdin
+        )
     }
 }

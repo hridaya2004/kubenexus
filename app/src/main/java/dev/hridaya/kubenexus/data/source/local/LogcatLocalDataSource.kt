@@ -55,7 +55,10 @@ class DefaultLogcatLocalDataSource(
                 if (entry.pid.isNotEmpty() && entry.pid != pid) {
                     continue
                 }
-                if (entry.level == LogLevel.UNKNOWN && entry.tag == "System" && !entry.message.contains(pid)) {
+                if (entry.level == LogLevel.UNKNOWN && entry.tag == "System" && !entry.message.contains(
+                        pid
+                    )
+                ) {
                     continue
                 }
 
@@ -89,52 +92,70 @@ class DefaultLogcatLocalDataSource(
         }
     }.flowOn(dispatcherProvider.io)
 
-    override suspend fun dumpLogs(maxLines: Int): List<LogcatEntry> = withContext(dispatcherProvider.io) {
-        val pid = Process.myPid().toString()
-        val entries = mutableListOf<LogcatEntry>()
+    override suspend fun dumpLogs(maxLines: Int): List<LogcatEntry> =
+        withContext(dispatcherProvider.io) {
+            val pid = Process.myPid().toString()
+            val entries = mutableListOf<LogcatEntry>()
 
-        try {
-            val process = ProcessBuilder("logcat", "-d", "-v", "threadtime", "-t", maxLines.toString(), "--pid=$pid").start()
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                line?.let {
-                    val entry = parseLogLine(it)
-                    if (entry.pid.isEmpty() || entry.pid == pid) {
-                        entries.add(entry)
-                    }
-                }
-            }
-            process.waitFor()
-            process.destroy()
-        } catch (_: Exception) {
             try {
-                val process = ProcessBuilder("logcat", "-d", "-v", "threadtime", "-t", maxLines.toString()).start()
+                val process = ProcessBuilder(
+                    "logcat",
+                    "-d",
+                    "-v",
+                    "threadtime",
+                    "-t",
+                    maxLines.toString(),
+                    "--pid=$pid"
+                ).start()
                 val reader = BufferedReader(InputStreamReader(process.inputStream))
+
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     line?.let {
                         val entry = parseLogLine(it)
-                        if (entry.pid == pid) {
+                        if (entry.pid.isEmpty() || entry.pid == pid) {
                             entries.add(entry)
                         }
                     }
                 }
                 process.waitFor()
                 process.destroy()
-            } catch (_: Exception) {}
-        }
+            } catch (_: Exception) {
+                try {
+                    val process = ProcessBuilder(
+                        "logcat",
+                        "-d",
+                        "-v",
+                        "threadtime",
+                        "-t",
+                        maxLines.toString()
+                    ).start()
+                    val reader = BufferedReader(InputStreamReader(process.inputStream))
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        line?.let {
+                            val entry = parseLogLine(it)
+                            if (entry.pid == pid) {
+                                entries.add(entry)
+                            }
+                        }
+                    }
+                    process.waitFor()
+                    process.destroy()
+                } catch (_: Exception) {
+                }
+            }
 
-        entries
-    }
+            entries
+        }
 
     override suspend fun clearLogs(): Unit = withContext(dispatcherProvider.io) {
         try {
             val process = ProcessBuilder("logcat", "-c").start()
             process.waitFor()
             process.destroy()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun parseLogLine(line: String): LogcatEntry {

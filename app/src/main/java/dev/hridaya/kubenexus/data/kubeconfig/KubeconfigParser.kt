@@ -40,13 +40,15 @@ object KubeconfigParser {
     }
 
     private fun extractValue(content: String, key: String): String {
-        val regex = Regex("""(?:^|\n)\s*$key\s*:\s*["']?([^"'\r\n#]+)["']?""", RegexOption.IGNORE_CASE)
+        val regex =
+            Regex("""(?:^|\n)\s*$key\s*:\s*["']?([^"'\r\n#]+)["']?""", RegexOption.IGNORE_CASE)
         val match = regex.find(content)
         return match?.groupValues?.get(1)?.trim().orEmpty()
     }
 
     private fun extractServerUrl(content: String): String {
-        val regex = Regex("""(?:^|\n)\s*server\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+        val regex =
+            Regex("""(?:^|\n)\s*server\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
         val match = regex.find(content)
         return match?.groupValues?.get(1)?.trim().orEmpty()
     }
@@ -56,7 +58,10 @@ object KubeconfigParser {
             val contextCluster = extractClusterFromContext(content, currentContext)
             if (contextCluster.isNotBlank()) return contextCluster
         }
-        val clusterNameRegex = Regex("""clusters:\s*(?:[\r\n]+[ \t]*-[ \t]*cluster:[\s\S]*?name:\s*["']?([^"'\r\n#]+)["']?|[\r\n]+[ \t]*-[ \t]*name:\s*["']?([^"'\r\n#]+)["']?)""", RegexOption.IGNORE_CASE)
+        val clusterNameRegex = Regex(
+            """clusters:\s*(?:[\r\n]+[ \t]*-[ \t]*cluster:[\s\S]*?name:\s*["']?([^"'\r\n#]+)["']?|[\r\n]+[ \t]*-[ \t]*name:\s*["']?([^"'\r\n#]+)["']?)""",
+            RegexOption.IGNORE_CASE
+        )
         val match = clusterNameRegex.find(content)
         val g1 = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
         val g2 = match?.groupValues?.getOrNull(2)?.trim().orEmpty()
@@ -64,25 +69,35 @@ object KubeconfigParser {
     }
 
     private fun extractClusterFromContext(content: String, contextName: String): String {
-        val regex = Regex("""name:\s*["']?${Regex.escape(contextName)}["']?[\s\S]*?cluster:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+        val regex = Regex(
+            """name:\s*["']?${Regex.escape(contextName)}["']?[\s\S]*?cluster:\s*["']?([^"'\r\n#\s]+)["']?""",
+            RegexOption.IGNORE_CASE
+        )
         val match = regex.find(content)
         return match?.groupValues?.get(1)?.trim().orEmpty()
     }
 
     private fun extractUserName(content: String, currentContext: String): String {
         if (currentContext.isNotBlank()) {
-            val regex = Regex("""name:\s*["']?${Regex.escape(currentContext)}["']?[\s\S]*?user:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+            val regex = Regex(
+                """name:\s*["']?${Regex.escape(currentContext)}["']?[\s\S]*?user:\s*["']?([^"'\r\n#\s]+)["']?""",
+                RegexOption.IGNORE_CASE
+            )
             val match = regex.find(content)
             val user = match?.groupValues?.get(1)?.trim().orEmpty()
             if (user.isNotBlank()) return user
         }
-        val userRegex = Regex("""(?:^|\n)\s*user\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+        val userRegex =
+            Regex("""(?:^|\n)\s*user\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
         return userRegex.find(content)?.groupValues?.get(1)?.trim().orEmpty()
     }
 
     private fun extractNamespace(content: String, currentContext: String): String? {
         if (currentContext.isNotBlank()) {
-            val regex = Regex("""name:\s*["']?${Regex.escape(currentContext)}["']?[\s\S]*?namespace:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
+            val regex = Regex(
+                """name:\s*["']?${Regex.escape(currentContext)}["']?[\s\S]*?namespace:\s*["']?([^"'\r\n#\s]+)["']?""",
+                RegexOption.IGNORE_CASE
+            )
             val match = regex.find(content)
             val ns = match?.groupValues?.get(1)?.trim().orEmpty()
             if (ns.isNotBlank()) return ns

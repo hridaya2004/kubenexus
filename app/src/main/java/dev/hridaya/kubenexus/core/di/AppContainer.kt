@@ -3,26 +3,37 @@ package dev.hridaya.kubenexus.core.di
 import android.content.Context
 import dev.hridaya.kubenexus.core.common.dispatcher.DefaultDispatcherProvider
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.network.ConnectivityNetworkMonitor
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridgeImpl
+import dev.hridaya.kubenexus.core.security.AndroidKeystoreKubeconfigEncryptor
+import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.data.kubeconfig.ClusterConnectionTester
 import dev.hridaya.kubenexus.data.repository.ClusterRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.PodRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ThemePreferencesRepositoryImpl
+import dev.hridaya.kubenexus.data.source.local.DefaultLogcatLocalDataSource
 import dev.hridaya.kubenexus.data.source.local.KubeNexusDatabase
+import dev.hridaya.kubenexus.data.source.local.LogcatLocalDataSource
 import dev.hridaya.kubenexus.data.source.local.SharedPrefsThemePreferencesDataSource
 import dev.hridaya.kubenexus.data.source.local.ThemePreferencesLocalDataSource
+import dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
+import dev.hridaya.kubenexus.domain.repository.LogcatRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
+import dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase
 import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodsUseCase
@@ -58,12 +69,12 @@ interface AppContainer {
     val deleteClusterUseCase: DeleteClusterUseCase
     val updateClusterNameUseCase: UpdateClusterNameUseCase
     val testClusterConnectionUseCase: TestClusterConnectionUseCase
-    val logcatRepository: dev.hridaya.kubenexus.domain.repository.LogcatRepository
-    val getLogcatStreamUseCase: dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase
-    val dumpLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase
-    val clearLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase
-    val networkMonitor: dev.hridaya.kubenexus.core.common.network.NetworkMonitor
-    val kubeconfigEncryptor: dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
+    val logcatRepository: LogcatRepository
+    val getLogcatStreamUseCase: GetLogcatStreamUseCase
+    val dumpLogcatUseCase: DumpLogcatUseCase
+    val clearLogcatUseCase: ClearLogcatUseCase
+    val networkMonitor: NetworkMonitor
+    val kubeconfigEncryptor: KubeconfigEncryptor
 }
 
 class DefaultAppContainer(
@@ -74,8 +85,8 @@ class DefaultAppContainer(
         DefaultDispatcherProvider()
     }
 
-    override val kubeconfigEncryptor: dev.hridaya.kubenexus.core.security.KubeconfigEncryptor by lazy {
-        dev.hridaya.kubenexus.core.security.AndroidKeystoreKubeconfigEncryptor()
+    override val kubeconfigEncryptor: KubeconfigEncryptor by lazy {
+        AndroidKeystoreKubeconfigEncryptor()
     }
 
     override val nativeBridge: KubeNexusNativeBridge by lazy {
@@ -99,8 +110,8 @@ class DefaultAppContainer(
         )
     }
 
-    private val kubernetesApiClient: dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient by lazy {
-        dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient()
+    private val kubernetesApiClient: KubernetesApiClient by lazy {
+        KubernetesApiClient()
     }
 
     override val podRepository: PodRepository by lazy {
@@ -242,39 +253,39 @@ class DefaultAppContainer(
         )
     }
 
-    private val logcatLocalDataSource: dev.hridaya.kubenexus.data.source.local.LogcatLocalDataSource by lazy {
-        dev.hridaya.kubenexus.data.source.local.DefaultLogcatLocalDataSource(
+    private val logcatLocalDataSource: LogcatLocalDataSource by lazy {
+        DefaultLogcatLocalDataSource(
             dispatcherProvider = dispatcherProvider
         )
     }
 
-    override val logcatRepository: dev.hridaya.kubenexus.domain.repository.LogcatRepository by lazy {
+    override val logcatRepository: LogcatRepository by lazy {
         dev.hridaya.kubenexus.data.repository.LogcatRepositoryImpl(
             localDataSource = logcatLocalDataSource,
             dispatcherProvider = dispatcherProvider
         )
     }
 
-    override val getLogcatStreamUseCase: dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase by lazy {
-        dev.hridaya.kubenexus.domain.usecase.GetLogcatStreamUseCase(
+    override val getLogcatStreamUseCase: GetLogcatStreamUseCase by lazy {
+        GetLogcatStreamUseCase(
             repository = logcatRepository
         )
     }
 
-    override val dumpLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase by lazy {
-        dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase(
+    override val dumpLogcatUseCase: DumpLogcatUseCase by lazy {
+        DumpLogcatUseCase(
             repository = logcatRepository
         )
     }
 
-    override val clearLogcatUseCase: dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase by lazy {
-        dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase(
+    override val clearLogcatUseCase: ClearLogcatUseCase by lazy {
+        ClearLogcatUseCase(
             repository = logcatRepository
         )
     }
 
-    override val networkMonitor: dev.hridaya.kubenexus.core.common.network.NetworkMonitor by lazy {
-        dev.hridaya.kubenexus.core.common.network.ConnectivityNetworkMonitor(
+    override val networkMonitor: NetworkMonitor by lazy {
+        ConnectivityNetworkMonitor(
             context = appContext,
             dispatcherProvider = dispatcherProvider
         )

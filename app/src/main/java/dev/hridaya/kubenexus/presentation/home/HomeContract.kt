@@ -20,7 +20,12 @@ data class HomeUiState(
     val activeCluster: Cluster? = null,
     val pods: List<Pod> = emptyList(),
     val totalPodsCount: Int = 0,
-    val availableNamespaces: List<String> = listOf("All Namespaces", "default", "kube-system", "monitoring"),
+    val availableNamespaces: List<String> = listOf(
+        "All Namespaces",
+        "default",
+        "kube-system",
+        "monitoring"
+    ),
     val selectedNamespace: String = "All Namespaces",
     val showNamespacePicker: Boolean = false,
     val selectedPod: Pod? = null,

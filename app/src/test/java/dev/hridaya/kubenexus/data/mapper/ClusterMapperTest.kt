@@ -64,7 +64,8 @@ class ClusterMapperTest {
     @Test
     fun `toEntity with encryptor encrypts rawKubeconfig and toDomain decrypts it`() {
         val encryptor = AesGcmKubeconfigEncryptor(AesGcmKubeconfigEncryptor.generateKey())
-        val plainKubeconfig = "apiVersion: v1\nkind: Config\nusers:\n- name: admin\n  user:\n    token: test-token"
+        val plainKubeconfig =
+            "apiVersion: v1\nkind: Config\nusers:\n- name: admin\n  user:\n    token: test-token"
 
         val domain = Cluster(
             id = "c-3",

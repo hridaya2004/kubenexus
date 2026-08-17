@@ -18,14 +18,15 @@ class LogcatRepositoryImpl(
         return localDataSource.streamLogs(maxBufferSize)
     }
 
-    override suspend fun dumpLogs(maxLines: Int): Result<List<LogcatEntry>> = withContext(dispatcherProvider.io) {
-        try {
-            val logs = localDataSource.dumpLogs(maxLines)
-            Result.Success(logs)
-        } catch (e: Throwable) {
-            Result.Error(AppError.Unknown(e.message ?: "Failed to dump logcat", e))
+    override suspend fun dumpLogs(maxLines: Int): Result<List<LogcatEntry>> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val logs = localDataSource.dumpLogs(maxLines)
+                Result.Success(logs)
+            } catch (e: Throwable) {
+                Result.Error(AppError.Unknown(e.message ?: "Failed to dump logcat", e))
+            }
         }
-    }
 
     override suspend fun clearLogs(): Result<Unit> = withContext(dispatcherProvider.io) {
         try {

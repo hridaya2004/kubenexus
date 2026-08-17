@@ -105,10 +105,12 @@ class LogcatViewModel(
                         is Result.Success -> {
                             updateLogsInternal(result.data)
                         }
+
                         is Result.Error -> {
                             _uiState.update { it.copy(isLoading = false) }
                             _events.send(LogcatUiEvent.ShowMessage("Failed to dump logcat"))
                         }
+
                         Result.Loading -> Unit
                     }
                 }
@@ -156,21 +158,22 @@ class LogcatViewModel(
         }
     }
 
-    private suspend fun updateLogsInternal(newLogs: List<LogcatEntry>) = withContext(dispatcherProvider.default) {
-        val currentQuery = _uiState.value.searchQuery
-        val currentLevel = _uiState.value.selectedLogLevel
-        val counts = computeCounts(newLogs)
-        val filtered = applyFilter(newLogs, currentQuery, currentLevel)
+    private suspend fun updateLogsInternal(newLogs: List<LogcatEntry>) =
+        withContext(dispatcherProvider.default) {
+            val currentQuery = _uiState.value.searchQuery
+            val currentLevel = _uiState.value.selectedLogLevel
+            val counts = computeCounts(newLogs)
+            val filtered = applyFilter(newLogs, currentQuery, currentLevel)
 
-        _uiState.update { state ->
-            state.copy(
-                logs = newLogs,
-                filteredLogs = filtered,
-                levelCounts = counts,
-                isLoading = false
-            )
+            _uiState.update { state ->
+                state.copy(
+                    logs = newLogs,
+                    filteredLogs = filtered,
+                    levelCounts = counts,
+                    isLoading = false
+                )
+            }
         }
-    }
 
     private fun applyFilter(
         logs: List<LogcatEntry>,
@@ -179,11 +182,12 @@ class LogcatViewModel(
     ): List<LogcatEntry> {
         val trimmedQuery = query.trim()
         return logs.filter { entry ->
-            val matchesLevel = level == null || entry.level == level || (level != LogLevel.UNKNOWN && entry.level.priority >= level.priority)
+            val matchesLevel =
+                level == null || entry.level == level || (level != LogLevel.UNKNOWN && entry.level.priority >= level.priority)
             val matchesQuery = trimmedQuery.isEmpty() ||
-                entry.tag.contains(trimmedQuery, ignoreCase = true) ||
-                entry.message.contains(trimmedQuery, ignoreCase = true) ||
-                entry.raw.contains(trimmedQuery, ignoreCase = true)
+                    entry.tag.contains(trimmedQuery, ignoreCase = true) ||
+                    entry.message.contains(trimmedQuery, ignoreCase = true) ||
+                    entry.raw.contains(trimmedQuery, ignoreCase = true)
             matchesLevel && matchesQuery
         }
     }

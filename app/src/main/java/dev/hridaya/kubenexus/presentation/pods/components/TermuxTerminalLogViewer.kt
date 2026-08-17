@@ -33,7 +33,6 @@ import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.WrapText
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -57,7 +56,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
@@ -136,7 +134,10 @@ fun TermuxTerminalLogViewer(
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .background(if (isStreaming) TermuxGreen else TermuxYellow, shape = RoundedCornerShape(5.dp))
+                            .background(
+                                if (isStreaming) TermuxGreen else TermuxYellow,
+                                shape = RoundedCornerShape(5.dp)
+                            )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -183,9 +184,14 @@ fun TermuxTerminalLogViewer(
                     IconButton(
                         onClick = {
                             val textToCopy = logs.joinToString("\n")
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clipboard =
+                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("Pod Logs", textToCopy))
-                            Toast.makeText(context, "Copied ${logs.size} log lines to clipboard", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "Copied ${logs.size} log lines to clipboard",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         },
                         modifier = Modifier.size(32.dp)
                     ) {
@@ -215,7 +221,13 @@ fun TermuxTerminalLogViewer(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Filter logs...", color = TermuxGutter, fontSize = 12.sp) },
+                    placeholder = {
+                        Text(
+                            "Filter logs...",
+                            color = TermuxGutter,
+                            fontSize = 12.sp
+                        )
+                    },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TermuxText,
@@ -252,7 +264,10 @@ fun TermuxTerminalLogViewer(
                     }
                 } else {
                     val horizontalScrollState = rememberScrollState()
-                    val lineModifier = if (wrapLines) Modifier.fillMaxWidth() else Modifier.horizontalScroll(horizontalScrollState)
+                    val lineModifier =
+                        if (wrapLines) Modifier.fillMaxWidth() else Modifier.horizontalScroll(
+                            horizontalScrollState
+                        )
 
                     LazyColumn(
                         state = listState,
@@ -362,7 +377,10 @@ fun TermuxTerminalLogViewer(
     }
 }
 
-private fun parseAnsiToAnnotatedString(rawText: String, highlightQuery: String = ""): AnnotatedString {
+private fun parseAnsiToAnnotatedString(
+    rawText: String,
+    highlightQuery: String = ""
+): AnnotatedString {
     val cleanText = rawText.replace("\r", "")
     val builder = AnnotatedString.Builder()
 
@@ -452,14 +470,24 @@ private fun appendWithHighlight(
     while (start < text.length) {
         val index = lowerText.indexOf(lowerQuery, start)
         if (index == -1) {
-            builder.withStyle(SpanStyle(color = baseColor, fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal)) {
+            builder.withStyle(
+                SpanStyle(
+                    color = baseColor,
+                    fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal
+                )
+            ) {
                 append(text.substring(start))
             }
             break
         }
 
         if (index > start) {
-            builder.withStyle(SpanStyle(color = baseColor, fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal)) {
+            builder.withStyle(
+                SpanStyle(
+                    color = baseColor,
+                    fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal
+                )
+            ) {
                 append(text.substring(start, index))
             }
         }

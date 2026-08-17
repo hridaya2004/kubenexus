@@ -45,7 +45,7 @@ class AndroidKeystoreKubeconfigEncryptor(
             }
 
             val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, provider)
-            
+
             // Attempt StrongBox dedicated hardware security module on supported devices (API 28+)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                 try {

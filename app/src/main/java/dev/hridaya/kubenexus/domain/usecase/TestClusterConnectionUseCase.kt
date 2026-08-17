@@ -9,11 +9,13 @@ class TestClusterConnectionUseCase(
     private val repository: ClusterRepository,
     private val dispatcherProvider: DispatcherProvider
 ) {
-    suspend fun testKubeconfig(kubeconfigRaw: String): Result<String> = withContext(dispatcherProvider.io) {
-        repository.testConnection(kubeconfigRaw)
-    }
+    suspend fun testKubeconfig(kubeconfigRaw: String): Result<String> =
+        withContext(dispatcherProvider.io) {
+            repository.testConnection(kubeconfigRaw)
+        }
 
-    suspend fun testCluster(clusterId: String): Result<String> = withContext(dispatcherProvider.io) {
-        repository.testClusterById(clusterId)
-    }
+    suspend fun testCluster(clusterId: String): Result<String> =
+        withContext(dispatcherProvider.io) {
+            repository.testClusterById(clusterId)
+        }
 }

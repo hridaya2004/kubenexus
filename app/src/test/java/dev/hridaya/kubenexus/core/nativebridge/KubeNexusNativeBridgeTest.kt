@@ -4,13 +4,13 @@ import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.LogCallback
-import client.Namespace as NativeNamespace
-import client.Pod as NativePod
-import client.PodDetails as NativePodDetails
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import client.Namespace as NativeNamespace
+import client.Pod as NativePod
+import client.PodDetails as NativePodDetails
 
 class KubeNexusNativeBridgeTest {
 
@@ -35,7 +35,11 @@ class KubeNexusNativeBridgeTest {
                 }
             }
 
-            override fun createClientWithOptions(rawKubeconfig: String, timeoutSec: Long, insecure: Boolean): Result<client.Client_> {
+            override fun createClientWithOptions(
+                rawKubeconfig: String,
+                timeoutSec: Long,
+                insecure: Boolean
+            ): Result<client.Client_> {
                 return createClient(rawKubeconfig)
             }
 
@@ -43,7 +47,10 @@ class KubeNexusNativeBridgeTest {
                 return Result.success(listOf("coredns", "traefik"))
             }
 
-            override fun listPodsWide(rawKubeconfig: String, namespace: String?): Result<List<NativePod>> {
+            override fun listPodsWide(
+                rawKubeconfig: String,
+                namespace: String?
+            ): Result<List<NativePod>> {
                 return Result.success(emptyList())
             }
 
@@ -51,15 +58,28 @@ class KubeNexusNativeBridgeTest {
                 return Result.success(emptyList())
             }
 
-            override fun describePod(rawKubeconfig: String, namespace: String, podName: String): Result<NativePodDetails> {
+            override fun describePod(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String
+            ): Result<NativePodDetails> {
                 return Result.failure(UnsupportedOperationException())
             }
 
-            override fun deletePod(rawKubeconfig: String, namespace: String, podName: String): Result<Unit> {
+            override fun deletePod(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String
+            ): Result<Unit> {
                 return Result.success(Unit)
             }
 
-            override fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?): Result<String> {
+            override fun getPodLogs(
+                rawKubeconfig: String,
+                namespace: String,
+                podName: String,
+                container: String?
+            ): Result<String> {
                 return Result.success("log data")
             }
 

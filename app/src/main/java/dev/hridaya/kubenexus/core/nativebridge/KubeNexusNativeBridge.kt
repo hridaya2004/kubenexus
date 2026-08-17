@@ -2,17 +2,17 @@ package dev.hridaya.kubenexus.core.nativebridge
 
 import android.content.Context
 import android.util.Log
-import dev.hridaya.kubenexus.core.security.LogSanitizer
 import client.Client
 import client.Client_
 import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.LogCallback
+import dev.hridaya.kubenexus.core.security.LogSanitizer
+import go.Seq
 import client.Namespace as NativeNamespace
 import client.Pod as NativePod
 import client.PodDetails as NativePodDetails
-import go.Seq
 
 /**
  * Bridge interface for interacting with the native Go runtime provided by kubenexus.aar.
@@ -41,7 +41,11 @@ interface KubeNexusNativeBridge {
     /**
      * Creates a new instance of [Client_] with custom timeout and insecure TLS option.
      */
-    fun createClientWithOptions(rawKubeconfig: String, timeoutSec: Long = 30, insecure: Boolean = false): Result<Client_>
+    fun createClientWithOptions(
+        rawKubeconfig: String,
+        timeoutSec: Long = 30,
+        insecure: Boolean = false
+    ): Result<Client_>
 
     /**
      * Retrieves a quick list of pod names for the specified namespace from native runtime.
@@ -61,7 +65,11 @@ interface KubeNexusNativeBridge {
     /**
      * Describes a pod in detail from native runtime.
      */
-    fun describePod(rawKubeconfig: String, namespace: String, podName: String): Result<NativePodDetails>
+    fun describePod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String
+    ): Result<NativePodDetails>
 
     /**
      * Deletes a pod from native runtime.
@@ -71,7 +79,12 @@ interface KubeNexusNativeBridge {
     /**
      * Fetches historical logs for a pod container.
      */
-    fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String? = null): Result<String>
+    fun getPodLogs(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        container: String? = null
+    ): Result<String>
 
     /**
      * Streams live logs for a pod container via callback.
@@ -139,7 +152,11 @@ class KubeNexusNativeBridgeImpl(
             Log.d(TAG, "Successfully initialized Go runtime Seq context and Client package")
         } catch (t: Throwable) {
             initialized = false
-            Log.e(TAG, "Failed to initialize native Go runtime: ${LogSanitizer.sanitize(t.message)}", t)
+            Log.e(
+                TAG,
+                "Failed to initialize native Go runtime: ${LogSanitizer.sanitize(t.message)}",
+                t
+            )
         }
     }
 
@@ -166,16 +183,32 @@ class KubeNexusNativeBridgeImpl(
             ensureInitialized()
             Client.newClient(rawKubeconfig)
         }.onFailure { error ->
-            Log.e(TAG, "Failed to create Client_ instance: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to create Client_ instance: ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
-    override fun createClientWithOptions(rawKubeconfig: String, timeoutSec: Long, insecure: Boolean): Result<Client_> {
+    override fun createClientWithOptions(
+        rawKubeconfig: String,
+        timeoutSec: Long,
+        insecure: Boolean
+    ): Result<Client_> {
         return runCatching {
             ensureInitialized()
-            Client.newClientWithOptions(rawKubeconfig.toByteArray(Charsets.UTF_8), timeoutSec, insecure)
+            Client.newClientWithOptions(
+                rawKubeconfig.toByteArray(Charsets.UTF_8),
+                timeoutSec,
+                insecure
+            )
         }.onFailure { error ->
-            Log.e(TAG, "Failed to create Client_ with options: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to create Client_ with options: ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
@@ -183,7 +216,12 @@ class KubeNexusNativeBridgeImpl(
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
-            val ns = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) "" else namespace.trim()
+            val ns =
+                if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals(
+                        "all",
+                        ignoreCase = true
+                    )
+                ) "" else namespace.trim()
             val nativeList = client.listPods(ns)
             val result = mutableListOf<String>()
             val len = nativeList.len()
@@ -195,7 +233,11 @@ class KubeNexusNativeBridgeImpl(
             }
             result
         }.onFailure { error ->
-            Log.e(TAG, "Failed to listPods from native client: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to listPods from native client: ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
@@ -203,7 +245,12 @@ class KubeNexusNativeBridgeImpl(
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
-            val ns = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) "" else namespace.trim()
+            val ns =
+                if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals(
+                        "all",
+                        ignoreCase = true
+                    )
+                ) "" else namespace.trim()
             val nativeList = client.listPodsWide(ns)
             val result = mutableListOf<NativePod>()
             val len = nativeList.len()
@@ -215,7 +262,11 @@ class KubeNexusNativeBridgeImpl(
             }
             result
         }.onFailure { error ->
-            Log.e(TAG, "Failed to listPodsWide from native client: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to listPodsWide from native client: ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
@@ -234,37 +285,68 @@ class KubeNexusNativeBridgeImpl(
             }
             result
         }.onFailure { error ->
-            Log.e(TAG, "Failed to listNamespaces from native client: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to listNamespaces from native client: ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
-    override fun describePod(rawKubeconfig: String, namespace: String, podName: String): Result<NativePodDetails> {
+    override fun describePod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String
+    ): Result<NativePodDetails> {
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
             client.describePod(namespace, podName)
         }.onFailure { error ->
-            Log.e(TAG, "Failed to describePod '$podName' from native client: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to describePod '$podName' from native client: ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
-    override fun deletePod(rawKubeconfig: String, namespace: String, podName: String): Result<Unit> {
+    override fun deletePod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String
+    ): Result<Unit> {
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
             client.deletePod(namespace, podName)
         }.onFailure { error ->
-            Log.e(TAG, "Failed to deletePod '$podName' from native client: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to deletePod '$podName' from native client: ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
-    override fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?): Result<String> {
+    override fun getPodLogs(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        container: String?
+    ): Result<String> {
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
             client.logs(namespace, podName, container.orEmpty())
         }.onFailure { error ->
-            Log.e(TAG, "Failed to getPodLogs for '$podName' from native client: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to getPodLogs for '$podName' from native client: ${
+                    LogSanitizer.sanitize(error.message)
+                }",
+                error
+            )
         }
     }
 
@@ -280,7 +362,13 @@ class KubeNexusNativeBridgeImpl(
             val client = Client.newClient(rawKubeconfig)
             client.streamLogs(namespace, podName, container.orEmpty(), callback)
         }.onFailure { error ->
-            Log.e(TAG, "Failed to streamPodLogs for '$podName' from native client: ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to streamPodLogs for '$podName' from native client: ${
+                    LogSanitizer.sanitize(error.message)
+                }",
+                error
+            )
         }
     }
 
@@ -297,7 +385,11 @@ class KubeNexusNativeBridgeImpl(
             val client = Client.newClient(rawKubeconfig)
             client.exec(namespace, podName, container, command, stdin)
         }.onFailure { error ->
-            Log.e(TAG, "Failed to exec command in pod '$podName': ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to exec command in pod '$podName': ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
@@ -313,7 +405,11 @@ class KubeNexusNativeBridgeImpl(
             val client = Client.newClient(rawKubeconfig)
             client.startTerminal(namespace, podName, container, callback)
         }.onFailure { error ->
-            Log.e(TAG, "Failed to start terminal session for pod '$podName': ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to start terminal session for pod '$podName': ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 
@@ -331,7 +427,11 @@ class KubeNexusNativeBridgeImpl(
             val client = Client.newClient(rawKubeconfig)
             client.startExecSession(namespace, podName, container, command, tty, callback)
         }.onFailure { error ->
-            Log.e(TAG, "Failed to start exec session for pod '$podName': ${LogSanitizer.sanitize(error.message)}", error)
+            Log.e(
+                TAG,
+                "Failed to start exec session for pod '$podName': ${LogSanitizer.sanitize(error.message)}",
+                error
+            )
         }
     }
 }

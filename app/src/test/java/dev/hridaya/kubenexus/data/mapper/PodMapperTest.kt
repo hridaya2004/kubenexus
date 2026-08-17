@@ -1,6 +1,5 @@
 package dev.hridaya.kubenexus.data.mapper
 
-import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test

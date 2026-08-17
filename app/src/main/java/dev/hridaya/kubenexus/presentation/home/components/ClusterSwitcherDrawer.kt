@@ -140,7 +140,10 @@ fun ClusterSwitcherDrawer(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 val dotColor = when {
-                                    cluster.isActive && cluster.status == ClusterStatus.CONNECTED -> Color(0xFF22C55E)
+                                    cluster.isActive && cluster.status == ClusterStatus.CONNECTED -> Color(
+                                        0xFF22C55E
+                                    )
+
                                     cluster.status == ClusterStatus.ERROR -> MaterialTheme.colorScheme.error
                                     cluster.isActive -> Color(0xFFEAB308)
                                     else -> MaterialTheme.colorScheme.outline
@@ -173,7 +176,10 @@ fun ClusterSwitcherDrawer(
                                                 Text(
                                                     text = "ACTIVE",
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    modifier = Modifier.padding(
+                                                        horizontal = 6.dp,
+                                                        vertical = 2.dp
+                                                    )
                                                 )
                                             }
                                         }

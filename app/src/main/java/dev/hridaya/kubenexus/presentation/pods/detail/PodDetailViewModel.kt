@@ -199,7 +199,11 @@ class PodDetailViewModel(
             if (isRefresh) {
                 it.copy(isRefreshing = true, errorMessage = null)
             } else {
-                it.copy(isLoading = it.podDetails == null, isRefreshing = false, errorMessage = null)
+                it.copy(
+                    isLoading = it.podDetails == null,
+                    isRefreshing = false,
+                    errorMessage = null
+                )
             }
         }
 
@@ -324,12 +328,16 @@ class PodDetailViewModel(
         _uiState.update {
             it.copy(
                 isExecutingCommand = true,
-                terminalLines = it.terminalLines + TerminalLine(text = "$ $command", type = TerminalLineType.INPUT)
+                terminalLines = it.terminalLines + TerminalLine(
+                    text = "$ $command",
+                    type = TerminalLineType.INPUT
+                )
             )
         }
 
         viewModelScope.launch(dispatcherProvider.main) {
-            when (val result = execPodCommandUseCase(cid, namespace, podName, container, command, "")) {
+            when (val result =
+                execPodCommandUseCase(cid, namespace, podName, container, command, "")) {
                 is Result.Success -> {
                     val execResult = result.data
                     val newLines = mutableListOf<TerminalLine>()
@@ -347,7 +355,12 @@ class PodDetailViewModel(
                         }
                     }
                     if (stdout.isBlank() && stderr.isBlank()) {
-                        newLines.add(TerminalLine(text = "[Exit code 0]", type = TerminalLineType.SYSTEM))
+                        newLines.add(
+                            TerminalLine(
+                                text = "[Exit code 0]",
+                                type = TerminalLineType.SYSTEM
+                            )
+                        )
                     }
 
                     _uiState.update {
@@ -435,7 +448,12 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     output.lines().forEach { line ->
                         _uiState.update {
-                            it.copy(terminalLines = it.terminalLines + TerminalLine(text = line, type = TerminalLineType.STDOUT))
+                            it.copy(
+                                terminalLines = it.terminalLines + TerminalLine(
+                                    text = line,
+                                    type = TerminalLineType.STDOUT
+                                )
+                            )
                         }
                     }
                 }
@@ -450,7 +468,12 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     output.lines().forEach { line ->
                         _uiState.update {
-                            it.copy(terminalLines = it.terminalLines + TerminalLine(text = line, type = TerminalLineType.STDERR))
+                            it.copy(
+                                terminalLines = it.terminalLines + TerminalLine(
+                                    text = line,
+                                    type = TerminalLineType.STDERR
+                                )
+                            )
                         }
                     }
                 }
@@ -466,7 +489,10 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     _uiState.update {
                         it.copy(
-                            terminalLines = it.terminalLines + TerminalLine(text = "[Shell Error: $err]", type = TerminalLineType.ERROR),
+                            terminalLines = it.terminalLines + TerminalLine(
+                                text = "[Shell Error: $err]",
+                                type = TerminalLineType.ERROR
+                            ),
                             isTerminalActive = false
                         )
                     }
@@ -476,7 +502,10 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     _uiState.update {
                         it.copy(
-                            terminalLines = it.terminalLines + TerminalLine(text = "[Session closed]", type = TerminalLineType.SYSTEM),
+                            terminalLines = it.terminalLines + TerminalLine(
+                                text = "[Session closed]",
+                                type = TerminalLineType.SYSTEM
+                            ),
                             isTerminalActive = false
                         )
                     }
@@ -507,6 +536,7 @@ class PodDetailViewModel(
                     false
                 }
             }
+
             is Result.Error -> false
             is Result.Loading -> false
         }
@@ -525,7 +555,12 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     output.lines().forEach { line ->
                         _uiState.update {
-                            it.copy(terminalLines = it.terminalLines + TerminalLine(text = line, type = TerminalLineType.STDOUT))
+                            it.copy(
+                                terminalLines = it.terminalLines + TerminalLine(
+                                    text = line,
+                                    type = TerminalLineType.STDOUT
+                                )
+                            )
                         }
                     }
                 }
@@ -534,7 +569,12 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     output.lines().forEach { line ->
                         _uiState.update {
-                            it.copy(terminalLines = it.terminalLines + TerminalLine(text = line, type = TerminalLineType.STDERR))
+                            it.copy(
+                                terminalLines = it.terminalLines + TerminalLine(
+                                    text = line,
+                                    type = TerminalLineType.STDERR
+                                )
+                            )
                         }
                     }
                 }
@@ -543,7 +583,10 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     _uiState.update {
                         it.copy(
-                            terminalLines = it.terminalLines + TerminalLine(text = "[Shell Error: $err]", type = TerminalLineType.ERROR),
+                            terminalLines = it.terminalLines + TerminalLine(
+                                text = "[Shell Error: $err]",
+                                type = TerminalLineType.ERROR
+                            ),
                             isTerminalActive = false
                         )
                     }
@@ -553,7 +596,10 @@ class PodDetailViewModel(
                 viewModelScope.launch(dispatcherProvider.main) {
                     _uiState.update {
                         it.copy(
-                            terminalLines = it.terminalLines + TerminalLine(text = "[Session closed]", type = TerminalLineType.SYSTEM),
+                            terminalLines = it.terminalLines + TerminalLine(
+                                text = "[Session closed]",
+                                type = TerminalLineType.SYSTEM
+                            ),
                             isTerminalActive = false
                         )
                     }
@@ -575,6 +621,7 @@ class PodDetailViewModel(
                     )
                 }
             }
+
             is Result.Error -> {
                 _uiState.update {
                     it.copy(
@@ -586,6 +633,7 @@ class PodDetailViewModel(
                     )
                 }
             }
+
             is Result.Loading -> Unit
         }
     }
@@ -597,13 +645,19 @@ class PodDetailViewModel(
                 session.write(input + "\n")
                 _uiState.update {
                     it.copy(
-                        terminalLines = it.terminalLines + TerminalLine(text = input, type = TerminalLineType.INPUT)
+                        terminalLines = it.terminalLines + TerminalLine(
+                            text = input,
+                            type = TerminalLineType.INPUT
+                        )
                     )
                 }
             } catch (t: Throwable) {
                 _uiState.update {
                     it.copy(
-                        terminalLines = it.terminalLines + TerminalLine(text = "[Write error: ${t.message}]", type = TerminalLineType.ERROR)
+                        terminalLines = it.terminalLines + TerminalLine(
+                            text = "[Write error: ${t.message}]",
+                            type = TerminalLineType.ERROR
+                        )
                     )
                 }
             }
@@ -615,13 +669,17 @@ class PodDetailViewModel(
     private fun stopTerminal() {
         try {
             activeTerminalSession?.close()
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
         activeTerminalSession = null
         _uiState.update {
             if (it.isTerminalActive) {
                 it.copy(
                     isTerminalActive = false,
-                    terminalLines = it.terminalLines + TerminalLine(text = "[Terminal disconnected]", type = TerminalLineType.SYSTEM)
+                    terminalLines = it.terminalLines + TerminalLine(
+                        text = "[Terminal disconnected]",
+                        type = TerminalLineType.SYSTEM
+                    )
                 )
             } else {
                 it
@@ -636,13 +694,23 @@ class PodDetailViewModel(
         viewModelScope.launch(dispatcherProvider.main) {
             when (val result = deletePodUseCase(cid, namespace, podName)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(isDeletingPod = false, showDeleteConfirmDialog = false) }
+                    _uiState.update {
+                        it.copy(
+                            isDeletingPod = false,
+                            showDeleteConfirmDialog = false
+                        )
+                    }
                     _effects.send(PodDetailUiEffect.ShowToast("Pod '$podName' deleted successfully"))
                     _effects.send(PodDetailUiEffect.NavigateBack)
                 }
 
                 is Result.Error -> {
-                    _uiState.update { it.copy(isDeletingPod = false, showDeleteConfirmDialog = false) }
+                    _uiState.update {
+                        it.copy(
+                            isDeletingPod = false,
+                            showDeleteConfirmDialog = false
+                        )
+                    }
                     _effects.send(PodDetailUiEffect.ShowToast("Failed to delete pod: ${result.error.message}"))
                 }
 

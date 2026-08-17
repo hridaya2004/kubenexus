@@ -64,11 +64,16 @@ class PodRepositoryImpl(
     override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> {
         if (clusterId == null) return flowOf(emptyList())
 
-        val stream = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) {
-            podDao.getPodsStream(clusterId)
-        } else {
-            podDao.getPodsByNamespaceStream(clusterId, namespace.trim())
-        }
+        val stream =
+            if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals(
+                    "all",
+                    ignoreCase = true
+                )
+            ) {
+                podDao.getPodsStream(clusterId)
+            } else {
+                podDao.getPodsByNamespaceStream(clusterId, namespace.trim())
+            }
 
         return stream.map { entities ->
             entities.map { it.toDomain() }
@@ -79,7 +84,8 @@ class PodRepositoryImpl(
         if (clusterId == null) return flowOf(listOf("All Namespaces"))
 
         return namespaceDao.getNamespacesStream(clusterId).map { entities ->
-            val nsList = entities.map { it.toDomainName() }.filter { it.isNotBlank() }.distinct().sorted()
+            val nsList =
+                entities.map { it.toDomainName() }.filter { it.isNotBlank() }.distinct().sorted()
             if (nsList.isNotEmpty()) {
                 listOf("All Namespaces") + nsList
             } else {
@@ -103,11 +109,17 @@ class PodRepositoryImpl(
                 ?: return@withContext Result.Error(AppError.NotFound("Cluster with ID '$clusterId' not found"))
 
             val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
-            val queryNamespace = if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals("all", ignoreCase = true)) null else namespace.trim()
+            val queryNamespace =
+                if (namespace.isNullOrBlank() || namespace == "All Namespaces" || namespace.equals(
+                        "all",
+                        ignoreCase = true
+                    )
+                ) null else namespace.trim()
 
             try {
                 val livePods: List<Pod> = try {
-                    val nativeResult = nativeBridge.listPodsWide(decryptedKubeconfig, queryNamespace).getOrNull()
+                    val nativeResult =
+                        nativeBridge.listPodsWide(decryptedKubeconfig, queryNamespace).getOrNull()
                     if (nativeResult != null) {
                         nativeResult.map { it.toDomain() }
                     } else {
@@ -118,7 +130,10 @@ class PodRepositoryImpl(
                         )
                     }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "Native listPodsWide fallback to HTTP client: ${LogSanitizer.sanitize(t.message)}")
+                    Log.w(
+                        TAG,
+                        "Native listPodsWide fallback to HTTP client: ${LogSanitizer.sanitize(t.message)}"
+                    )
                     apiClient.fetchPods(
                         serverUrl = cluster.serverUrl,
                         rawKubeconfig = decryptedKubeconfig,
@@ -127,7 +142,8 @@ class PodRepositoryImpl(
                 }
 
                 val liveNamespaces: List<String> = try {
-                    val nativeNsResult = nativeBridge.listNamespaces(decryptedKubeconfig).getOrNull()
+                    val nativeNsResult =
+                        nativeBridge.listNamespaces(decryptedKubeconfig).getOrNull()
                     if (!nativeNsResult.isNullOrEmpty()) {
                         nativeNsResult.map { it.toDomainName() }
                     } else {
@@ -137,7 +153,10 @@ class PodRepositoryImpl(
                         )
                     }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "Native listNamespaces fallback: ${LogSanitizer.sanitize(t.message)}")
+                    Log.w(
+                        TAG,
+                        "Native listNamespaces fallback: ${LogSanitizer.sanitize(t.message)}"
+                    )
                     apiClient.fetchNamespaces(
                         serverUrl = cluster.serverUrl,
                         rawKubeconfig = decryptedKubeconfig
@@ -248,7 +267,8 @@ class PodRepositoryImpl(
         val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
 
         try {
-            val nativeResult = nativeBridge.getPodLogs(decryptedKubeconfig, namespace, podName, containerName)
+            val nativeResult =
+                nativeBridge.getPodLogs(decryptedKubeconfig, namespace, podName, containerName)
             if (nativeResult.isSuccess) {
                 return@withContext Result.Success(nativeResult.getOrThrow())
             }
@@ -319,7 +339,10 @@ class PodRepositoryImpl(
         )
 
         if (nativeResult.isFailure) {
-            Log.w(TAG, "Native streamLogs fallback to HTTP: ${LogSanitizer.sanitize(nativeResult.exceptionOrNull()?.message)}")
+            Log.w(
+                TAG,
+                "Native streamLogs fallback to HTTP: ${LogSanitizer.sanitize(nativeResult.exceptionOrNull()?.message)}"
+            )
             val job = launch(dispatcherProvider.io) {
                 apiClient.streamPodLogs(
                     serverUrl = cluster.serverUrl,

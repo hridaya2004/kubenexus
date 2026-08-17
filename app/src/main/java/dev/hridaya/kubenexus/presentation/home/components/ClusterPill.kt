@@ -70,7 +70,8 @@ fun ClusterPill(
                 ClusterConnectionStatus.OFFLINE -> Color(0xFF9CA3AF)      // Greyed out
             }
 
-            val dotAlpha = if (connectionStatus == ClusterConnectionStatus.CONNECTING) alphaAnim else 1f
+            val dotAlpha =
+                if (connectionStatus == ClusterConnectionStatus.CONNECTING) alphaAnim else 1f
 
             Box(
                 modifier = Modifier

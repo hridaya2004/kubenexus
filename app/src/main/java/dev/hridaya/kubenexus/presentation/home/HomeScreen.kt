@@ -7,14 +7,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -192,7 +189,12 @@ fun HomeScreen(
 
                 else -> {
                     LazyColumn(
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 8.dp,
+                            bottom = 96.dp
+                        ),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
@@ -304,7 +306,14 @@ fun HomeScreen(
                 isConnecting = uiState.isConnecting,
                 onKubeconfigChanged = { onAction(HomeUiAction.KubeconfigInputChanged(it)) },
                 onClusterNameChanged = { onAction(HomeUiAction.ClusterNameChanged(it)) },
-                onFileImported = { content, name -> onAction(HomeUiAction.FileImported(content, name)) },
+                onFileImported = { content, name ->
+                    onAction(
+                        HomeUiAction.FileImported(
+                            content,
+                            name
+                        )
+                    )
+                },
                 onConnectAndSave = { onAction(HomeUiAction.ConnectAndSaveSubmitted) },
                 onDismiss = { onAction(HomeUiAction.DismissAddClusterSheet) }
             )

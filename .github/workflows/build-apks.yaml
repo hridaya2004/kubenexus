@@ -25,6 +25,28 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: core/go.sum
+
+      - name: Install gomobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          gomobile init
+
+      - name: Install Android NDK
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: echo "y" | sdkmanager --install "ndk;27.0.12077973"
+
+      - name: Build kubenexus.aar
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
+        run: make aar
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

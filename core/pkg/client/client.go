@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/streaming/pkg/httpstream"
 )
 
 const defaultTimeout = 30 * time.Second
@@ -26,7 +26,7 @@ func defaultExecutorFactory(config *rest.Config, method string, u *url.URL) (rem
 
 	spdyExec, err := remotecommand.NewSPDYExecutor(config, method, u)
 	if err != nil {
-		return wsExec, nil
+		return wsExec, nil //nolint:nilerr // WebSocket executor succeeded, fallback to it if SPDY fails
 	}
 
 	return remotecommand.NewFallbackExecutor(wsExec, spdyExec, httpstream.IsUpgradeFailure)

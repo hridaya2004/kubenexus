@@ -498,6 +498,27 @@ func (m *mockExecCallback) isDone() bool {
 	return m.done
 }
 
+func TestMockExecCallback(t *testing.T) {
+	cb := &mockExecCallback{}
+	cb.OnStdout("line1")
+	cb.OnStderr("line2")
+	cb.OnError("something went wrong")
+	cb.OnDone()
+
+	if len(cb.stdout) != 1 || cb.stdout[0] != "line1" {
+		t.Errorf("stdout = %v", cb.stdout)
+	}
+	if len(cb.stderr) != 1 || cb.stderr[0] != "line2" {
+		t.Errorf("stderr = %v", cb.stderr)
+	}
+	if len(cb.errors) != 1 || cb.errors[0] != "something went wrong" {
+		t.Errorf("errors = %v", cb.errors)
+	}
+	if !cb.isDone() {
+		t.Error("done should be true")
+	}
+}
+
 type mockExecutor struct {
 	streamFunc func(ctx context.Context, options remotecommand.StreamOptions) error
 }
@@ -539,15 +560,12 @@ func TestExec_EmptyCommand(t *testing.T) {
 
 func TestExec_Success(t *testing.T) {
 	config := &rest.Config{Host: "http://localhost:8080"}
-	c, err := NewClientWithOptions(nil, 30, false)
-	// Build client directly for testing
-	c = &Client{
+	c := &Client{
 		config:  config,
 		timeout: defaultTimeout,
 	}
 
 	// Mock corev1 pod exec request doesn't need network if executor is mocked
-	// Let's create a Client with mocked executorFactory
 	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
 		return &mockExecutor{
 			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
@@ -569,10 +587,8 @@ func TestExec_Success(t *testing.T) {
 		}, nil
 	}
 
-	// Create fake clientset for CoreV1 RESTClient
-	clientset, err := rest.RESTClientFor(config)
-	if err == nil && clientset != nil {
-		// Verify
+	if c.executorFactory == nil {
+		t.Fatal("executorFactory is nil")
 	}
 }
 

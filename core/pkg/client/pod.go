@@ -344,7 +344,7 @@ func (c *Client) ListPods(namespace string) (*StringList, error) {
 	for i, pod := range pods.Items {
 		names[i] = pod.Name
 	}
-	return &StringList{items: names}, nil
+	return newStringList(names), nil
 }
 
 // ListPodsWide returns pod summaries in the namespace, or all namespaces if empty.
@@ -371,7 +371,7 @@ func (c *Client) ListPodsWide(namespace string) (*PodList, error) {
 			IP:        pod.Status.PodIP,
 		}
 	}
-	return &PodList{items: result}, nil
+	return newPodList(result), nil
 }
 
 // ListPodsJSON returns pod summaries as a JSON string for Android clients.
@@ -484,7 +484,7 @@ func (c *Client) Logs(namespace, podName, container string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("opening log stream: %w", err)
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	data, err := io.ReadAll(stream)
 	if err != nil {
@@ -516,7 +516,7 @@ func (c *Client) StreamLogs(namespace, podName, container string, callback LogCa
 		callback.OnDone()
 		return
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	scanner := bufio.NewScanner(stream)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)

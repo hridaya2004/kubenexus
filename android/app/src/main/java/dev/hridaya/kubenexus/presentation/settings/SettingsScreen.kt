@@ -1,5 +1,7 @@
 package dev.hridaya.kubenexus.presentation.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
@@ -40,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,6 +60,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     onNavigateToLogcat: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val currentThemeMode = LocalThemeMode.current
     val onThemeModeChange = LocalOnThemeModeChange.current
     val amoledDark = LocalAmoledDark.current
@@ -171,13 +176,13 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(
-                                text = "KubeNexus Clean Architecture",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                                text = "KubeNexus",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Mihon-inspired Appearance • Dynamic Material 3",
+                                text = "A Kubernetes client for Android",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -185,9 +190,26 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            item {
+                PreferenceNavigationCard(
+                    icon = Icons.Outlined.Code,
+                    title = "GitHub",
+                    subtitle = "https://github.com/hridaya2004/kubenexus",
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/hridaya2004/kubenexus"),
+                        )
+                        context.startActivity(intent)
+                    },
+                )
+            }
+
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -175,7 +175,7 @@ fun LogcatScreen(
                         Column {
                             Text(
                                 text = "Logcat",
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.headlineSmall,
                             )
                             Text(
                                 text = "dev.hridaya.kubenexus • ${uiState.filteredLogs.size} lines",

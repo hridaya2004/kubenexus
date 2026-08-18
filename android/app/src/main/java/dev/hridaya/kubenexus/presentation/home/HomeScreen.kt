@@ -1,11 +1,6 @@
 package dev.hridaya.kubenexus.presentation.home
 
 import android.widget.Toast
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,13 +15,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Layers
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -42,10 +35,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
@@ -104,16 +97,6 @@ fun HomeScreen(
     onNavigateToPods: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "refresh_rotation")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-        ),
-        label = "refresh_angle",
-    )
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Transparent,
@@ -137,25 +120,12 @@ fun HomeScreen(
                         )
                     }
                 },
-                actions = {
-                    if (uiState.clusters.isNotEmpty()) {
-                        IconButton(
-                            onClick = { onAction(HomeUiAction.RefreshWorkloads) },
-                            enabled = !uiState.isRefreshing,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Refresh,
-                                contentDescription = "Refresh cluster workloads",
-                                modifier = if (uiState.isRefreshing) Modifier.rotate(rotation) else Modifier,
-                            )
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                 ),
             )
         },
+
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onAction(HomeUiAction.OpenFabActionSheet) },

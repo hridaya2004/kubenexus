@@ -79,18 +79,21 @@ val HeadlineSmallEmphasized = createDeviceFontFamily(
     "google-sans-flex",
 )
 
-val TitleLargeFamily = createDeviceFontFamily(
+val TitleLargeEmphasized = createDeviceFontFamily(
+    "variable-title-large-emphasized",
     "variable-title-large",
     "google-sans",
     "google-sans-flex",
 )
-val TitleMediumFamily = createDeviceFontFamily(
+val TitleMediumEmphasized = createDeviceFontFamily(
+    "variable-title-medium-emphasized",
     "variable-title-medium",
     "google-sans-text",
     "google-sans-flex",
     "google-sans",
 )
-val TitleSmallFamily = createDeviceFontFamily(
+val TitleSmallEmphasized = createDeviceFontFamily(
+    "variable-title-small-emphasized",
     "variable-title-small",
     "google-sans-text",
     "google-sans-flex",
@@ -140,19 +143,20 @@ val GoogleSansFlex = HeadlineLargeEmphasized
 private val defaultTypography = Typography()
 
 val Typography = Typography(
-    displayLarge = defaultTypography.displayLarge.copy(fontFamily = DisplayLargeEmphasized),
-    displayMedium = defaultTypography.displayMedium.copy(fontFamily = DisplayMediumEmphasized),
-    displaySmall = defaultTypography.displaySmall.copy(fontFamily = DisplaySmallEmphasized),
-    headlineLarge = defaultTypography.headlineLarge.copy(fontFamily = HeadlineLargeEmphasized),
-    headlineMedium = defaultTypography.headlineMedium.copy(fontFamily = HeadlineMediumEmphasized),
-    headlineSmall = defaultTypography.headlineSmall.copy(fontFamily = HeadlineSmallEmphasized),
-    titleLarge = defaultTypography.titleLarge.copy(fontFamily = TitleLargeFamily),
-    titleMedium = defaultTypography.titleMedium.copy(fontFamily = TitleMediumFamily),
-    titleSmall = defaultTypography.titleSmall.copy(fontFamily = TitleSmallFamily),
-    bodyLarge = defaultTypography.bodyLarge.copy(fontFamily = BodyLargeFamily),
-    bodyMedium = defaultTypography.bodyMedium.copy(fontFamily = BodyMediumFamily),
-    bodySmall = defaultTypography.bodySmall.copy(fontFamily = BodySmallFamily),
-    labelLarge = defaultTypography.labelLarge.copy(fontFamily = LabelLargeFamily),
-    labelMedium = defaultTypography.labelMedium.copy(fontFamily = LabelMediumFamily),
-    labelSmall = defaultTypography.labelSmall.copy(fontFamily = LabelSmallFamily),
+    displayLarge = defaultTypography.displayLarge.copy(fontFamily = DisplayLargeEmphasized, fontWeight = FontWeight.SemiBold),
+    displayMedium = defaultTypography.displayMedium.copy(fontFamily = DisplayMediumEmphasized, fontWeight = FontWeight.SemiBold),
+    displaySmall = defaultTypography.displaySmall.copy(fontFamily = DisplaySmallEmphasized, fontWeight = FontWeight.SemiBold),
+    headlineLarge = defaultTypography.headlineLarge.copy(fontFamily = HeadlineLargeEmphasized, fontWeight = FontWeight.SemiBold),
+    headlineMedium = defaultTypography.headlineMedium.copy(fontFamily = HeadlineMediumEmphasized, fontWeight = FontWeight.SemiBold),
+    headlineSmall = defaultTypography.headlineSmall.copy(fontFamily = HeadlineSmallEmphasized, fontWeight = FontWeight.SemiBold),
+    titleLarge = defaultTypography.titleLarge.copy(fontFamily = TitleLargeEmphasized, fontWeight = FontWeight.SemiBold),
+    titleMedium = defaultTypography.titleMedium.copy(fontFamily = TitleMediumEmphasized, fontWeight = FontWeight.SemiBold),
+    titleSmall = defaultTypography.titleSmall.copy(fontFamily = TitleSmallEmphasized, fontWeight = FontWeight.SemiBold),
+    bodyLarge = defaultTypography.bodyLarge.copy(fontFamily = BodyLargeFamily, fontWeight = FontWeight.Normal),
+    bodyMedium = defaultTypography.bodyMedium.copy(fontFamily = BodyMediumFamily, fontWeight = FontWeight.Normal),
+    bodySmall = defaultTypography.bodySmall.copy(fontFamily = BodySmallFamily, fontWeight = FontWeight.Normal),
+    labelLarge = defaultTypography.labelLarge.copy(fontFamily = LabelLargeFamily, fontWeight = FontWeight.Medium),
+    labelMedium = defaultTypography.labelMedium.copy(fontFamily = LabelMediumFamily, fontWeight = FontWeight.Medium),
+    labelSmall = defaultTypography.labelSmall.copy(fontFamily = LabelSmallFamily, fontWeight = FontWeight.Medium),
 )
+

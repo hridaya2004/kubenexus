@@ -10,12 +10,18 @@ android {
         version = release(37)
     }
 
+    ndkVersion = "27.0.12077973"
+
     defaultConfig {
         applicationId = "dev.hridaya.kubenexus"
         minSdk = 35
         targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -78,8 +84,32 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        resources {
+            excludes += listOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/LICENSE.txt",
+                "/META-INF/LICENSE",
+                "/META-INF/NOTICE.txt",
+                "/META-INF/NOTICE",
+                "/META-INF/*.version",
+                "/META-INF/androidx.*",
+                "**/*.kotlin_builtins",
+                "**/*.kotlin_metadata",
+            )
+        }
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     lint {
-        disable += listOf("NewerVersionAvailable", "GradleDependency", "AndroidGradlePluginVersion")
+        disable += listOf(
+            "NewerVersionAvailable",
+            "GradleDependency",
+            "AndroidGradlePluginVersion",
+            "ChromeOsAbiSupport",
+        )
     }
 
     testOptions {

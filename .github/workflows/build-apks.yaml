@@ -39,7 +39,7 @@ jobs:
       - name: Install Android NDK
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
-        run: echo "y" | sdkmanager --install "ndk;27.0.12077973"
+        run: echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973"
 
       - name: Build kubenexus.aar
         env:

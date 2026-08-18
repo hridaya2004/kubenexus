@@ -18,7 +18,6 @@ import dev.hridaya.kubenexus.data.source.local.KubeNexusDatabase
 import dev.hridaya.kubenexus.data.source.local.LogcatLocalDataSource
 import dev.hridaya.kubenexus.data.source.local.SharedPrefsThemePreferencesDataSource
 import dev.hridaya.kubenexus.data.source.local.ThemePreferencesLocalDataSource
-import dev.hridaya.kubenexus.data.source.remote.KubernetesApiClient
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.LogcatRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
@@ -108,16 +107,11 @@ class DefaultAppContainer(private val appContext: Context) : AppContainer {
         )
     }
 
-    private val kubernetesApiClient: KubernetesApiClient by lazy {
-        KubernetesApiClient()
-    }
-
     override val podRepository: PodRepository by lazy {
         PodRepositoryImpl(
             clusterDao = database.clusterDao(),
             podDao = database.podDao(),
             namespaceDao = database.namespaceDao(),
-            apiClient = kubernetesApiClient,
             nativeBridge = nativeBridge,
             encryptor = kubeconfigEncryptor,
             dispatcherProvider = dispatcherProvider,

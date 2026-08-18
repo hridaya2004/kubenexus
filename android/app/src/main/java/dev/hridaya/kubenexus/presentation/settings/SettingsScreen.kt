@@ -191,7 +191,11 @@ fun SettingsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppThemeModePreferenceWidget(value: ThemeMode, onItemClick: (ThemeMode) -> Unit, modifier: Modifier = Modifier) {
+fun AppThemeModePreferenceWidget(
+    value: ThemeMode,
+    onItemClick: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val options = listOf(ThemeMode.DARK, ThemeMode.SYSTEM, ThemeMode.LIGHT)
 
     SingleChoiceSegmentedButtonRow(

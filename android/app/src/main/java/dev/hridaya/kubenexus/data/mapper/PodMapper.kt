@@ -1,11 +1,5 @@
 package dev.hridaya.kubenexus.data.mapper
 
-import client.ContainerInfo as NativeContainerInfo
-import client.Namespace as NativeNamespace
-import client.Pod as NativePod
-import client.PodCondition as NativePodCondition
-import client.PodDetails as NativePodDetails
-import client.PodEvent as NativePodEvent
 import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.PodEntity
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
@@ -15,6 +9,12 @@ import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodEventDetail
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import org.json.JSONObject
+import client.ContainerInfo as NativeContainerInfo
+import client.Namespace as NativeNamespace
+import client.Pod as NativePod
+import client.PodCondition as NativePodCondition
+import client.PodDetails as NativePodDetails
+import client.PodEvent as NativePodEvent
 
 fun NativePod.toDomain(): Pod {
     val domainStatus = when (status?.lowercase()) {

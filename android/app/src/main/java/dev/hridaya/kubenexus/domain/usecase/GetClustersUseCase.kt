@@ -6,7 +6,10 @@ import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 
-class GetClustersUseCase(private val repository: ClusterRepository, private val dispatcherProvider: DispatcherProvider) {
+class GetClustersUseCase(
+    private val repository: ClusterRepository,
+    private val dispatcherProvider: DispatcherProvider
+) {
     operator fun invoke(): Flow<List<Cluster>> {
         return repository.getClustersStream().flowOn(dispatcherProvider.io)
     }

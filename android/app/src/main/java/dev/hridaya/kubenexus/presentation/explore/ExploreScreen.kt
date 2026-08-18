@@ -104,7 +104,12 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ExploreCard(icon: ImageVector, title: String, description: String, modifier: Modifier = Modifier) {
+private fun ExploreCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,

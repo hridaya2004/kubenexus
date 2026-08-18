@@ -521,25 +521,26 @@ class HomeViewModel(
     }
 
     companion object {
-        fun provideFactory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HomeViewModel(
-                    getClustersUseCase = container.getClustersUseCase,
-                    getActiveClusterUseCase = container.getActiveClusterUseCase,
-                    getPodsUseCase = container.getPodsUseCase,
-                    getNamespacesUseCase = container.getNamespacesUseCase,
-                    getLastRefreshedUseCase = container.getLastRefreshedUseCase,
-                    refreshWorkloadsUseCase = container.refreshWorkloadsUseCase,
-                    addClusterUseCase = container.addClusterUseCase,
-                    setActiveClusterUseCase = container.setActiveClusterUseCase,
-                    deleteClusterUseCase = container.deleteClusterUseCase,
-                    updateClusterNameUseCase = container.updateClusterNameUseCase,
-                    testClusterConnectionUseCase = container.testClusterConnectionUseCase,
-                    networkMonitor = container.networkMonitor,
-                    dispatcherProvider = container.dispatcherProvider,
-                ) as T
+        fun provideFactory(container: AppContainer): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return HomeViewModel(
+                        getClustersUseCase = container.getClustersUseCase,
+                        getActiveClusterUseCase = container.getActiveClusterUseCase,
+                        getPodsUseCase = container.getPodsUseCase,
+                        getNamespacesUseCase = container.getNamespacesUseCase,
+                        getLastRefreshedUseCase = container.getLastRefreshedUseCase,
+                        refreshWorkloadsUseCase = container.refreshWorkloadsUseCase,
+                        addClusterUseCase = container.addClusterUseCase,
+                        setActiveClusterUseCase = container.setActiveClusterUseCase,
+                        deleteClusterUseCase = container.deleteClusterUseCase,
+                        updateClusterNameUseCase = container.updateClusterNameUseCase,
+                        testClusterConnectionUseCase = container.testClusterConnectionUseCase,
+                        networkMonitor = container.networkMonitor,
+                        dispatcherProvider = container.dispatcherProvider,
+                    ) as T
+                }
             }
-        }
     }
 }

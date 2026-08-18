@@ -10,7 +10,12 @@ import androidx.compose.ui.Modifier
 import dev.hridaya.kubenexus.domain.model.Cluster
 
 @Composable
-fun DeleteClusterDialog(cluster: Cluster, onDismiss: () -> Unit, onConfirmDelete: (String) -> Unit, modifier: Modifier = Modifier) {
+fun DeleteClusterDialog(
+    cluster: Cluster,
+    onDismiss: () -> Unit,
+    onConfirmDelete: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {

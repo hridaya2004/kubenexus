@@ -169,7 +169,11 @@ class PodRepositoryImpl(
         }
     }
 
-    override suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails> = withContext(dispatcherProvider.io) {
+    override suspend fun describePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<PodDetails> = withContext(dispatcherProvider.io) {
         if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
@@ -193,7 +197,11 @@ class PodRepositoryImpl(
         }
     }
 
-    override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> = withContext(dispatcherProvider.io) {
+    override suspend fun deletePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
         if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
@@ -218,7 +226,12 @@ class PodRepositoryImpl(
         }
     }
 
-    override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Result<String> = withContext(dispatcherProvider.io) {
+    override suspend fun getPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?
+    ): Result<String> = withContext(dispatcherProvider.io) {
         if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
         val cluster = clusterDao.getClusterById(clusterId)
             ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
@@ -242,7 +255,12 @@ class PodRepositoryImpl(
         }
     }
 
-    override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Flow<String> = callbackFlow {
+    override fun streamPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?
+    ): Flow<String> = callbackFlow {
         if (clusterId == null) {
             trySend("Error: No active cluster selected")
             close()

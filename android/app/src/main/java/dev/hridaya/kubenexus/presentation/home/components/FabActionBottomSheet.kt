@@ -124,7 +124,13 @@ fun FabActionBottomSheet(
 }
 
 @Composable
-private fun ActionMenuItem(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ActionMenuItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),

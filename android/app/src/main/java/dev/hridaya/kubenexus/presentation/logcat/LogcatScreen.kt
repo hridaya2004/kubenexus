@@ -99,7 +99,11 @@ private val LogTagColor = Color(0xFF26A69A)
 private val TerminalBackground = Color(0xFF0D1117)
 
 @Composable
-fun LogcatRoute(viewModel: LogcatViewModel, onNavigateBack: () -> Unit, modifier: Modifier = Modifier) {
+fun LogcatRoute(
+    viewModel: LogcatViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }

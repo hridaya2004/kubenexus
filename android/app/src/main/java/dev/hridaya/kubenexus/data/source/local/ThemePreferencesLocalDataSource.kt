@@ -18,7 +18,10 @@ interface ThemePreferencesLocalDataSource {
     suspend fun setAmoledDark(enabled: Boolean)
 }
 
-class SharedPrefsThemePreferencesDataSource(context: Context, private val dispatcherProvider: DispatcherProvider) : ThemePreferencesLocalDataSource {
+class SharedPrefsThemePreferencesDataSource(
+    context: Context,
+    private val dispatcherProvider: DispatcherProvider
+) : ThemePreferencesLocalDataSource {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("app_theme_prefs", Context.MODE_PRIVATE)
@@ -56,11 +59,11 @@ class SharedPrefsThemePreferencesDataSource(context: Context, private val dispat
     }.flowOn(dispatcherProvider.io)
 
     override suspend fun setThemeMode(mode: ThemeMode) = withContext(dispatcherProvider.io) {
-        prefs.edit {putString(KEY_THEME_MODE, mode.name)}
+        prefs.edit { putString(KEY_THEME_MODE, mode.name) }
     }
 
     override suspend fun setAmoledDark(enabled: Boolean) = withContext(dispatcherProvider.io) {
-        prefs.edit {putBoolean(KEY_AMOLED_DARK, enabled)}
+        prefs.edit { putBoolean(KEY_AMOLED_DARK, enabled) }
     }
 
     companion object {

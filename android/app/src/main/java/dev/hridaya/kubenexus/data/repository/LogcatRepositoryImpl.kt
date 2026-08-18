@@ -9,20 +9,24 @@ import dev.hridaya.kubenexus.domain.repository.LogcatRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
-class LogcatRepositoryImpl(private val localDataSource: LogcatLocalDataSource, private val dispatcherProvider: DispatcherProvider) : LogcatRepository {
+class LogcatRepositoryImpl(
+    private val localDataSource: LogcatLocalDataSource,
+    private val dispatcherProvider: DispatcherProvider
+) : LogcatRepository {
 
     override fun streamLogs(maxBufferSize: Int): Flow<List<LogcatEntry>> {
         return localDataSource.streamLogs(maxBufferSize)
     }
 
-    override suspend fun dumpLogs(maxLines: Int): Result<List<LogcatEntry>> = withContext(dispatcherProvider.io) {
-        try {
-            val logs = localDataSource.dumpLogs(maxLines)
-            Result.Success(logs)
-        } catch (e: Throwable) {
-            Result.Error(AppError.Unknown(e.message ?: "Failed to dump logcat", e))
+    override suspend fun dumpLogs(maxLines: Int): Result<List<LogcatEntry>> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val logs = localDataSource.dumpLogs(maxLines)
+                Result.Success(logs)
+            } catch (e: Throwable) {
+                Result.Error(AppError.Unknown(e.message ?: "Failed to dump logcat", e))
+            }
         }
-    }
 
     override suspend fun clearLogs(): Result<Unit> = withContext(dispatcherProvider.io) {
         try {

@@ -14,11 +14,11 @@ import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
-import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 class ClusterRepositoryImpl(
     private val clusterDao: ClusterDao,
@@ -43,7 +43,11 @@ class ClusterRepositoryImpl(
         clusterDao.getClusterById(id)?.toDomain(encryptor)
     }
 
-    override suspend fun addCluster(kubeconfigRaw: String, customName: String?, setAsActive: Boolean): Result<Cluster> = withContext(dispatcherProvider.io) {
+    override suspend fun addCluster(
+        kubeconfigRaw: String,
+        customName: String?,
+        setAsActive: Boolean
+    ): Result<Cluster> = withContext(dispatcherProvider.io) {
         try {
             val parsed = KubeconfigParser.parse(kubeconfigRaw, customName)
             connectionTester.testConnection(parsed)
@@ -76,92 +80,101 @@ class ClusterRepositoryImpl(
         }
     }
 
-    override suspend fun setActiveCluster(id: String): Result<Unit> = withContext(dispatcherProvider.io) {
-        try {
-            val clusterEntity = clusterDao.getClusterById(id)
-                ?: return@withContext Result.Error(AppError.Unknown("Cluster with ID '$id' not found."))
+    override suspend fun setActiveCluster(id: String): Result<Unit> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val clusterEntity = clusterDao.getClusterById(id)
+                    ?: return@withContext Result.Error(AppError.Unknown("Cluster with ID '$id' not found."))
 
-            val decryptedKubeconfig = encryptor.decrypt(clusterEntity.rawKubeconfig)
-            val parsed = KubeconfigParser.parse(decryptedKubeconfig, clusterEntity.name)
-            connectionTester.testConnection(parsed)
+                val decryptedKubeconfig = encryptor.decrypt(clusterEntity.rawKubeconfig)
+                val parsed = KubeconfigParser.parse(decryptedKubeconfig, clusterEntity.name)
+                connectionTester.testConnection(parsed)
 
-            // Opportunistic migration if this record was still stored as plaintext
-            if (!encryptor.isEncrypted(clusterEntity.rawKubeconfig)) {
-                val encrypted = encryptor.encrypt(clusterEntity.rawKubeconfig)
-                clusterDao.updateCluster(clusterEntity.copy(rawKubeconfig = encrypted))
+                // Opportunistic migration if this record was still stored as plaintext
+                if (!encryptor.isEncrypted(clusterEntity.rawKubeconfig)) {
+                    val encrypted = encryptor.encrypt(clusterEntity.rawKubeconfig)
+                    clusterDao.updateCluster(clusterEntity.copy(rawKubeconfig = encrypted))
+                }
+
+                clusterDao.setActiveCluster(id)
+                clusterDao.updateStatus(
+                    id,
+                    ClusterStatus.CONNECTED.name,
+                    System.currentTimeMillis(),
+                )
+
+                Result.Success(Unit)
+            } catch (t: Throwable) {
+                clusterDao.updateStatus(id, ClusterStatus.ERROR.name, null)
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                val errorMsg = sanitizedMsg.ifEmpty { "Failed to switch active cluster." }
+                Result.Error(AppError.Unknown(errorMsg, t))
             }
-
-            clusterDao.setActiveCluster(id)
-            clusterDao.updateStatus(
-                id,
-                ClusterStatus.CONNECTED.name,
-                System.currentTimeMillis(),
-            )
-
-            Result.Success(Unit)
-        } catch (t: Throwable) {
-            clusterDao.updateStatus(id, ClusterStatus.ERROR.name, null)
-            val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            val errorMsg = sanitizedMsg.ifEmpty { "Failed to switch active cluster." }
-            Result.Error(AppError.Unknown(errorMsg, t))
         }
-    }
 
-    override suspend fun deleteCluster(id: String): Result<Unit> = withContext(dispatcherProvider.io) {
-        try {
-            clusterDao.deleteCluster(id)
-            Result.Success(Unit)
-        } catch (t: Throwable) {
-            val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Result.Error(AppError.Unknown("Failed to delete cluster: $sanitizedMsg", t))
+    override suspend fun deleteCluster(id: String): Result<Unit> =
+        withContext(dispatcherProvider.io) {
+            try {
+                clusterDao.deleteCluster(id)
+                Result.Success(Unit)
+            } catch (t: Throwable) {
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                Result.Error(AppError.Unknown("Failed to delete cluster: $sanitizedMsg", t))
+            }
         }
-    }
 
-    override suspend fun testConnection(kubeconfigRaw: String): Result<String> = withContext(dispatcherProvider.io) {
-        try {
-            val parsed = KubeconfigParser.parse(kubeconfigRaw)
-            val info = connectionTester.testConnection(parsed)
-            Result.Success(info)
-        } catch (t: Throwable) {
-            val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            val errorMsg = sanitizedMsg.ifEmpty { "Connection test failed." }
-            Result.Error(AppError.Unknown(errorMsg, t))
+    override suspend fun testConnection(kubeconfigRaw: String): Result<String> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val parsed = KubeconfigParser.parse(kubeconfigRaw)
+                val info = connectionTester.testConnection(parsed)
+                Result.Success(info)
+            } catch (t: Throwable) {
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                val errorMsg = sanitizedMsg.ifEmpty { "Connection test failed." }
+                Result.Error(AppError.Unknown(errorMsg, t))
+            }
         }
-    }
 
-    override suspend fun testClusterById(id: String): Result<String> = withContext(dispatcherProvider.io) {
-        try {
-            val clusterEntity = clusterDao.getClusterById(id)
-                ?: return@withContext Result.Error(AppError.Unknown("Cluster with ID '$id' not found."))
-            val decryptedKubeconfig = encryptor.decrypt(clusterEntity.rawKubeconfig)
-            val parsed = KubeconfigParser.parse(decryptedKubeconfig, clusterEntity.name)
-            val info = connectionTester.testConnection(parsed)
-            clusterDao.updateStatus(
-                id,
-                ClusterStatus.CONNECTED.name,
-                System.currentTimeMillis(),
-            )
-            Result.Success(info)
-        } catch (t: Throwable) {
-            clusterDao.updateStatus(id, ClusterStatus.ERROR.name, null)
-            val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            val errorMsg = sanitizedMsg.ifEmpty { "Connection test failed." }
-            Result.Error(AppError.Unknown(errorMsg, t))
+    override suspend fun testClusterById(id: String): Result<String> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val clusterEntity = clusterDao.getClusterById(id)
+                    ?: return@withContext Result.Error(AppError.Unknown("Cluster with ID '$id' not found."))
+                val decryptedKubeconfig = encryptor.decrypt(clusterEntity.rawKubeconfig)
+                val parsed = KubeconfigParser.parse(decryptedKubeconfig, clusterEntity.name)
+                val info = connectionTester.testConnection(parsed)
+                clusterDao.updateStatus(
+                    id,
+                    ClusterStatus.CONNECTED.name,
+                    System.currentTimeMillis(),
+                )
+                Result.Success(info)
+            } catch (t: Throwable) {
+                clusterDao.updateStatus(id, ClusterStatus.ERROR.name, null)
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                val errorMsg = sanitizedMsg.ifEmpty { "Connection test failed." }
+                Result.Error(AppError.Unknown(errorMsg, t))
+            }
         }
-    }
 
-    override suspend fun updateClusterName(id: String, newName: String): Result<Unit> = withContext(dispatcherProvider.io) {
-        try {
-            require(newName.isNotBlank()) { "Cluster name cannot be blank." }
-            clusterDao.updateClusterName(id, newName.trim())
-            Result.Success(Unit)
-        } catch (t: Throwable) {
-            val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Result.Error(AppError.Unknown("Failed to update cluster name: $sanitizedMsg", t))
+    override suspend fun updateClusterName(id: String, newName: String): Result<Unit> =
+        withContext(dispatcherProvider.io) {
+            try {
+                require(newName.isNotBlank()) { "Cluster name cannot be blank." }
+                clusterDao.updateClusterName(id, newName.trim())
+                Result.Success(Unit)
+            } catch (t: Throwable) {
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                Result.Error(AppError.Unknown("Failed to update cluster name: $sanitizedMsg", t))
+            }
         }
-    }
 
-    override suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit> = withContext(dispatcherProvider.io) {
+    override suspend fun updateClusterStatus(
+        id: String,
+        status: ClusterStatus,
+        lastConnectedAt: Long?
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
         try {
             clusterDao.updateStatus(id, status.name, lastConnectedAt)
             Result.Success(Unit)
@@ -171,26 +184,27 @@ class ClusterRepositoryImpl(
         }
     }
 
-    override suspend fun migratePlaintextClusters(): Result<Int> = withContext(dispatcherProvider.io) {
-        try {
-            val clusters = clusterDao.getAllClusters()
-            var migratedCount = 0
-            for (entity in clusters) {
-                if (!encryptor.isEncrypted(entity.rawKubeconfig)) {
-                    val encryptedKubeconfig = encryptor.encrypt(entity.rawKubeconfig)
-                    clusterDao.updateCluster(entity.copy(rawKubeconfig = encryptedKubeconfig))
-                    migratedCount++
+    override suspend fun migratePlaintextClusters(): Result<Int> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val clusters = clusterDao.getAllClusters()
+                var migratedCount = 0
+                for (entity in clusters) {
+                    if (!encryptor.isEncrypted(entity.rawKubeconfig)) {
+                        val encryptedKubeconfig = encryptor.encrypt(entity.rawKubeconfig)
+                        clusterDao.updateCluster(entity.copy(rawKubeconfig = encryptedKubeconfig))
+                        migratedCount++
+                    }
                 }
+                Result.Success(migratedCount)
+            } catch (t: Throwable) {
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                Result.Error(
+                    AppError.Unknown(
+                        "Failed to migrate plaintext clusters: $sanitizedMsg",
+                        t,
+                    ),
+                )
             }
-            Result.Success(migratedCount)
-        } catch (t: Throwable) {
-            val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Result.Error(
-                AppError.Unknown(
-                    "Failed to migrate plaintext clusters: $sanitizedMsg",
-                    t,
-                ),
-            )
         }
-    }
 }

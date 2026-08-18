@@ -9,14 +9,22 @@ interface ClusterRepository {
     fun getClustersStream(): Flow<List<Cluster>>
     fun getActiveClusterStream(): Flow<Cluster?>
     suspend fun getClusterById(id: String): Cluster?
-    suspend fun addCluster(kubeconfigRaw: String, customName: String?, setAsActive: Boolean = true): Result<Cluster>
+    suspend fun addCluster(
+        kubeconfigRaw: String,
+        customName: String?,
+        setAsActive: Boolean = true
+    ): Result<Cluster>
 
     suspend fun setActiveCluster(id: String): Result<Unit>
     suspend fun deleteCluster(id: String): Result<Unit>
     suspend fun testConnection(kubeconfigRaw: String): Result<String>
     suspend fun testClusterById(id: String): Result<String>
     suspend fun updateClusterName(id: String, newName: String): Result<Unit>
-    suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit>
+    suspend fun updateClusterStatus(
+        id: String,
+        status: ClusterStatus,
+        lastConnectedAt: Long?
+    ): Result<Unit>
 
     suspend fun migratePlaintextClusters(): Result<Int>
 }

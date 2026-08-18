@@ -13,7 +13,8 @@ import javax.crypto.spec.GCMParameterSpec
  * Provides authenticated encryption with Associated Data (AEAD) to protect confidentiality
  * and prevent tampering.
  */
-open class AesGcmKubeconfigEncryptor(private val keyProvider: () -> SecretKey) : KubeconfigEncryptor {
+open class AesGcmKubeconfigEncryptor(private val keyProvider: () -> SecretKey) :
+    KubeconfigEncryptor {
 
     constructor(secretKey: SecretKey) : this({ secretKey })
 

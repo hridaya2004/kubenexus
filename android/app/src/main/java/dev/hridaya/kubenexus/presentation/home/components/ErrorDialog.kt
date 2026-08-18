@@ -38,7 +38,12 @@ import dev.hridaya.kubenexus.presentation.home.ErrorDialogData
 
 @Suppress("DEPRECATION")
 @Composable
-fun ErrorDialog(data: ErrorDialogData, onDismiss: () -> Unit, onCopy: (String) -> Unit, modifier: Modifier = Modifier) {
+fun ErrorDialog(
+    data: ErrorDialogData,
+    onDismiss: () -> Unit,
+    onCopy: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val clipboardManager = LocalClipboardManager.current
     val verticalScrollState = rememberScrollState()
     val horizontalScrollState = rememberScrollState()

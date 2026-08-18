@@ -8,11 +8,11 @@ import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.LogCallback
+import dev.hridaya.kubenexus.core.security.LogSanitizer
+import go.Seq
 import client.Namespace as NativeNamespace
 import client.Pod as NativePod
 import client.PodDetails as NativePodDetails
-import dev.hridaya.kubenexus.core.security.LogSanitizer
-import go.Seq
 
 /**
  * Bridge interface for interacting with the native Go runtime provided by kubenexus.aar.
@@ -41,7 +41,11 @@ interface KubeNexusNativeBridge {
     /**
      * Creates a new instance of [Client_] with custom timeout and insecure TLS option.
      */
-    fun createClientWithOptions(rawKubeconfig: String, timeoutSec: Long = 30, insecure: Boolean = false): Result<Client_>
+    fun createClientWithOptions(
+        rawKubeconfig: String,
+        timeoutSec: Long = 30,
+        insecure: Boolean = false
+    ): Result<Client_>
 
     /**
      * Retrieves a quick list of pod names for the specified namespace from native runtime.
@@ -61,7 +65,11 @@ interface KubeNexusNativeBridge {
     /**
      * Describes a pod in detail from native runtime.
      */
-    fun describePod(rawKubeconfig: String, namespace: String, podName: String): Result<NativePodDetails>
+    fun describePod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String
+    ): Result<NativePodDetails>
 
     /**
      * Deletes a pod from native runtime.
@@ -71,7 +79,12 @@ interface KubeNexusNativeBridge {
     /**
      * Fetches historical logs for a pod container.
      */
-    fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String? = null): Result<String>
+    fun getPodLogs(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        container: String? = null
+    ): Result<String>
 
     /**
      * Streams live logs for a pod container via callback.
@@ -176,7 +189,11 @@ class KubeNexusNativeBridgeImpl(private val context: Context) : KubeNexusNativeB
         }
     }
 
-    override fun createClientWithOptions(rawKubeconfig: String, timeoutSec: Long, insecure: Boolean): Result<Client_> {
+    override fun createClientWithOptions(
+        rawKubeconfig: String,
+        timeoutSec: Long,
+        insecure: Boolean
+    ): Result<Client_> {
         return runCatching {
             ensureInitialized()
             Client.newClientWithOptions(
@@ -286,7 +303,11 @@ class KubeNexusNativeBridgeImpl(private val context: Context) : KubeNexusNativeB
         }
     }
 
-    override fun describePod(rawKubeconfig: String, namespace: String, podName: String): Result<NativePodDetails> {
+    override fun describePod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String
+    ): Result<NativePodDetails> {
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
@@ -300,7 +321,11 @@ class KubeNexusNativeBridgeImpl(private val context: Context) : KubeNexusNativeB
         }
     }
 
-    override fun deletePod(rawKubeconfig: String, namespace: String, podName: String): Result<Unit> {
+    override fun deletePod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String
+    ): Result<Unit> {
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)
@@ -314,7 +339,12 @@ class KubeNexusNativeBridgeImpl(private val context: Context) : KubeNexusNativeB
         }
     }
 
-    override fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?): Result<String> {
+    override fun getPodLogs(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        container: String?
+    ): Result<String> {
         return runCatching {
             ensureInitialized()
             val client = Client.newClient(rawKubeconfig)

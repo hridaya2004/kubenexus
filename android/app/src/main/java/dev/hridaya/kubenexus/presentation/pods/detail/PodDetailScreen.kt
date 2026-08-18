@@ -100,7 +100,11 @@ private val TermuxCyan = Color(0xFF58A6FF)
 private val TermuxPurple = Color(0xFFBC8CFF)
 
 @Composable
-fun PodDetailRoute(viewModel: PodDetailViewModel, onNavigateBack: () -> Unit, modifier: Modifier = Modifier) {
+fun PodDetailRoute(
+    viewModel: PodDetailViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 

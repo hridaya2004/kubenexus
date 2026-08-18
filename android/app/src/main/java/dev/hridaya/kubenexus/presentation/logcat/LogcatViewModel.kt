@@ -158,31 +158,36 @@ class LogcatViewModel(
         }
     }
 
-    private suspend fun updateLogsInternal(newLogs: List<LogcatEntry>) = withContext(dispatcherProvider.default) {
-        val currentQuery = _uiState.value.searchQuery
-        val currentLevel = _uiState.value.selectedLogLevel
-        val counts = computeCounts(newLogs)
-        val filtered = applyFilter(newLogs, currentQuery, currentLevel)
+    private suspend fun updateLogsInternal(newLogs: List<LogcatEntry>) =
+        withContext(dispatcherProvider.default) {
+            val currentQuery = _uiState.value.searchQuery
+            val currentLevel = _uiState.value.selectedLogLevel
+            val counts = computeCounts(newLogs)
+            val filtered = applyFilter(newLogs, currentQuery, currentLevel)
 
-        _uiState.update { state ->
-            state.copy(
-                logs = newLogs,
-                filteredLogs = filtered,
-                levelCounts = counts,
-                isLoading = false,
-            )
+            _uiState.update { state ->
+                state.copy(
+                    logs = newLogs,
+                    filteredLogs = filtered,
+                    levelCounts = counts,
+                    isLoading = false,
+                )
+            }
         }
-    }
 
-    private fun applyFilter(logs: List<LogcatEntry>, query: String, level: LogLevel?): List<LogcatEntry> {
+    private fun applyFilter(
+        logs: List<LogcatEntry>,
+        query: String,
+        level: LogLevel?
+    ): List<LogcatEntry> {
         val trimmedQuery = query.trim()
         return logs.filter { entry ->
             val matchesLevel =
                 level == null || entry.level == level || (level != LogLevel.UNKNOWN && entry.level.priority >= level.priority)
             val matchesQuery = trimmedQuery.isEmpty() ||
-                entry.tag.contains(trimmedQuery, ignoreCase = true) ||
-                entry.message.contains(trimmedQuery, ignoreCase = true) ||
-                entry.raw.contains(trimmedQuery, ignoreCase = true)
+                    entry.tag.contains(trimmedQuery, ignoreCase = true) ||
+                    entry.message.contains(trimmedQuery, ignoreCase = true) ||
+                    entry.raw.contains(trimmedQuery, ignoreCase = true)
             matchesLevel && matchesQuery
         }
     }
@@ -207,16 +212,17 @@ class LogcatViewModel(
     }
 
     companion object {
-        fun provideFactory(container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return LogcatViewModel(
-                    getLogcatStreamUseCase = container.getLogcatStreamUseCase,
-                    dumpLogcatUseCase = container.dumpLogcatUseCase,
-                    clearLogcatUseCase = container.clearLogcatUseCase,
-                    dispatcherProvider = container.dispatcherProvider,
-                ) as T
+        fun provideFactory(container: AppContainer): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return LogcatViewModel(
+                        getLogcatStreamUseCase = container.getLogcatStreamUseCase,
+                        dumpLogcatUseCase = container.dumpLogcatUseCase,
+                        clearLogcatUseCase = container.clearLogcatUseCase,
+                        dispatcherProvider = container.dispatcherProvider,
+                    ) as T
+                }
             }
-        }
     }
 }

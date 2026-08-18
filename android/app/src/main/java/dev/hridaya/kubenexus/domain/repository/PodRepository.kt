@@ -12,12 +12,26 @@ interface PodRepository {
     fun getNamespacesStream(clusterId: String?): Flow<List<String>>
     fun getLastRefreshedStream(clusterId: String?): Flow<Long?>
     suspend fun refreshWorkloads(clusterId: String?, namespace: String? = null): Result<Unit>
-    suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails>
+    suspend fun describePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<PodDetails>
 
     suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit>
-    suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String? = null): Result<String>
+    suspend fun getPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String? = null
+    ): Result<String>
 
-    fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String? = null): Flow<String>
+    fun streamPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String? = null
+    ): Flow<String>
 
     suspend fun execCommand(
         clusterId: String?,

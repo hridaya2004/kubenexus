@@ -81,19 +81,20 @@ class PodDetailViewModelTest {
     }
 
     @Test
-    fun `initial load fetches pod describe details and selects default container`() = runTest(testDispatcher) {
-        advanceUntilIdle()
+    fun `initial load fetches pod describe details and selects default container`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertFalse(state.isLoading)
-        assertNotNull(state.podDetails)
-        assertNotNull(state.lastRefreshedAt)
-        assertEquals("test-pod-1", state.podDetails?.name)
-        assertEquals("container-app", state.selectedContainer)
-        assertEquals(1, state.podDetails?.containers?.size)
-        assertEquals(1, state.podDetails?.conditions?.size)
-        assertEquals(1, state.podDetails?.events?.size)
-    }
+            val state = viewModel.uiState.value
+            assertFalse(state.isLoading)
+            assertNotNull(state.podDetails)
+            assertNotNull(state.lastRefreshedAt)
+            assertEquals("test-pod-1", state.podDetails?.name)
+            assertEquals("container-app", state.selectedContainer)
+            assertEquals(1, state.podDetails?.containers?.size)
+            assertEquals(1, state.podDetails?.conditions?.size)
+            assertEquals(1, state.podDetails?.events?.size)
+        }
 
     @Test
     fun `switching tab to LOGS triggers log fetching`() = runTest(testDispatcher) {
@@ -147,8 +148,8 @@ class PodDetailViewModelTest {
         assertTrue(
             viewModel.uiState.value.terminalLines.any {
                 it.text == "echo: whoami\n" ||
-                    it.text == "echo: whoami" ||
-                    it.text == "whoami"
+                        it.text == "echo: whoami" ||
+                        it.text == "whoami"
             },
         )
 
@@ -158,69 +159,72 @@ class PodDetailViewModelTest {
     }
 
     @Test
-    fun `streaming logs clears existing logs first and then streams new lines`() = runTest(testDispatcher) {
-        advanceUntilIdle()
+    fun `streaming logs clears existing logs first and then streams new lines`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
 
-        // Fetch logs first to populate old logs
-        viewModel.onAction(PodDetailUiAction.FetchLogs)
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.logs.any { it.contains("Starting service") })
+            // Fetch logs first to populate old logs
+            viewModel.onAction(PodDetailUiAction.FetchLogs)
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.logs.any { it.contains("Starting service") })
 
-        // Now start streaming logs
-        viewModel.onAction(PodDetailUiAction.StartStreamingLogs)
-        advanceUntilIdle()
+            // Now start streaming logs
+            viewModel.onAction(PodDetailUiAction.StartStreamingLogs)
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue(state.isStreamingLogs)
-        assertFalse(state.logs.any { it.contains("Starting service") })
-        assertTrue(state.logs.any { it.contains("Log line 1") || it.contains("Streaming logs initiated") })
+            val state = viewModel.uiState.value
+            assertTrue(state.isStreamingLogs)
+            assertFalse(state.logs.any { it.contains("Starting service") })
+            assertTrue(state.logs.any { it.contains("Log line 1") || it.contains("Streaming logs initiated") })
 
-        viewModel.onAction(PodDetailUiAction.StopStreamingLogs)
-        assertFalse(viewModel.uiState.value.isStreamingLogs)
-    }
-
-    @Test
-    fun `network offline updates isOnline and isContainerAttachable and closes active terminal`() = runTest(testDispatcher) {
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value.isOnline)
-        assertTrue(viewModel.uiState.value.isContainerAttachable)
-
-        viewModel.onAction(PodDetailUiAction.StartInteractiveTerminal())
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.isTerminalActive)
-
-        // Network drops offline
-        onlineFlow.value = false
-        advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.isOnline)
-        assertFalse(viewModel.uiState.value.isContainerAttachable)
-        assertFalse(viewModel.uiState.value.isTerminalActive)
-        assertTrue(viewModel.uiState.value.terminalLines.any { it.text.contains("Network disconnected") })
-    }
+            viewModel.onAction(PodDetailUiAction.StopStreamingLogs)
+            assertFalse(viewModel.uiState.value.isStreamingLogs)
+        }
 
     @Test
-    fun `network offline stops streaming logs and reconnection refetches pod describe`() = runTest(testDispatcher) {
-        advanceUntilIdle()
+    fun `network offline updates isOnline and isContainerAttachable and closes active terminal`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
 
-        viewModel.onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
-        viewModel.onAction(PodDetailUiAction.StartStreamingLogs)
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.isStreamingLogs)
+            assertTrue(viewModel.uiState.value.isOnline)
+            assertTrue(viewModel.uiState.value.isContainerAttachable)
 
-        // Drop offline
-        onlineFlow.value = false
-        advanceUntilIdle()
-        assertFalse(viewModel.uiState.value.isStreamingLogs)
-        assertTrue(viewModel.uiState.value.logs.any { it.contains("Network disconnected") })
+            viewModel.onAction(PodDetailUiAction.StartInteractiveTerminal())
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isTerminalActive)
 
-        // Reconnect online
-        onlineFlow.value = true
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.isOnline)
-        assertNotNull(viewModel.uiState.value.podDetails)
-    }
+            // Network drops offline
+            onlineFlow.value = false
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isOnline)
+            assertFalse(viewModel.uiState.value.isContainerAttachable)
+            assertFalse(viewModel.uiState.value.isTerminalActive)
+            assertTrue(viewModel.uiState.value.terminalLines.any { it.text.contains("Network disconnected") })
+        }
+
+    @Test
+    fun `network offline stops streaming logs and reconnection refetches pod describe`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            viewModel.onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
+            viewModel.onAction(PodDetailUiAction.StartStreamingLogs)
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isStreamingLogs)
+
+            // Drop offline
+            onlineFlow.value = false
+            advanceUntilIdle()
+            assertFalse(viewModel.uiState.value.isStreamingLogs)
+            assertTrue(viewModel.uiState.value.logs.any { it.contains("Network disconnected") })
+
+            // Reconnect online
+            onlineFlow.value = true
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isOnline)
+            assertNotNull(viewModel.uiState.value.podDetails)
+        }
 
     private class FakeClusterRepository : ClusterRepository {
         private val activeCluster = Cluster(
@@ -236,29 +240,50 @@ class PodDetailViewModelTest {
         override fun getClustersStream(): Flow<List<Cluster>> = flowOf(listOf(activeCluster))
         override fun getActiveClusterStream(): Flow<Cluster?> = flowOf(activeCluster)
         override suspend fun getClusterById(id: String): Cluster = activeCluster
-        override suspend fun addCluster(kubeconfigRaw: String, customName: String?, setAsActive: Boolean): Result<Cluster> = Result.Success(activeCluster)
+        override suspend fun addCluster(
+            kubeconfigRaw: String,
+            customName: String?,
+            setAsActive: Boolean
+        ): Result<Cluster> = Result.Success(activeCluster)
 
         override suspend fun setActiveCluster(id: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun updateClusterName(id: String, newName: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun updateClusterName(id: String, newName: String): Result<Unit> =
+            Result.Success(Unit)
 
         override suspend fun deleteCluster(id: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun testConnection(kubeconfigRaw: String): Result<String> = Result.Success("OK")
+        override suspend fun testConnection(kubeconfigRaw: String): Result<String> =
+            Result.Success("OK")
 
         override suspend fun testClusterById(id: String): Result<String> = Result.Success("OK")
-        override suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit> = Result.Success(Unit)
+        override suspend fun updateClusterStatus(
+            id: String,
+            status: ClusterStatus,
+            lastConnectedAt: Long?
+        ): Result<Unit> = Result.Success(Unit)
 
         override suspend fun migratePlaintextClusters(): Result<Int> = Result.Success(0)
     }
 
     private class FakePodRepository : PodRepository {
-        override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<dev.hridaya.kubenexus.domain.model.Pod>> = flowOf(emptyList())
+        override fun getPodsStream(
+            clusterId: String?,
+            namespace: String?
+        ): Flow<List<dev.hridaya.kubenexus.domain.model.Pod>> = flowOf(emptyList())
 
-        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> = flowOf(listOf("default"))
+        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> =
+            flowOf(listOf("default"))
 
         override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = flowOf(null)
-        override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> = Result.Success(Unit)
+        override suspend fun refreshWorkloads(
+            clusterId: String?,
+            namespace: String?
+        ): Result<Unit> = Result.Success(Unit)
 
-        override suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails> {
+        override suspend fun describePod(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<PodDetails> {
             val details = PodDetails(
                 name = podName,
                 namespace = namespace,
@@ -288,15 +313,29 @@ class PodDetailViewModelTest {
             return Result.Success(details)
         }
 
-        override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> {
+        override suspend fun deletePod(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<Unit> {
             return Result.Success(Unit)
         }
 
-        override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Result<String> {
+        override suspend fun getPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?
+        ): Result<String> {
             return Result.Success("Starting service...\nListening on port 8080\nReady to accept connections.")
         }
 
-        override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Flow<String> {
+        override fun streamPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?
+        ): Flow<String> {
             return flowOf("Log line 1", "Log line 2", "Log line 3")
         }
 

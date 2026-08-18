@@ -34,7 +34,12 @@ interface PodDao {
     suspend fun deletePod(podId: String)
 
     @Transaction
-    suspend fun syncPods(clusterId: String, namespace: String?, pods: List<PodEntity>, timestamp: Long) {
+    suspend fun syncPods(
+        clusterId: String,
+        namespace: String?,
+        pods: List<PodEntity>,
+        timestamp: Long
+    ) {
         if (namespace.isNullOrBlank() ||
             namespace == "All Namespaces" ||
             namespace.equals(

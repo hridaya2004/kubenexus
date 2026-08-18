@@ -52,11 +52,11 @@ data class PodDetailUiState(
                 (podDetails?.containers.orEmpty() + podDetails?.initContainers.orEmpty())
                     .find { it.name == selectedContainer }
             return currentContainer == null ||
-                currentContainer.state.equals(
-                    "Running",
-                    ignoreCase = true,
-                ) ||
-                currentContainer.ready
+                    currentContainer.state.equals(
+                        "Running",
+                        ignoreCase = true,
+                    ) ||
+                    currentContainer.ready
         }
 }
 

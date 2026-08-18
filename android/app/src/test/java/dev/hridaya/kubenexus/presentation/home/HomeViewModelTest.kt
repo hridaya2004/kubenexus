@@ -130,8 +130,9 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `ConnectAndSaveSubmitted with valid kubeconfig saves, sets active and loads pods`() = runTest(testDispatcher) {
-        val validYaml = """
+    fun `ConnectAndSaveSubmitted with valid kubeconfig saves, sets active and loads pods`() =
+        runTest(testDispatcher) {
+            val validYaml = """
             apiVersion: v1
             kind: Config
             clusters:
@@ -141,17 +142,17 @@ class HomeViewModelTest {
             current-context: test-cluster
         """.trimIndent()
 
-        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
-        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+            viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertFalse(state.showAddClusterSheet)
-        assertEquals(1, state.clusters.size)
-        assertEquals("test-cluster", state.activeCluster?.name)
-        assertEquals(2, state.pods.size)
-        assertEquals(ClusterConnectionStatus.CONNECTED, state.clusterConnectionStatus)
-    }
+            val state = viewModel.uiState.value
+            assertFalse(state.showAddClusterSheet)
+            assertEquals(1, state.clusters.size)
+            assertEquals("test-cluster", state.activeCluster?.name)
+            assertEquals(2, state.pods.size)
+            assertEquals(ClusterConnectionStatus.CONNECTED, state.clusterConnectionStatus)
+        }
 
     @Test
     fun `SelectNamespace updates selected namespace and filters pods`() = runTest(testDispatcher) {
@@ -178,8 +179,9 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `RefreshWorkloads triggers refresh and updates lastRefreshedAt`() = runTest(testDispatcher) {
-        val validYaml = """
+    fun `RefreshWorkloads triggers refresh and updates lastRefreshedAt`() =
+        runTest(testDispatcher) {
+            val validYaml = """
             apiVersion: v1
             kind: Config
             clusters:
@@ -189,21 +191,22 @@ class HomeViewModelTest {
             current-context: test-cluster
         """.trimIndent()
 
-        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
-        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+            viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+            advanceUntilIdle()
 
-        viewModel.onAction(HomeUiAction.RefreshWorkloads)
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.RefreshWorkloads)
+            advanceUntilIdle()
 
-        val afterRefresh = viewModel.uiState.value.lastRefreshedAt
-        assertFalse(viewModel.uiState.value.isRefreshing)
-        assertNotNull(afterRefresh)
-    }
+            val afterRefresh = viewModel.uiState.value.lastRefreshedAt
+            assertFalse(viewModel.uiState.value.isRefreshing)
+            assertNotNull(afterRefresh)
+        }
 
     @Test
-    fun `network reconnection triggers auto-refresh when active cluster exists`() = runTest(testDispatcher) {
-        val validYaml = """
+    fun `network reconnection triggers auto-refresh when active cluster exists`() =
+        runTest(testDispatcher) {
+            val validYaml = """
             apiVersion: v1
             kind: Config
             clusters:
@@ -213,29 +216,30 @@ class HomeViewModelTest {
             current-context: test-cluster
         """.trimIndent()
 
-        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
-        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+            viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+            advanceUntilIdle()
 
-        // Network goes offline
-        onlineFlow.value = false
-        advanceUntilIdle()
-        assertFalse(viewModel.uiState.value.isOnline)
-        assertEquals(
-            ClusterConnectionStatus.DISCONNECTED,
-            viewModel.uiState.value.clusterConnectionStatus,
-        )
+            // Network goes offline
+            onlineFlow.value = false
+            advanceUntilIdle()
+            assertFalse(viewModel.uiState.value.isOnline)
+            assertEquals(
+                ClusterConnectionStatus.DISCONNECTED,
+                viewModel.uiState.value.clusterConnectionStatus,
+            )
 
-        // Network comes back online
-        onlineFlow.value = true
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.isOnline)
-        assertNotNull(viewModel.uiState.value.activeCluster)
-    }
+            // Network comes back online
+            onlineFlow.value = true
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isOnline)
+            assertNotNull(viewModel.uiState.value.activeCluster)
+        }
 
     @Test
-    fun `totalPodsCount always reflects all namespaces count even when specific namespace is selected`() = runTest(testDispatcher) {
-        val validYaml = """
+    fun `totalPodsCount always reflects all namespaces count even when specific namespace is selected`() =
+        runTest(testDispatcher) {
+            val validYaml = """
             apiVersion: v1
             kind: Config
             clusters:
@@ -245,29 +249,35 @@ class HomeViewModelTest {
             current-context: test-cluster
         """.trimIndent()
 
-        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
-        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+            viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+            advanceUntilIdle()
 
-        viewModel.onAction(HomeUiAction.SelectNamespace("default"))
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.SelectNamespace("default"))
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertEquals("default", state.selectedNamespace)
-        assertEquals(1, state.pods.size)
-        assertEquals(2, state.totalPodsCount)
-    }
+            val state = viewModel.uiState.value
+            assertEquals("default", state.selectedNamespace)
+            assertEquals(1, state.pods.size)
+            assertEquals(2, state.totalPodsCount)
+        }
 
     private class FakeClusterRepository : ClusterRepository {
         private val clustersFlow = MutableStateFlow<List<Cluster>>(emptyList())
 
         override fun getClustersStream(): Flow<List<Cluster>> = clustersFlow.asStateFlow()
 
-        override fun getActiveClusterStream(): Flow<Cluster?> = clustersFlow.map { list -> list.firstOrNull { it.isActive } }
+        override fun getActiveClusterStream(): Flow<Cluster?> =
+            clustersFlow.map { list -> list.firstOrNull { it.isActive } }
 
-        override suspend fun getClusterById(id: String): Cluster? = clustersFlow.value.firstOrNull { it.id == id }
+        override suspend fun getClusterById(id: String): Cluster? =
+            clustersFlow.value.firstOrNull { it.id == id }
 
-        override suspend fun addCluster(kubeconfigRaw: String, customName: String?, setAsActive: Boolean): Result<Cluster> {
+        override suspend fun addCluster(
+            kubeconfigRaw: String,
+            customName: String?,
+            setAsActive: Boolean
+        ): Result<Cluster> {
             val cluster = Cluster(
                 id = "cluster-${System.currentTimeMillis()}",
                 name = customName ?: "test-cluster",
@@ -300,11 +310,17 @@ class HomeViewModelTest {
             return Result.Success(Unit)
         }
 
-        override suspend fun testConnection(kubeconfigRaw: String): Result<String> = Result.Success("Reachable")
+        override suspend fun testConnection(kubeconfigRaw: String): Result<String> =
+            Result.Success("Reachable")
 
-        override suspend fun testClusterById(id: String): Result<String> = Result.Success("Reachable")
+        override suspend fun testClusterById(id: String): Result<String> =
+            Result.Success("Reachable")
 
-        override suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit> {
+        override suspend fun updateClusterStatus(
+            id: String,
+            status: ClusterStatus,
+            lastConnectedAt: Long?
+        ): Result<Unit> {
             clustersFlow.value = clustersFlow.value.map {
                 if (it.id == id) it.copy(status = status, lastConnectedAt = lastConnectedAt) else it
             }
@@ -349,7 +365,10 @@ class HomeViewModelTest {
             return lastRefreshedFlow.asStateFlow()
         }
 
-        override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> {
+        override suspend fun refreshWorkloads(
+            clusterId: String?,
+            namespace: String?
+        ): Result<Unit> {
             lastRefreshedFlow.value = System.currentTimeMillis()
             return Result.Success(Unit)
         }
@@ -368,15 +387,29 @@ class HomeViewModelTest {
             )
         }
 
-        override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> {
+        override suspend fun deletePod(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<Unit> {
             return Result.Success(Unit)
         }
 
-        override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Result<String> {
+        override suspend fun getPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?
+        ): Result<String> {
             return Result.Success("Fake logs output")
         }
 
-        override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?): Flow<String> {
+        override fun streamPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?
+        ): Flow<String> {
             return flowOf("Fake streamed log line")
         }
 

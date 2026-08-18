@@ -74,7 +74,12 @@ private val TermuxCyan = Color(0xFF58A6FF)
 private val TermuxPurple = Color(0xFFBC8CFF)
 
 @Composable
-fun TermuxTerminalLogViewer(logs: List<String>, isStreaming: Boolean, onClearLogs: () -> Unit, modifier: Modifier = Modifier) {
+fun TermuxTerminalLogViewer(
+    logs: List<String>,
+    isStreaming: Boolean,
+    onClearLogs: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     var searchQuery by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
     var autoScroll by remember { mutableStateOf(true) }
@@ -376,7 +381,10 @@ fun TermuxTerminalLogViewer(logs: List<String>, isStreaming: Boolean, onClearLog
     }
 }
 
-private fun parseAnsiToAnnotatedString(rawText: String, highlightQuery: String = ""): AnnotatedString {
+private fun parseAnsiToAnnotatedString(
+    rawText: String,
+    highlightQuery: String = ""
+): AnnotatedString {
     val cleanText = rawText.replace("\r", "")
     val builder = AnnotatedString.Builder()
 
@@ -440,7 +448,13 @@ private fun parseAnsiToAnnotatedString(rawText: String, highlightQuery: String =
     return builder.toAnnotatedString()
 }
 
-private fun appendWithHighlight(builder: AnnotatedString.Builder, text: String, baseColor: Color, isBold: Boolean, query: String) {
+private fun appendWithHighlight(
+    builder: AnnotatedString.Builder,
+    text: String,
+    baseColor: Color,
+    isBold: Boolean,
+    query: String
+) {
     if (query.isBlank() || !text.contains(query, ignoreCase = true)) {
         builder.withStyle(
             SpanStyle(

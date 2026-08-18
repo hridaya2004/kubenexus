@@ -20,7 +20,12 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 
 @Composable
-fun EditClusterDialog(cluster: Cluster, onDismiss: () -> Unit, onSaveName: (String, String) -> Unit, modifier: Modifier = Modifier) {
+fun EditClusterDialog(
+    cluster: Cluster,
+    onDismiss: () -> Unit,
+    onSaveName: (String, String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     var nameInput by remember { mutableStateOf(cluster.name) }
 
     AlertDialog(

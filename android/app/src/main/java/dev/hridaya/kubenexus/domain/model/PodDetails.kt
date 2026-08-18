@@ -17,7 +17,12 @@ data class PodConditionDetail(
     val message: String? = null,
 )
 
-data class PodEventDetail(val type: String, val reason: String, val message: String, val age: String)
+data class PodEventDetail(
+    val type: String,
+    val reason: String,
+    val message: String,
+    val age: String
+)
 
 data class PodDetails(
     val name: String,

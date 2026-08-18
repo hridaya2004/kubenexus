@@ -14,7 +14,10 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
 
-class ConnectivityNetworkMonitor(private val context: Context, private val dispatcherProvider: DispatcherProvider) : NetworkMonitor {
+class ConnectivityNetworkMonitor(
+    private val context: Context,
+    private val dispatcherProvider: DispatcherProvider
+) : NetworkMonitor {
 
     override val isOnline: Flow<Boolean> = callbackFlow {
         val connectivityManager = context.getSystemService<ConnectivityManager>()
@@ -37,7 +40,10 @@ class ConnectivityNetworkMonitor(private val context: Context, private val dispa
                 channel.trySend(networks.isNotEmpty())
             }
 
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
                 val hasInternet =
                     networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 if (hasInternet) {

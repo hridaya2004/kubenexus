@@ -31,7 +31,11 @@ import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
 import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
 
 @Composable
-fun MainScreen(homeViewModel: HomeViewModel, appContainer: AppContainer, modifier: Modifier = Modifier) {
+fun MainScreen(
+    homeViewModel: HomeViewModel,
+    appContainer: AppContainer,
+    modifier: Modifier = Modifier
+) {
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
     var isViewingPods by rememberSaveable { mutableStateOf(false) }

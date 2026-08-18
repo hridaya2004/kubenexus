@@ -433,7 +433,11 @@ class PodDetailViewModel(
         }
     }
 
-    private suspend fun tryAttachExec(clusterId: String, container: String, command: String): Boolean {
+    private suspend fun tryAttachExec(
+        clusterId: String,
+        container: String,
+        command: String
+    ): Boolean {
         var hadFatalError = false
         val sessionResult = startExecSessionUseCase(
             clusterId = clusterId,
@@ -721,7 +725,11 @@ class PodDetailViewModel(
     }
 
     companion object {
-        fun provideFactory(podName: String, namespace: String, container: AppContainer): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+        fun provideFactory(
+            podName: String,
+            namespace: String,
+            container: AppContainer
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return PodDetailViewModel(

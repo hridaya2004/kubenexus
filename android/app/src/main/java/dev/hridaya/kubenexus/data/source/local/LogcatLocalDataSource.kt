@@ -4,16 +4,16 @@ import android.os.Process
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.util.concurrent.atomic.AtomicLong
-import java.util.regex.Pattern
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.util.concurrent.atomic.AtomicLong
+import java.util.regex.Pattern
 
 interface LogcatLocalDataSource {
     fun streamLogs(maxBufferSize: Int): Flow<List<LogcatEntry>>
@@ -21,7 +21,8 @@ interface LogcatLocalDataSource {
     suspend fun clearLogs()
 }
 
-class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherProvider) : LogcatLocalDataSource {
+class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherProvider) :
+    LogcatLocalDataSource {
 
     private val entryIdSequence = AtomicLong(1L)
     private val threadTimePattern = Pattern.compile(
@@ -92,34 +93,11 @@ class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherPro
         }
     }.flowOn(dispatcherProvider.io)
 
-    override suspend fun dumpLogs(maxLines: Int): List<LogcatEntry> = withContext(dispatcherProvider.io) {
-        val pid = Process.myPid().toString()
-        val entries = mutableListOf<LogcatEntry>()
+    override suspend fun dumpLogs(maxLines: Int): List<LogcatEntry> =
+        withContext(dispatcherProvider.io) {
+            val pid = Process.myPid().toString()
+            val entries = mutableListOf<LogcatEntry>()
 
-        try {
-            val process = ProcessBuilder(
-                "logcat",
-                "-d",
-                "-v",
-                "threadtime",
-                "-t",
-                maxLines.toString(),
-                "--pid=$pid",
-            ).start()
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                line?.let {
-                    val entry = parseLogLine(it)
-                    if (entry.pid.isEmpty() || entry.pid == pid) {
-                        entries.add(entry)
-                    }
-                }
-            }
-            process.waitFor()
-            process.destroy()
-        } catch (_: Exception) {
             try {
                 val process = ProcessBuilder(
                     "logcat",
@@ -128,13 +106,15 @@ class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherPro
                     "threadtime",
                     "-t",
                     maxLines.toString(),
+                    "--pid=$pid",
                 ).start()
                 val reader = BufferedReader(InputStreamReader(process.inputStream))
+
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     line?.let {
                         val entry = parseLogLine(it)
-                        if (entry.pid == pid) {
+                        if (entry.pid.isEmpty() || entry.pid == pid) {
                             entries.add(entry)
                         }
                     }
@@ -142,11 +122,33 @@ class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherPro
                 process.waitFor()
                 process.destroy()
             } catch (_: Exception) {
+                try {
+                    val process = ProcessBuilder(
+                        "logcat",
+                        "-d",
+                        "-v",
+                        "threadtime",
+                        "-t",
+                        maxLines.toString(),
+                    ).start()
+                    val reader = BufferedReader(InputStreamReader(process.inputStream))
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        line?.let {
+                            val entry = parseLogLine(it)
+                            if (entry.pid == pid) {
+                                entries.add(entry)
+                            }
+                        }
+                    }
+                    process.waitFor()
+                    process.destroy()
+                } catch (_: Exception) {
+                }
             }
-        }
 
-        entries
-    }
+            entries
+        }
 
     override suspend fun clearLogs(): Unit = withContext(dispatcherProvider.io) {
         try {

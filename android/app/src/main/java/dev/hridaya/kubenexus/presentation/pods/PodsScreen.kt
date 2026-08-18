@@ -19,15 +19,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -271,34 +268,10 @@ fun PodsScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-
-                                if (!uiState.isRefreshing &&
-                                    uiState.selectedNamespace != "All Namespaces" &&
-                                    uiState.selectedNamespace.isNotBlank()
-                                ) {
-                                    Spacer(modifier = Modifier.height(20.dp))
-                                    Button(
-                                        onClick = {
-                                            onAction(HomeUiAction.RequestDeleteNamespace(uiState.selectedNamespace))
-                                        },
-                                        enabled = !uiState.isDeletingNamespace,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                        ),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Delete,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Delete Namespace '${uiState.selectedNamespace}'")
-                                    }
-                                }
                             }
                         }
                     }
+
 
                     filteredPods.isEmpty() -> {
                         Box(

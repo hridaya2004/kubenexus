@@ -20,6 +20,10 @@ interface NamespaceDao {
     @Query("DELETE FROM namespaces WHERE clusterId = :clusterId")
     suspend fun deleteNamespacesForCluster(clusterId: String)
 
+    @Query("DELETE FROM namespaces WHERE clusterId = :clusterId AND name = :name")
+    suspend fun deleteNamespace(clusterId: String, name: String)
+
+
     @Transaction
     suspend fun syncNamespaces(clusterId: String, namespaces: List<NamespaceEntity>) {
         deleteNamespacesForCluster(clusterId)

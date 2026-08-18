@@ -25,6 +25,7 @@ import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.DeleteNamespaceUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase
@@ -58,6 +59,7 @@ interface AppContainer {
     val refreshWorkloadsUseCase: RefreshWorkloadsUseCase
     val describePodUseCase: DescribePodUseCase
     val deletePodUseCase: DeletePodUseCase
+    val deleteNamespaceUseCase: DeleteNamespaceUseCase
     val getPodLogsUseCase: GetPodLogsUseCase
     val streamPodLogsUseCase: StreamPodLogsUseCase
     val execPodCommandUseCase: ExecPodCommandUseCase
@@ -177,6 +179,12 @@ class DefaultAppContainer(private val appContext: Context) : AppContainer {
 
     override val deletePodUseCase: DeletePodUseCase by lazy {
         DeletePodUseCase(
+            podRepository = podRepository,
+        )
+    }
+
+    override val deleteNamespaceUseCase: DeleteNamespaceUseCase by lazy {
+        DeleteNamespaceUseCase(
             podRepository = podRepository,
         )
     }

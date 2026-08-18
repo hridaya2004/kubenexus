@@ -63,6 +63,12 @@ interface KubeNexusNativeBridge {
     fun listNamespaces(rawKubeconfig: String): Result<List<NativeNamespace>>
 
     /**
+     * Deletes a namespace from native runtime.
+     */
+    fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit>
+
+
+    /**
      * Describes a pod in detail from native runtime.
      */
     fun describePod(
@@ -302,6 +308,24 @@ class KubeNexusNativeBridgeImpl(private val context: Context) : KubeNexusNativeB
             )
         }
     }
+
+    override fun deleteNamespace(
+        rawKubeconfig: String,
+        namespace: String
+    ): Result<Unit> {
+        return runCatching {
+            ensureInitialized()
+            val client = Client.newClient(rawKubeconfig)
+            client.deleteNamespace(namespace)
+        }.onFailure { error ->
+            Log.e(
+                TAG,
+                "Failed to deleteNamespace '$namespace' from native client: ${LogSanitizer.sanitize(error.message)}",
+                error,
+            )
+        }
+    }
+
 
     override fun describePod(
         rawKubeconfig: String,

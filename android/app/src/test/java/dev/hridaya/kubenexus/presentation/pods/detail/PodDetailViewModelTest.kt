@@ -321,6 +321,14 @@ class PodDetailViewModelTest {
             return Result.Success(Unit)
         }
 
+        override suspend fun deleteNamespace(
+            clusterId: String?,
+            namespace: String
+        ): Result<Unit> {
+            return Result.Success(Unit)
+        }
+
+
         override suspend fun getPodLogs(
             clusterId: String?,
             namespace: String,

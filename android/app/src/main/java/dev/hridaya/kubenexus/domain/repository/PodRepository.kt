@@ -19,6 +19,7 @@ interface PodRepository {
     ): Result<PodDetails>
 
     suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit>
+    suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit>
     suspend fun getPodLogs(
         clusterId: String?,
         namespace: String,

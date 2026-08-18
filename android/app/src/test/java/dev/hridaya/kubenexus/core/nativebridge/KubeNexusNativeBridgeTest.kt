@@ -58,6 +58,11 @@ class KubeNexusNativeBridgeTest {
                 return Result.success(emptyList())
             }
 
+            override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> {
+                return Result.success(Unit)
+            }
+
+
             override fun describePod(
                 rawKubeconfig: String,
                 namespace: String,

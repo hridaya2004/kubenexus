@@ -94,6 +94,12 @@ class ClusterRepositoryImplTest {
             override fun listNamespaces(rawKubeconfig: String): kotlin.Result<List<client.Namespace>> =
                 kotlin.Result.success(emptyList())
 
+            override fun deleteNamespace(
+                rawKubeconfig: String,
+                namespace: String,
+            ): kotlin.Result<Unit> = kotlin.Result.success(Unit)
+
+
             override fun describePod(
                 rawKubeconfig: String,
                 namespace: String,

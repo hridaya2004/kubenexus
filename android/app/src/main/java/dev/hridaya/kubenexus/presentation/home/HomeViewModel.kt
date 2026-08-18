@@ -12,6 +12,7 @@ import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.DeleteNamespaceUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
@@ -44,6 +45,7 @@ class HomeViewModel(
     private val addClusterUseCase: AddClusterUseCase,
     private val setActiveClusterUseCase: SetActiveClusterUseCase,
     private val deleteClusterUseCase: DeleteClusterUseCase,
+    private val deleteNamespaceUseCase: DeleteNamespaceUseCase,
     private val updateClusterNameUseCase: UpdateClusterNameUseCase,
     private val testClusterConnectionUseCase: TestClusterConnectionUseCase,
     private val networkMonitor: NetworkMonitor,
@@ -270,6 +272,19 @@ class HomeViewModel(
             is HomeUiAction.ConfirmDeleteCluster -> {
                 _uiState.update { it.copy(clusterToDelete = null) }
                 deleteCluster(action.clusterId)
+            }
+
+            is HomeUiAction.RequestDeleteNamespace -> {
+                _uiState.update { it.copy(namespaceToDelete = action.namespace) }
+            }
+
+            is HomeUiAction.DismissDeleteNamespace -> {
+                _uiState.update { it.copy(namespaceToDelete = null) }
+            }
+
+            is HomeUiAction.ConfirmDeleteNamespace -> {
+                _uiState.update { it.copy(namespaceToDelete = null) }
+                deleteNamespace(action.namespace)
             }
 
             is HomeUiAction.SelectPod -> {
@@ -520,6 +535,40 @@ class HomeViewModel(
         }
     }
 
+    private fun deleteNamespace(namespace: String) {
+        val activeClusterId = _uiState.value.activeCluster?.id ?: return
+        _uiState.update { it.copy(isDeletingNamespace = true) }
+
+        viewModelScope.launch(dispatcherProvider.main) {
+            when (val result = deleteNamespaceUseCase(activeClusterId, namespace)) {
+                is Result.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isDeletingNamespace = false,
+                            selectedNamespace = if (it.selectedNamespace == namespace) "All Namespaces" else it.selectedNamespace,
+                        )
+                    }
+                    if (_selectedNamespace.value == namespace) {
+                        _selectedNamespace.value = "All Namespaces"
+                    }
+                    _effects.send(HomeUiEffect.ShowSnackbar("Namespace '$namespace' deleted successfully."))
+                    performRefresh(
+                        activeClusterId,
+                        _selectedNamespace.value,
+                        showLoading = false,
+                    )
+                }
+
+                is Result.Error -> {
+                    _uiState.update { it.copy(isDeletingNamespace = false) }
+                    _effects.send(HomeUiEffect.ShowSnackbar("Failed to delete namespace '$namespace': ${result.error.message}"))
+                }
+
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
     companion object {
         fun provideFactory(container: AppContainer): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
@@ -535,6 +584,7 @@ class HomeViewModel(
                         addClusterUseCase = container.addClusterUseCase,
                         setActiveClusterUseCase = container.setActiveClusterUseCase,
                         deleteClusterUseCase = container.deleteClusterUseCase,
+                        deleteNamespaceUseCase = container.deleteNamespaceUseCase,
                         updateClusterNameUseCase = container.updateClusterNameUseCase,
                         testClusterConnectionUseCase = container.testClusterConnectionUseCase,
                         networkMonitor = container.networkMonitor,

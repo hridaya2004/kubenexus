@@ -30,6 +30,8 @@ data class HomeUiState(
     val showAddClusterSheet: Boolean = false,
     val editingCluster: Cluster? = null,
     val clusterToDelete: Cluster? = null,
+    val namespaceToDelete: String? = null,
+    val isDeletingNamespace: Boolean = false,
     val kubeconfigInput: String = "",
     val customClusterName: String = "",
     val kubeconfigError: String? = null,
@@ -57,6 +59,9 @@ sealed interface HomeUiAction {
     data class RequestDeleteCluster(val cluster: Cluster) : HomeUiAction
     data object DismissDeleteCluster : HomeUiAction
     data class ConfirmDeleteCluster(val clusterId: String) : HomeUiAction
+    data class RequestDeleteNamespace(val namespace: String) : HomeUiAction
+    data object DismissDeleteNamespace : HomeUiAction
+    data class ConfirmDeleteNamespace(val namespace: String) : HomeUiAction
     data class SelectPod(val pod: Pod) : HomeUiAction
     data object DismissPodDetails : HomeUiAction
     data object OpenNamespacePicker : HomeUiAction

@@ -226,6 +226,34 @@ class PodRepositoryImpl(
         }
     }
 
+    override suspend fun deleteNamespace(
+        clusterId: String?,
+        namespace: String
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.deleteNamespace(decryptedKubeconfig, namespace)
+            if (nativeResult.isSuccess) {
+                namespaceDao.deleteNamespace(clusterId, namespace)
+                podDao.deletePodsForNamespace(clusterId, namespace)
+                Result.Success(Unit)
+            } else {
+                val error = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(error?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to delete namespace $namespace" }))
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to delete namespace '$namespace': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to delete namespace" }))
+        }
+    }
+
     override suspend fun getPodLogs(
         clusterId: String?,
         namespace: String,

@@ -11,6 +11,7 @@ import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.DeleteNamespaceUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
@@ -81,6 +82,7 @@ class HomeViewModelTest {
                 fakeClusterRepository,
                 testDispatcherProvider,
             ),
+            deleteNamespaceUseCase = DeleteNamespaceUseCase(fakePodRepository),
             updateClusterNameUseCase = UpdateClusterNameUseCase(fakeClusterRepository),
             testClusterConnectionUseCase = TestClusterConnectionUseCase(
                 fakeClusterRepository,
@@ -262,6 +264,49 @@ class HomeViewModelTest {
             assertEquals(2, state.totalPodsCount)
         }
 
+    @Test
+    fun `request delete namespace updates state and dismiss clears state`() = runTest(testDispatcher) {
+        viewModel.onAction(HomeUiAction.RequestDeleteNamespace("test-namespace"))
+        assertEquals("test-namespace", viewModel.uiState.value.namespaceToDelete)
+
+        viewModel.onAction(HomeUiAction.DismissDeleteNamespace)
+        assertEquals(null, viewModel.uiState.value.namespaceToDelete)
+    }
+
+    @Test
+    fun `confirm delete namespace clears delete state and deletes namespace`() = runTest(testDispatcher) {
+        val validYaml = """
+            apiVersion: v1
+            kind: Config
+            clusters:
+            - cluster:
+                server: https://127.0.0.1:6443
+              name: test-cluster
+            contexts:
+            - context:
+                cluster: test-cluster
+                user: test-user
+              name: test-cluster
+            current-context: test-cluster
+        """.trimIndent()
+
+        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+        advanceUntilIdle()
+
+        viewModel.onAction(HomeUiAction.SelectNamespace("test-namespace"))
+        advanceUntilIdle()
+
+        viewModel.onAction(HomeUiAction.RequestDeleteNamespace("test-namespace"))
+        assertEquals("test-namespace", viewModel.uiState.value.namespaceToDelete)
+
+        viewModel.onAction(HomeUiAction.ConfirmDeleteNamespace("test-namespace"))
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.uiState.value.namespaceToDelete)
+        assertEquals("All Namespaces", viewModel.uiState.value.selectedNamespace)
+    }
+
     private class FakeClusterRepository : ClusterRepository {
         private val clustersFlow = MutableStateFlow<List<Cluster>>(emptyList())
 
@@ -394,6 +439,15 @@ class HomeViewModelTest {
         ): Result<Unit> {
             return Result.Success(Unit)
         }
+
+        override suspend fun deleteNamespace(
+            clusterId: String?,
+            namespace: String
+        ): Result<Unit> {
+            return Result.Success(Unit)
+        }
+
+
 
         override suspend fun getPodLogs(
             clusterId: String?,

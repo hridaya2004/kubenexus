@@ -57,7 +57,7 @@ func (c *Client) ListNamespaces() (*NamespaceList, error) {
 			Status: string(ns.Status.Phase),
 		}
 	}
-	return &NamespaceList{items: namespaces}, nil
+	return newNamespaceList(namespaces), nil
 }
 
 // ListNamespacesJSON returns all namespaces as a JSON string for direct Android parsing.
@@ -71,4 +71,16 @@ func (c *Client) ListNamespacesJSON() (string, error) {
 		return "", fmt.Errorf("marshaling namespaces to json: %w", err)
 	}
 	return string(data), nil
+}
+
+// DeleteNamespace deletes a namespace by name.
+func (c *Client) DeleteNamespace(name string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	err := c.clientset.CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("deleting namespace %s: %w", name, err)
+	}
+	return nil
 }

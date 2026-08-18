@@ -1,11 +1,12 @@
 # Makefile for KubeNexus
 
 ANDROID_DIR := android
+CORE_DIR := core
 GRADLEW := ./gradlew
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build debug release build-debug build-release bundle bundle-release lint fmt format test clean install-debug
+.PHONY: help build debug release build-debug build-release bundle bundle-release aar build-aar lint fmt format test clean install-debug
 
 help: ## Display this help message
 	@echo "KubeNexus Build & Development Commands"
@@ -15,6 +16,13 @@ help: ## Display this help message
 	@echo ""
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+
+aar: ## Build kubenexus.aar from core Go source and copy to android libs
+	cd $(CORE_DIR) && $(MAKE) build-android
+	cp $(CORE_DIR)/kubenexus.aar $(ANDROID_DIR)/app/libs/kubenexus.aar
+	@echo "Updated $(ANDROID_DIR)/app/libs/kubenexus.aar"
+
+build-aar: aar ## Alias for aar
 
 debug: ## Build debug APK
 	cd $(ANDROID_DIR) && $(GRADLEW) assembleDebug

@@ -1,11 +1,13 @@
 package dev.hridaya.kubenexus.data.kubeconfig
 
+import android.util.Base64 as AndroidBase64
 import java.io.ByteArrayInputStream
 import java.security.KeyFactory
 import java.security.PrivateKey
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Base64 as JavaBase64
 
 object PemKeyParser {
 
@@ -94,10 +96,10 @@ object PemKeyParser {
     private fun decodeBase64(input: String): ByteArray {
         val clean = input.replace("\\s".toRegex(), "")
         return try {
-            java.util.Base64.getDecoder().decode(clean)
+            JavaBase64.getDecoder().decode(clean)
         } catch (e: Throwable) {
             try {
-                android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
+                AndroidBase64.decode(clean, AndroidBase64.DEFAULT)
             } catch (e2: Throwable) {
                 clean.toByteArray(Charsets.UTF_8)
             }

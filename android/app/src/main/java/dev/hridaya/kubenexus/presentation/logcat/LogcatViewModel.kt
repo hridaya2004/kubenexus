@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 class LogcatViewModel(
     private val getLogcatStreamUseCase: GetLogcatStreamUseCase,
@@ -203,7 +204,7 @@ class LogcatViewModel(
     private fun buildFormattedLogText(logs: List<LogcatEntry>): String {
         return buildString {
             appendLine("=== KubeNexus Logcat Export (${logs.size} entries) ===")
-            appendLine("Timestamp: ${java.util.Date()}")
+            appendLine("Timestamp: ${Date()}")
             appendLine()
             for (entry in logs) {
                 appendLine(entry.raw)

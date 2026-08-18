@@ -6,7 +6,7 @@ GRADLEW := ./gradlew
 
 .DEFAULT_GOAL := help
 
-.PHONY: help aar debug release build bundle lint fmt test clean install-debug go-clean go-test go-lint
+.PHONY: help aar debug release build bundle lint fmt test clean install-debug go-clean go-test go-lint go-fmt
 
 help: ## Display this help message
 	@echo "KubeNexus Build & Development Commands"
@@ -31,6 +31,9 @@ go-test: ## Run core Go unit tests
 go-lint: ## Run golangci-lint on core Go source
 	cd $(CORE_DIR) && $(MAKE) lint
 
+go-fmt: ## Format core Go source code
+	cd $(CORE_DIR) && $(MAKE) fmt
+
 debug: ## Build debug APK
 	cd $(ANDROID_DIR) && $(GRADLEW) assembleDebug
 
@@ -46,7 +49,7 @@ bundle: ## Build release Android App Bundle (AAB)
 lint: ## Run Android Lint checks
 	cd $(ANDROID_DIR) && $(GRADLEW) lint
 
-fmt: ## Apply Android Lint quickfixes and safe formatting
+fmt: go-fmt ## Apply safe formatting and lint quickfixes across Go and Android
 	cd $(ANDROID_DIR) && $(GRADLEW) lintFix
 
 test: ## Run unit tests

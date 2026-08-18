@@ -4,6 +4,10 @@ import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.LogCallback
+import dev.hridaya.kubenexus.core.common.result.AppError
+import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -29,9 +33,9 @@ class KubeNexusNativeBridgeTest {
 
             override fun createClient(rawKubeconfig: String): Result<client.Client_> {
                 return if (isInit) {
-                    Result.failure(UnsupportedOperationException("JVM mock environment"))
+                    Result.Error(AppError.Unknown("JVM mock environment"))
                 } else {
-                    Result.failure(IllegalStateException("Not initialized"))
+                    Result.Error(AppError.Unknown("Not initialized"))
                 }
             }
 
@@ -44,35 +48,35 @@ class KubeNexusNativeBridgeTest {
             }
 
             override fun listPods(rawKubeconfig: String, namespace: String?): Result<List<String>> {
-                return Result.success(listOf("coredns", "traefik"))
+                return Result.Success(listOf("coredns", "traefik"))
             }
 
             override fun listPodsWide(
                 rawKubeconfig: String,
                 namespace: String?
             ): Result<List<NativePod>> {
-                return Result.success(emptyList())
+                return Result.Success(emptyList())
             }
 
             override fun listNamespaces(rawKubeconfig: String): Result<List<NativeNamespace>> {
-                return Result.success(emptyList())
+                return Result.Success(emptyList())
             }
 
             override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> {
-                return Result.success(Unit)
+                return Result.Success(Unit)
             }
 
-            override fun listAPIResources(rawKubeconfig: String): Result<List<dev.hridaya.kubenexus.domain.model.APIResource>> {
-                return Result.success(listOf(dev.hridaya.kubenexus.domain.model.APIResource(name = "pods", kind = "Pod", groupVersion = "v1")))
+            override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> {
+                return Result.Success(listOf(APIResource(name = "pods", kind = "Pod", groupVersion = "v1")))
             }
 
             override fun explainResource(
                 rawKubeconfig: String,
                 resourceOrKind: String,
                 groupVersion: String,
-            ): Result<dev.hridaya.kubenexus.domain.model.ResourceExplain> {
-                return Result.success(
-                    dev.hridaya.kubenexus.domain.model.ResourceExplain(
+            ): Result<ResourceExplain> {
+                return Result.Success(
+                    ResourceExplain(
                         kind = resourceOrKind,
                         groupVersion = groupVersion,
                         description = "Test explain description",
@@ -86,7 +90,7 @@ class KubeNexusNativeBridgeTest {
                 namespace: String,
                 podName: String
             ): Result<NativePodDetails> {
-                return Result.failure(UnsupportedOperationException())
+                return Result.Error(AppError.Unknown())
             }
 
             override fun deletePod(
@@ -94,7 +98,7 @@ class KubeNexusNativeBridgeTest {
                 namespace: String,
                 podName: String
             ): Result<Unit> {
-                return Result.success(Unit)
+                return Result.Success(Unit)
             }
 
             override fun getPodLogs(
@@ -103,7 +107,7 @@ class KubeNexusNativeBridgeTest {
                 podName: String,
                 container: String?
             ): Result<String> {
-                return Result.success("log data")
+                return Result.Success("log data")
             }
 
             override fun streamPodLogs(
@@ -115,7 +119,7 @@ class KubeNexusNativeBridgeTest {
             ): Result<Unit> {
                 callback.onLogLine("streaming line")
                 callback.onDone()
-                return Result.success(Unit)
+                return Result.Success(Unit)
             }
 
             override fun exec(
@@ -126,7 +130,7 @@ class KubeNexusNativeBridgeTest {
                 command: String,
                 stdin: String,
             ): Result<ExecResult> {
-                return Result.failure(UnsupportedOperationException())
+                return Result.Error(AppError.Unknown())
             }
 
             override fun startTerminal(
@@ -136,7 +140,7 @@ class KubeNexusNativeBridgeTest {
                 container: String,
                 callback: ExecCallback,
             ): Result<ExecSession> {
-                return Result.failure(UnsupportedOperationException())
+                return Result.Error(AppError.Unknown())
             }
 
             override fun startExecSession(
@@ -148,7 +152,7 @@ class KubeNexusNativeBridgeTest {
                 tty: Boolean,
                 callback: ExecCallback,
             ): Result<ExecSession> {
-                return Result.failure(UnsupportedOperationException())
+                return Result.Error(AppError.Unknown())
             }
         }
 

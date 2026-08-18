@@ -123,18 +123,18 @@ fun ExploreRoute(
 
     ExploreScreen(
         uiState = uiState,
-        snackbarHostState = snackbarHostState,
         onAction = viewModel::onAction,
         modifier = modifier,
+        snackbarHostState = snackbarHostState,
     )
 }
 
 @Composable
 fun ExploreScreen(
     uiState: ExploreUiState,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAction: (ExploreUiAction) -> Unit,
     modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     when {
         uiState.selectedResource != null -> {

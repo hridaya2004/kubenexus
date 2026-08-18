@@ -1,6 +1,7 @@
 package dev.hridaya.kubenexus.data.repository
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
@@ -341,65 +342,65 @@ class ExploreRepositoryImplTest {
         override fun initialize() {}
         override fun isAvailable(): Boolean = true
         override fun touch(): Boolean = true
-        override fun createClient(rawKubeconfig: String): kotlin.Result<client.Client_> =
-            kotlin.Result.failure(UnsupportedOperationException())
+        override fun createClient(rawKubeconfig: String): Result<client.Client_> =
+            Result.Error(AppError.Unknown())
 
         override fun createClientWithOptions(
             rawKubeconfig: String,
             timeoutSec: Long,
             insecure: Boolean,
-        ): kotlin.Result<client.Client_> = kotlin.Result.failure(UnsupportedOperationException())
+        ): Result<client.Client_> = Result.Error(AppError.Unknown())
 
-        override fun listPods(rawKubeconfig: String, namespace: String?): kotlin.Result<List<String>> =
-            kotlin.Result.success(emptyList())
+        override fun listPods(rawKubeconfig: String, namespace: String?): Result<List<String>> =
+            Result.Success(emptyList())
 
-        override fun listPodsWide(rawKubeconfig: String, namespace: String?): kotlin.Result<List<client.Pod>> =
-            kotlin.Result.success(emptyList())
+        override fun listPodsWide(rawKubeconfig: String, namespace: String?): Result<List<client.Pod>> =
+            Result.Success(emptyList())
 
-        override fun describePod(rawKubeconfig: String, namespace: String, podName: String): kotlin.Result<client.PodDetails> =
-            kotlin.Result.failure(UnsupportedOperationException())
+        override fun describePod(rawKubeconfig: String, namespace: String, podName: String): Result<client.PodDetails> =
+            Result.Error(AppError.Unknown())
 
-        override fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?): kotlin.Result<String> =
-            kotlin.Result.success("")
+        override fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?): Result<String> =
+            Result.Success("")
 
-        override fun streamPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?, callback: client.LogCallback): kotlin.Result<Unit> =
-            kotlin.Result.success(Unit)
+        override fun streamPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?, callback: client.LogCallback): Result<Unit> =
+            Result.Success(Unit)
 
-        override fun listNamespaces(rawKubeconfig: String): kotlin.Result<List<client.Namespace>> =
-            kotlin.Result.success(emptyList())
+        override fun listNamespaces(rawKubeconfig: String): Result<List<client.Namespace>> =
+            Result.Success(emptyList())
 
-        override fun deletePod(rawKubeconfig: String, namespace: String, podName: String): kotlin.Result<Unit> =
-            kotlin.Result.success(Unit)
+        override fun deletePod(rawKubeconfig: String, namespace: String, podName: String): Result<Unit> =
+            Result.Success(Unit)
 
-        override fun deleteNamespace(rawKubeconfig: String, namespace: String): kotlin.Result<Unit> =
-            kotlin.Result.success(Unit)
+        override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> =
+            Result.Success(Unit)
 
-        override fun exec(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, stdin: String): kotlin.Result<client.ExecResult> =
-            kotlin.Result.failure(UnsupportedOperationException())
+        override fun exec(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, stdin: String): Result<client.ExecResult> =
+            Result.Error(AppError.Unknown())
 
-        override fun startTerminal(rawKubeconfig: String, namespace: String, podName: String, container: String, callback: client.ExecCallback): kotlin.Result<client.ExecSession> =
-            kotlin.Result.failure(UnsupportedOperationException())
+        override fun startTerminal(rawKubeconfig: String, namespace: String, podName: String, container: String, callback: client.ExecCallback): Result<client.ExecSession> =
+            Result.Error(AppError.Unknown())
 
-        override fun startExecSession(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, tty: Boolean, callback: client.ExecCallback): kotlin.Result<client.ExecSession> =
-            kotlin.Result.failure(UnsupportedOperationException())
+        override fun startExecSession(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, tty: Boolean, callback: client.ExecCallback): Result<client.ExecSession> =
+            Result.Error(AppError.Unknown())
 
-        override fun listAPIResources(rawKubeconfig: String): kotlin.Result<List<dev.hridaya.kubenexus.domain.model.APIResource>> =
-            kotlin.Result.success(mockResources)
+        override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
+            Result.Success(mockResources)
 
         override fun explainResource(
             rawKubeconfig: String,
             resourceOrKind: String,
             groupVersion: String,
-        ): kotlin.Result<dev.hridaya.kubenexus.domain.model.ResourceExplain> {
+        ): Result<ResourceExplain> {
             if (shouldFailExplain) {
-                return kotlin.Result.failure(RuntimeException("Network error"))
+                return Result.Error(AppError.Network("Network error"))
             }
-            val exp = mockExplain ?: dev.hridaya.kubenexus.domain.model.ResourceExplain(
+            val exp = mockExplain ?: ResourceExplain(
                 kind = resourceOrKind,
                 groupVersion = groupVersion,
                 description = "desc",
             )
-            return kotlin.Result.success(exp)
+            return Result.Success(exp)
         }
     }
 }

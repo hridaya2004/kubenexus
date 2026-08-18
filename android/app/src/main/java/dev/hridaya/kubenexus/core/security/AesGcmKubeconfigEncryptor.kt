@@ -1,6 +1,8 @@
 package dev.hridaya.kubenexus.core.security
 
+import android.util.Base64 as AndroidBase64
 import java.security.SecureRandom
+import java.util.Base64 as JavaBase64
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -36,18 +38,18 @@ open class AesGcmKubeconfigEncryptor(private val keyProvider: () -> SecretKey) :
 
         private fun encodeBase64(bytes: ByteArray): String {
             return try {
-                java.util.Base64.getEncoder().encodeToString(bytes)
+                JavaBase64.getEncoder().encodeToString(bytes)
             } catch (_: Throwable) {
-                android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                AndroidBase64.encodeToString(bytes, AndroidBase64.NO_WRAP)
             }
         }
 
         private fun decodeBase64(input: String): ByteArray {
             val clean = input.replace("\\s".toRegex(), "")
             return try {
-                java.util.Base64.getDecoder().decode(clean)
+                JavaBase64.getDecoder().decode(clean)
             } catch (_: Throwable) {
-                android.util.Base64.decode(clean, android.util.Base64.DEFAULT)
+                AndroidBase64.decode(clean, AndroidBase64.DEFAULT)
             }
         }
     }

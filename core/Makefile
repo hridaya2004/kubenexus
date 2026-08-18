@@ -1,4 +1,4 @@
-.PHONY: build-android clean test lint
+.PHONY: build-android clean test lint fmt
 
 ANDROID_HOME ?= $(HOME)/Android/Sdk
 ANDROID_NDK_HOME ?= $(ANDROID_HOME)/ndk/27.0.12077973
@@ -20,3 +20,6 @@ test:
 
 lint:
 	golangci-lint run ./...
+
+fmt:
+	go fmt ./...

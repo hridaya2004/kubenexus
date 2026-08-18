@@ -1,12 +1,16 @@
 package dev.hridaya.kubenexus.presentation.home
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
+import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodStatus
+import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
@@ -53,7 +57,7 @@ class HomeViewModelTest {
     private lateinit var fakePodRepository: FakePodRepository
     private val onlineFlow = MutableStateFlow(true)
     private val fakeNetworkMonitor =
-        object : dev.hridaya.kubenexus.core.common.network.NetworkMonitor {
+        object : NetworkMonitor {
             override val isOnline: Flow<Boolean> = onlineFlow
         }
     private lateinit var viewModel: HomeViewModel
@@ -422,9 +426,9 @@ class HomeViewModelTest {
             clusterId: String?,
             namespace: String,
             podName: String,
-        ): Result<dev.hridaya.kubenexus.domain.model.PodDetails> {
+        ): Result<PodDetails> {
             return Result.Success(
-                dev.hridaya.kubenexus.domain.model.PodDetails(
+                PodDetails(
                     name = podName,
                     namespace = namespace,
                     status = PodStatus.RUNNING,
@@ -474,8 +478,8 @@ class HomeViewModelTest {
             containerName: String,
             command: String,
             stdin: String,
-        ): Result<dev.hridaya.kubenexus.domain.model.CommandExecResult> {
-            return Result.Success(dev.hridaya.kubenexus.domain.model.CommandExecResult())
+        ): Result<CommandExecResult> {
+            return Result.Success(CommandExecResult())
         }
 
         override suspend fun startTerminalSession(
@@ -487,8 +491,8 @@ class HomeViewModelTest {
             onStderr: (String) -> Unit,
             onError: (String) -> Unit,
             onDone: () -> Unit,
-        ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> {
-            val session = object : dev.hridaya.kubenexus.domain.model.TerminalSession {
+        ): Result<TerminalSession> {
+            val session = object : TerminalSession {
                 override fun write(input: String) {}
                 override fun writeBytes(bytes: ByteArray) {}
                 override fun close() {}
@@ -507,8 +511,8 @@ class HomeViewModelTest {
             onStderr: (String) -> Unit,
             onError: (String) -> Unit,
             onDone: () -> Unit,
-        ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> {
-            val session = object : dev.hridaya.kubenexus.domain.model.TerminalSession {
+        ): Result<TerminalSession> {
+            val session = object : TerminalSession {
                 override fun write(input: String) {}
                 override fun writeBytes(bytes: ByteArray) {}
                 override fun close() {}

@@ -1,6 +1,6 @@
 package dev.hridaya.kubenexus.data.source.local
 
-import android.os.Process
+import android.os.Process as AndroidProcess
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
@@ -30,7 +30,7 @@ class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherPro
     )
 
     override fun streamLogs(maxBufferSize: Int): Flow<List<LogcatEntry>> = callbackFlow {
-        val pid = Process.myPid().toString()
+        val pid = AndroidProcess.myPid().toString()
         val buffer = ArrayDeque<LogcatEntry>(maxBufferSize)
 
         val processBuilder = try {
@@ -39,7 +39,7 @@ class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherPro
             ProcessBuilder("logcat", "-v", "threadtime")
         }
 
-        var process: java.lang.Process? = null
+        var process: Process? = null
         try {
             process = processBuilder.start()
             val reader = BufferedReader(InputStreamReader(process.inputStream))
@@ -95,7 +95,7 @@ class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherPro
 
     override suspend fun dumpLogs(maxLines: Int): List<LogcatEntry> =
         withContext(dispatcherProvider.io) {
-            val pid = Process.myPid().toString()
+            val pid = AndroidProcess.myPid().toString()
             val entries = mutableListOf<LogcatEntry>()
 
             try {

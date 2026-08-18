@@ -9,9 +9,12 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.KeyStore
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.KeyManager
+import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
@@ -157,7 +160,7 @@ open class ClusterConnectionTester(private val nativeBridge: KubeNexusNativeBrid
         }
     }
 
-    private fun createKeyManagersFromKubeconfig(rawKubeconfig: String): Array<javax.net.ssl.KeyManager>? {
+    private fun createKeyManagersFromKubeconfig(rawKubeconfig: String): Array<KeyManager>? {
         return try {
             val certDataRegex = Regex(
                 """client-certificate-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
@@ -178,12 +181,12 @@ open class ClusterConnectionTester(private val nativeBridge: KubeNexusNativeBrid
             val privateKey = PemKeyParser.parsePrivateKey(keyBase64)
 
             val keyStore =
-                java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+                KeyStore.getInstance(KeyStore.getDefaultType())
             keyStore.load(null, null)
             keyStore.setKeyEntry("client-key", privateKey, "".toCharArray(), arrayOf(cert))
 
             val kmf =
-                javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm())
+                KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
             kmf.init(keyStore, "".toCharArray())
             kmf.keyManagers
         } catch (e: Exception) {

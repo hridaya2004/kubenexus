@@ -11,6 +11,8 @@ import dev.hridaya.kubenexus.core.security.AndroidKeystoreKubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.data.kubeconfig.ClusterConnectionTester
 import dev.hridaya.kubenexus.data.repository.ClusterRepositoryImpl
+import dev.hridaya.kubenexus.data.repository.ExploreRepositoryImpl
+import dev.hridaya.kubenexus.data.repository.LogcatRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.PodRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ThemePreferencesRepositoryImpl
 import dev.hridaya.kubenexus.data.source.local.DefaultLogcatLocalDataSource
@@ -19,6 +21,7 @@ import dev.hridaya.kubenexus.data.source.local.LogcatLocalDataSource
 import dev.hridaya.kubenexus.data.source.local.SharedPrefsThemePreferencesDataSource
 import dev.hridaya.kubenexus.data.source.local.ThemePreferencesLocalDataSource
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
+import dev.hridaya.kubenexus.domain.repository.ExploreRepository
 import dev.hridaya.kubenexus.domain.repository.LogcatRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
@@ -30,6 +33,8 @@ import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DumpLogcatUseCase
 import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
+import dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetClustersUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetLastRefreshedUseCase
@@ -70,9 +75,9 @@ interface AppContainer {
     val deleteClusterUseCase: DeleteClusterUseCase
     val updateClusterNameUseCase: UpdateClusterNameUseCase
     val testClusterConnectionUseCase: TestClusterConnectionUseCase
-    val exploreRepository: dev.hridaya.kubenexus.domain.repository.ExploreRepository
-    val getAPIResourcesUseCase: dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase
-    val explainResourceUseCase: dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase
+    val exploreRepository: ExploreRepository
+    val getAPIResourcesUseCase: GetAPIResourcesUseCase
+    val explainResourceUseCase: ExplainResourceUseCase
     val logcatRepository: LogcatRepository
     val getLogcatStreamUseCase: GetLogcatStreamUseCase
     val dumpLogcatUseCase: DumpLogcatUseCase
@@ -256,8 +261,8 @@ class DefaultAppContainer(private val appContext: Context) : AppContainer {
         )
     }
 
-    override val exploreRepository: dev.hridaya.kubenexus.domain.repository.ExploreRepository by lazy {
-        dev.hridaya.kubenexus.data.repository.ExploreRepositoryImpl(
+    override val exploreRepository: ExploreRepository by lazy {
+        ExploreRepositoryImpl(
             clusterDao = database.clusterDao(),
             apiResourceDao = database.apiResourceDao(),
             explainedResourceDao = database.explainedResourceDao(),
@@ -267,14 +272,14 @@ class DefaultAppContainer(private val appContext: Context) : AppContainer {
         )
     }
 
-    override val getAPIResourcesUseCase: dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase by lazy {
-        dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase(
+    override val getAPIResourcesUseCase: GetAPIResourcesUseCase by lazy {
+        GetAPIResourcesUseCase(
             exploreRepository = exploreRepository,
         )
     }
 
-    override val explainResourceUseCase: dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase by lazy {
-        dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase(
+    override val explainResourceUseCase: ExplainResourceUseCase by lazy {
+        ExplainResourceUseCase(
             exploreRepository = exploreRepository,
         )
     }
@@ -286,7 +291,7 @@ class DefaultAppContainer(private val appContext: Context) : AppContainer {
     }
 
     override val logcatRepository: LogcatRepository by lazy {
-        dev.hridaya.kubenexus.data.repository.LogcatRepositoryImpl(
+        LogcatRepositoryImpl(
             localDataSource = logcatLocalDataSource,
             dispatcherProvider = dispatcherProvider,
         )

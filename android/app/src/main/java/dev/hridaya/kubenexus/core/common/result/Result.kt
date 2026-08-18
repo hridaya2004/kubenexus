@@ -10,16 +10,25 @@ sealed interface Result<out T> {
 
     val isError: Boolean
         get() = this is Error
-}
 
-fun <T> Result<T>.getOrNull(): T? = when (this) {
-    is Result.Success -> data
-    else -> null
-}
+    val isFailure: Boolean
+        get() = this is Error
 
-fun <T> Result<T>.exceptionOrNull(): AppError? = when (this) {
-    is Result.Error -> error
-    else -> null
+    fun getOrNull(): T? = when (this) {
+        is Success -> data
+        else -> null
+    }
+
+    fun getOrThrow(): T = when (this) {
+        is Success -> data
+        is Error -> throw (error as? AppError.Unknown)?.throwable ?: RuntimeException(error.message)
+        is Loading -> throw IllegalStateException("Result is still Loading")
+    }
+
+    fun exceptionOrNull(): AppError? = when (this) {
+        is Error -> error
+        else -> null
+    }
 }
 
 inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> = when (this) {

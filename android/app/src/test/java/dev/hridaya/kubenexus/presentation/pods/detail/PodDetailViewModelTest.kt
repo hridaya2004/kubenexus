@@ -1,11 +1,13 @@
 package dev.hridaya.kubenexus.presentation.pods.detail
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
+import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodEventDetail
@@ -24,6 +26,7 @@ import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -48,9 +51,9 @@ class PodDetailViewModelTest {
 
     private lateinit var fakeClusterRepository: FakeClusterRepository
     private lateinit var fakePodRepository: FakePodRepository
-    private val onlineFlow = kotlinx.coroutines.flow.MutableStateFlow(true)
+    private val onlineFlow = MutableStateFlow(true)
     private val fakeNetworkMonitor =
-        object : dev.hridaya.kubenexus.core.common.network.NetworkMonitor {
+        object : NetworkMonitor {
             override val isOnline: Flow<Boolean> = onlineFlow
         }
     private lateinit var viewModel: PodDetailViewModel
@@ -268,7 +271,7 @@ class PodDetailViewModelTest {
         override fun getPodsStream(
             clusterId: String?,
             namespace: String?
-        ): Flow<List<dev.hridaya.kubenexus.domain.model.Pod>> = flowOf(emptyList())
+        ): Flow<List<Pod>> = flowOf(emptyList())
 
         override fun getNamespacesStream(clusterId: String?): Flow<List<String>> =
             flowOf(listOf("default"))

@@ -4,6 +4,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.security.KeyPairGenerator
+import java.util.Base64
 
 class PemKeyParserTest {
 
@@ -16,7 +17,7 @@ class PemKeyParserTest {
 
         // Validate that pkcs8Encoded can be parsed
         val parsedKey = PemKeyParser.parsePrivateKey(
-            java.util.Base64.getEncoder().encodeToString(pkcs8Encoded),
+            Base64.getEncoder().encodeToString(pkcs8Encoded),
         )
         assertNotNull(parsedKey)
         assertTrue(parsedKey.algorithm == "RSA")

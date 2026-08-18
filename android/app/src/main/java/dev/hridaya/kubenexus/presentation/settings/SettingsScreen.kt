@@ -2,6 +2,7 @@ package dev.hridaya.kubenexus.presentation.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -199,7 +200,7 @@ fun SettingsScreen(
                     onClick = {
                         val intent = Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/hridaya2004/kubenexus"),
+                            "https://github.com/hridaya2004/kubenexus".toUri(),
                         )
                         context.startActivity(intent)
                     },

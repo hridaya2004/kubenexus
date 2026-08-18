@@ -1,12 +1,16 @@
 package dev.hridaya.kubenexus.data.repository
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.kubeconfig.ClusterConnectionTester
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
+import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.ParsedKubeconfig
+import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,44 +75,44 @@ class ClusterRepositoryImplTest {
             override fun initialize() {}
             override fun isAvailable(): Boolean = true
             override fun touch(): Boolean = true
-            override fun createClient(rawKubeconfig: String): kotlin.Result<client.Client_> =
-                kotlin.Result.failure(UnsupportedOperationException("Test mock"))
+            override fun createClient(rawKubeconfig: String): Result<client.Client_> =
+                Result.Error(AppError.Unknown("Test mock"))
 
             override fun createClientWithOptions(
                 rawKubeconfig: String,
                 timeoutSec: Long,
                 insecure: Boolean,
-            ): kotlin.Result<client.Client_> =
-                kotlin.Result.failure(UnsupportedOperationException("Test mock"))
+            ): Result<client.Client_> =
+                Result.Error(AppError.Unknown("Test mock"))
 
             override fun listPods(
                 rawKubeconfig: String,
                 namespace: String?
-            ): kotlin.Result<List<String>> = kotlin.Result.success(emptyList())
+            ): Result<List<String>> = Result.Success(emptyList())
 
             override fun listPodsWide(
                 rawKubeconfig: String,
                 namespace: String?
-            ): kotlin.Result<List<client.Pod>> = kotlin.Result.success(emptyList())
+            ): Result<List<client.Pod>> = Result.Success(emptyList())
 
-            override fun listNamespaces(rawKubeconfig: String): kotlin.Result<List<client.Namespace>> =
-                kotlin.Result.success(emptyList())
+            override fun listNamespaces(rawKubeconfig: String): Result<List<client.Namespace>> =
+                Result.Success(emptyList())
 
             override fun deleteNamespace(
                 rawKubeconfig: String,
                 namespace: String,
-            ): kotlin.Result<Unit> = kotlin.Result.success(Unit)
+            ): Result<Unit> = Result.Success(Unit)
 
-            override fun listAPIResources(rawKubeconfig: String): kotlin.Result<List<dev.hridaya.kubenexus.domain.model.APIResource>> =
-                kotlin.Result.success(emptyList())
+            override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
+                Result.Success(emptyList())
 
             override fun explainResource(
                 rawKubeconfig: String,
                 resourceOrKind: String,
                 groupVersion: String,
-            ): kotlin.Result<dev.hridaya.kubenexus.domain.model.ResourceExplain> =
-                kotlin.Result.success(
-                    dev.hridaya.kubenexus.domain.model.ResourceExplain(
+            ): Result<ResourceExplain> =
+                Result.Success(
+                    ResourceExplain(
                         kind = resourceOrKind,
                         groupVersion = groupVersion,
                         description = "Mock description",
@@ -120,21 +124,21 @@ class ClusterRepositoryImplTest {
                 rawKubeconfig: String,
                 namespace: String,
                 podName: String
-            ): kotlin.Result<client.PodDetails> =
-                kotlin.Result.failure(UnsupportedOperationException("Test mock"))
+            ): Result<client.PodDetails> =
+                Result.Error(AppError.Unknown("Test mock"))
 
             override fun deletePod(
                 rawKubeconfig: String,
                 namespace: String,
                 podName: String
-            ): kotlin.Result<Unit> = kotlin.Result.success(Unit)
+            ): Result<Unit> = Result.Success(Unit)
 
             override fun getPodLogs(
                 rawKubeconfig: String,
                 namespace: String,
                 podName: String,
                 container: String?
-            ): kotlin.Result<String> = kotlin.Result.success("")
+            ): Result<String> = Result.Success("")
 
             override fun streamPodLogs(
                 rawKubeconfig: String,
@@ -142,7 +146,7 @@ class ClusterRepositoryImplTest {
                 podName: String,
                 container: String?,
                 callback: client.LogCallback,
-            ): kotlin.Result<Unit> = kotlin.Result.success(Unit)
+            ): Result<Unit> = Result.Success(Unit)
 
             override fun exec(
                 rawKubeconfig: String,
@@ -151,8 +155,8 @@ class ClusterRepositoryImplTest {
                 container: String,
                 command: String,
                 stdin: String,
-            ): kotlin.Result<client.ExecResult> =
-                kotlin.Result.failure(UnsupportedOperationException("Test mock"))
+            ): Result<client.ExecResult> =
+                Result.Error(AppError.Unknown("Test mock"))
 
             override fun startTerminal(
                 rawKubeconfig: String,
@@ -160,8 +164,8 @@ class ClusterRepositoryImplTest {
                 podName: String,
                 container: String,
                 callback: client.ExecCallback,
-            ): kotlin.Result<client.ExecSession> =
-                kotlin.Result.failure(UnsupportedOperationException("Test mock"))
+            ): Result<client.ExecSession> =
+                Result.Error(AppError.Unknown("Test mock"))
 
             override fun startExecSession(
                 rawKubeconfig: String,
@@ -171,12 +175,12 @@ class ClusterRepositoryImplTest {
                 command: String,
                 tty: Boolean,
                 callback: client.ExecCallback,
-            ): kotlin.Result<client.ExecSession> =
-                kotlin.Result.failure(UnsupportedOperationException("Test mock"))
+            ): Result<client.ExecSession> =
+                Result.Error(AppError.Unknown("Test mock"))
         }
 
         fakeTester = object : ClusterConnectionTester(fakeNativeBridge) {
-            override fun testConnection(parsed: dev.hridaya.kubenexus.domain.model.ParsedKubeconfig): String =
+            override fun testConnection(parsed: ParsedKubeconfig): String =
                 "Reachable & Healthy (HTTP 200 OK)"
         }
 

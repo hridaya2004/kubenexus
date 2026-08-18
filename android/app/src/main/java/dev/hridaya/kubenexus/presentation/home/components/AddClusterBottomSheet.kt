@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.presentation.home.components
 
+import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -213,7 +214,7 @@ fun AddClusterBottomSheet(
     }
 }
 
-private fun getFileName(context: android.content.Context, uri: Uri): String? {
+private fun getFileName(context: Context, uri: Uri): String? {
     var result: String? = null
     if (uri.scheme == "content") {
         context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->

@@ -99,6 +99,22 @@ class ClusterRepositoryImplTest {
                 namespace: String,
             ): kotlin.Result<Unit> = kotlin.Result.success(Unit)
 
+            override fun listAPIResources(rawKubeconfig: String): kotlin.Result<List<dev.hridaya.kubenexus.domain.model.APIResource>> =
+                kotlin.Result.success(emptyList())
+
+            override fun explainResource(
+                rawKubeconfig: String,
+                resourceOrKind: String,
+                groupVersion: String,
+            ): kotlin.Result<dev.hridaya.kubenexus.domain.model.ResourceExplain> =
+                kotlin.Result.success(
+                    dev.hridaya.kubenexus.domain.model.ResourceExplain(
+                        kind = resourceOrKind,
+                        groupVersion = groupVersion,
+                        description = "Mock description",
+                    ),
+                )
+
 
             override fun describePod(
                 rawKubeconfig: String,

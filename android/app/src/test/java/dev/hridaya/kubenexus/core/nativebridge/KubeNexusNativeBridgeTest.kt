@@ -62,6 +62,24 @@ class KubeNexusNativeBridgeTest {
                 return Result.success(Unit)
             }
 
+            override fun listAPIResources(rawKubeconfig: String): Result<List<dev.hridaya.kubenexus.domain.model.APIResource>> {
+                return Result.success(listOf(dev.hridaya.kubenexus.domain.model.APIResource(name = "pods", kind = "Pod", groupVersion = "v1")))
+            }
+
+            override fun explainResource(
+                rawKubeconfig: String,
+                resourceOrKind: String,
+                groupVersion: String,
+            ): Result<dev.hridaya.kubenexus.domain.model.ResourceExplain> {
+                return Result.success(
+                    dev.hridaya.kubenexus.domain.model.ResourceExplain(
+                        kind = resourceOrKind,
+                        groupVersion = groupVersion,
+                        description = "Test explain description",
+                    ),
+                )
+            }
+
 
             override fun describePod(
                 rawKubeconfig: String,

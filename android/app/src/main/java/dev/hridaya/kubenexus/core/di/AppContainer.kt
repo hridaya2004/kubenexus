@@ -70,6 +70,9 @@ interface AppContainer {
     val deleteClusterUseCase: DeleteClusterUseCase
     val updateClusterNameUseCase: UpdateClusterNameUseCase
     val testClusterConnectionUseCase: TestClusterConnectionUseCase
+    val exploreRepository: dev.hridaya.kubenexus.domain.repository.ExploreRepository
+    val getAPIResourcesUseCase: dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase
+    val explainResourceUseCase: dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase
     val logcatRepository: LogcatRepository
     val getLogcatStreamUseCase: GetLogcatStreamUseCase
     val dumpLogcatUseCase: DumpLogcatUseCase
@@ -250,6 +253,29 @@ class DefaultAppContainer(private val appContext: Context) : AppContainer {
         TestClusterConnectionUseCase(
             repository = clusterRepository,
             dispatcherProvider = dispatcherProvider,
+        )
+    }
+
+    override val exploreRepository: dev.hridaya.kubenexus.domain.repository.ExploreRepository by lazy {
+        dev.hridaya.kubenexus.data.repository.ExploreRepositoryImpl(
+            clusterDao = database.clusterDao(),
+            apiResourceDao = database.apiResourceDao(),
+            explainedResourceDao = database.explainedResourceDao(),
+            nativeBridge = nativeBridge,
+            encryptor = kubeconfigEncryptor,
+            dispatcherProvider = dispatcherProvider,
+        )
+    }
+
+    override val getAPIResourcesUseCase: dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase by lazy {
+        dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase(
+            exploreRepository = exploreRepository,
+        )
+    }
+
+    override val explainResourceUseCase: dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase by lazy {
+        dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase(
+            exploreRepository = exploreRepository,
         )
     }
 

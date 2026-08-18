@@ -10,6 +10,11 @@ import client.ExecSession
 import client.LogCallback
 import dev.hridaya.kubenexus.core.security.LogSanitizer
 import go.Seq
+import org.json.JSONArray
+import org.json.JSONObject
+import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.ResourceExplain
+import dev.hridaya.kubenexus.domain.model.ResourceField
 import client.Namespace as NativeNamespace
 import client.Pod as NativePod
 import client.PodDetails as NativePodDetails
@@ -66,6 +71,16 @@ interface KubeNexusNativeBridge {
      * Deletes a namespace from native runtime.
      */
     fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit>
+
+    /**
+     * Retrieves all discovered Kubernetes API resources from native runtime.
+     */
+    fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>>
+
+    /**
+     * Retrieves resource explanation details (kubectl explain) from native runtime.
+     */
+    fun explainResource(rawKubeconfig: String, resourceOrKind: String, groupVersion: String = ""): Result<ResourceExplain>
 
 
     /**
@@ -325,6 +340,104 @@ class KubeNexusNativeBridgeImpl(private val context: Context) : KubeNexusNativeB
             )
         }
     }
+
+    override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> {
+        return runCatching {
+            ensureInitialized()
+            val client = Client.newClient(rawKubeconfig)
+            val jsonStr = client.listAPIResourcesJSON()
+            val jsonArray = JSONArray(jsonStr)
+            val list = mutableListOf<APIResource>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val verbs = mutableListOf<String>()
+                val verbsArray = obj.optJSONArray("verbs")
+                if (verbsArray != null) {
+                    for (v in 0 until verbsArray.length()) {
+                        verbs.add(verbsArray.getString(v))
+                    }
+                }
+                val shortNames = mutableListOf<String>()
+                val shortNamesArray = obj.optJSONArray("shortNames")
+                if (shortNamesArray != null) {
+                    for (s in 0 until shortNamesArray.length()) {
+                        shortNames.add(shortNamesArray.getString(s))
+                    }
+                }
+                val categories = mutableListOf<String>()
+                val categoriesArray = obj.optJSONArray("categories")
+                if (categoriesArray != null) {
+                    for (c in 0 until categoriesArray.length()) {
+                        categories.add(categoriesArray.getString(c))
+                    }
+                }
+                list.add(
+                    APIResource(
+                        name = obj.optString("name", ""),
+                        singularName = obj.optString("singularName", ""),
+                        namespaced = obj.optBoolean("namespaced", true),
+                        kind = obj.optString("kind", ""),
+                        group = obj.optString("group", ""),
+                        version = obj.optString("version", ""),
+                        groupVersion = obj.optString("groupVersion", ""),
+                        verbs = verbs,
+                        shortNames = shortNames,
+                        categories = categories,
+                    )
+                )
+            }
+            list
+        }.onFailure { error ->
+            Log.e(
+                TAG,
+                "Failed to listAPIResources from native client: ${LogSanitizer.sanitize(error.message)}",
+                error,
+            )
+        }
+    }
+
+    override fun explainResource(
+        rawKubeconfig: String,
+        resourceOrKind: String,
+        groupVersion: String,
+    ): Result<ResourceExplain> {
+        return runCatching {
+            ensureInitialized()
+            val client = Client.newClient(rawKubeconfig)
+            val jsonStr = client.explainResourceJSON(resourceOrKind, groupVersion)
+            val obj = JSONObject(jsonStr)
+            val fieldsList = mutableListOf<ResourceField>()
+            val fieldsArray = obj.optJSONArray("fields")
+            if (fieldsArray != null) {
+                for (i in 0 until fieldsArray.length()) {
+                    val fObj = fieldsArray.getJSONObject(i)
+                    fieldsList.add(
+                        ResourceField(
+                            name = fObj.optString("name", ""),
+                            type = fObj.optString("type", ""),
+                            description = fObj.optString("description", ""),
+                            required = fObj.optBoolean("required", false),
+                        )
+                    )
+                }
+            }
+            ResourceExplain(
+                kind = obj.optString("kind", resourceOrKind),
+                group = obj.optString("group", ""),
+                version = obj.optString("version", ""),
+                groupVersion = obj.optString("groupVersion", groupVersion),
+                description = obj.optString("description", ""),
+                fields = fieldsList,
+            )
+        }.onFailure { error ->
+            Log.e(
+                TAG,
+                "Failed to explainResource '$resourceOrKind' from native client: ${LogSanitizer.sanitize(error.message)}",
+                error,
+            )
+        }
+    }
+
 
 
     override fun describePod(

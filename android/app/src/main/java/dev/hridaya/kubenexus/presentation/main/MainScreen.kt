@@ -16,7 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hridaya.kubenexus.core.di.AppContainer
-import dev.hridaya.kubenexus.presentation.explore.ExploreScreen
+import dev.hridaya.kubenexus.presentation.explore.ExploreRoute
+import dev.hridaya.kubenexus.presentation.explore.ExploreViewModel
 import dev.hridaya.kubenexus.presentation.home.HomeRoute
 import dev.hridaya.kubenexus.presentation.home.HomeUiEffect
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
@@ -149,8 +150,14 @@ fun MainScreen(
                         }
 
                         Destination.Explore -> {
-                            ExploreScreen()
+                            val exploreViewModel: ExploreViewModel = viewModel(
+                                factory = ExploreViewModel.provideFactory(appContainer),
+                            )
+                            ExploreRoute(
+                                viewModel = exploreViewModel,
+                            )
                         }
+
 
                         Destination.Settings -> {
                             SettingsScreen(

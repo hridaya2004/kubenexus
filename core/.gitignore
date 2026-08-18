@@ -1,0 +1,32 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/kubenexus
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+
+# Android build artifacts
+*.aar
+*.jar
+!/pkg/**/*.jar
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

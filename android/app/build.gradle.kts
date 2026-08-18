@@ -77,6 +77,10 @@ android {
         compose = true
         buildConfig = true
     }
+
+    lint {
+        disable += listOf("NewerVersionAvailable", "GradleDependency", "AndroidGradlePluginVersion")
+    }
 }
 
 dependencies {

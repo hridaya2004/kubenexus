@@ -32,9 +32,9 @@ fun ResourcePreferenceCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    badgeText: String? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    badgeText: String? = null,
 ) {
     Card(
         modifier = modifier

@@ -145,8 +145,8 @@ fun LogcatScreen(
     uiState: LogcatUiState,
     onAction: (LogcatUiAction) -> Unit,
     onNavigateBack: () -> Unit,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current

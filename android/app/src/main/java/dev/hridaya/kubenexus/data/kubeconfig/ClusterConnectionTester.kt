@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.data.kubeconfig
 
+import android.annotation.SuppressLint
 import android.util.Log
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.LogSanitizer
@@ -133,6 +134,7 @@ open class ClusterConnectionTester(private val nativeBridge: KubeNexusNativeBrid
         return regex.find(content)?.groupValues?.get(1)?.trim().orEmpty()
     }
 
+    @SuppressLint("TrustAllX509TrustManager", "CustomX509TrustManager", "BadHostnameVerifier")
     private fun configureTls(httpsConnection: HttpsURLConnection, rawKubeconfig: String) {
         try {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {

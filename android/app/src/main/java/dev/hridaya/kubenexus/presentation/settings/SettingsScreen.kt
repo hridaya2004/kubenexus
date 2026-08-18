@@ -52,7 +52,10 @@ import dev.hridaya.kubenexus.ui.theme.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onNavigateToLogcat: () -> Unit = {}, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    modifier: Modifier = Modifier,
+    onNavigateToLogcat: () -> Unit = {},
+) {
     val currentThemeMode = LocalThemeMode.current
     val onThemeModeChange = LocalOnThemeModeChange.current
     val amoledDark = LocalAmoledDark.current
@@ -231,9 +234,9 @@ private fun PreferenceSwitchCard(
     title: String,
     subtitle: String,
     checked: Boolean,
-    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val contentAlpha = if (enabled) 1f else 0.45f
 

@@ -36,15 +36,13 @@ import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 fun ClusterPill(
     activeCluster: Cluster?,
     totalClusters: Int,
-    connectionStatus: ClusterConnectionStatus = if (activeCluster !=
-        null
-    ) {
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    connectionStatus: ClusterConnectionStatus = if (activeCluster != null) {
         ClusterConnectionStatus.CONNECTED
     } else {
         ClusterConnectionStatus.OFFLINE
     },
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "connecting_pulse")
     val alphaAnim by infiniteTransition.animateFloat(

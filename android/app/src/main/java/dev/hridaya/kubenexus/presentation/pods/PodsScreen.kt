@@ -58,8 +58,8 @@ fun PodsScreen(
     uiState: HomeUiState,
     onAction: (HomeUiAction) -> Unit,
     onNavigateBack: () -> Unit,
-    onNavigateToPodDetail: (Pod) -> Unit = {},
     modifier: Modifier = Modifier,
+    onNavigateToPodDetail: (Pod) -> Unit = {},
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pods_refresh_rotation")
     val rotation by infiniteTransition.animateFloat(

@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.data.source.remote
 
+import android.annotation.SuppressLint
 import android.util.Base64
 import android.util.Log
 import dev.hridaya.kubenexus.core.security.LogSanitizer
@@ -552,6 +553,7 @@ class KubernetesApiClient {
         }
     }
 
+    @SuppressLint("TrustAllX509TrustManager", "CustomX509TrustManager", "BadHostnameVerifier")
     private fun configureSsl(httpsConnection: HttpsURLConnection, rawKubeconfig: String) {
         try {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {

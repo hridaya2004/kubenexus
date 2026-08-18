@@ -25,7 +25,10 @@ class AndroidKeystoreKubeconfigEncryptor(
         const val ANDROID_KEYSTORE_PROVIDER = "AndroidKeyStore"
 
         @Synchronized
-        fun getOrCreateSecretKey(alias: String = DEFAULT_KEY_ALIAS, provider: String = ANDROID_KEYSTORE_PROVIDER): SecretKey {
+        fun getOrCreateSecretKey(
+            alias: String = DEFAULT_KEY_ALIAS,
+            provider: String = ANDROID_KEYSTORE_PROVIDER
+        ): SecretKey {
             val keyStore = KeyStore.getInstance(provider).apply {
                 load(null)
             }
@@ -44,24 +47,22 @@ class AndroidKeystoreKubeconfigEncryptor(
             val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, provider)
 
             // Attempt StrongBox dedicated hardware security module on supported devices (API 28+)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                try {
-                    val strongBoxSpec = KeyGenParameterSpec.Builder(
-                        alias,
-                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                    )
-                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .setKeySize(256)
-                        .setRandomizedEncryptionRequired(true)
-                        .setIsStrongBoxBacked(true)
-                        .build()
+            try {
+                val strongBoxSpec = KeyGenParameterSpec.Builder(
+                    alias,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                )
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setKeySize(256)
+                    .setRandomizedEncryptionRequired(true)
+                    .setIsStrongBoxBacked(true)
+                    .build()
 
-                    keyGenerator.init(strongBoxSpec)
-                    return keyGenerator.generateKey()
-                } catch (t: Throwable) {
-                    // StrongBox hardware not available on this device, fall back to standard TEE
-                }
+                keyGenerator.init(strongBoxSpec)
+                return keyGenerator.generateKey()
+            } catch (t: Throwable) {
+                // StrongBox hardware not available on this device, fall back to standard TEE
             }
 
             val spec = KeyGenParameterSpec.Builder(

@@ -24,8 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.presentation.common.components.scaleOnPress
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun ResourcePreferenceCard(
@@ -104,6 +106,22 @@ fun ResourcePreferenceCard(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ResourcePreferenceCardPreview() {
+    KubeNexusTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            ResourcePreferenceCard(
+                title = "Deployments",
+                subtitle = "Manage replica sets and rollout status",
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                badgeText = "12",
+                onClick = {},
             )
         }
     }

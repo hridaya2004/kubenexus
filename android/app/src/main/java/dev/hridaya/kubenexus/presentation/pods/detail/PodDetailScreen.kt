@@ -87,16 +87,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
+import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodEventDetail
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
 import dev.hridaya.kubenexus.presentation.pods.components.GhosttyTerminalLogViewer
 import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalEngine
 import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalView
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun PodDetailRoute(
@@ -952,6 +955,47 @@ private fun DetailItem(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PodDetailScreenPreview() {
+    KubeNexusTheme {
+        PodDetailScreen(
+            uiState = PodDetailUiState(
+                podName = "nginx-deployment-78f56c879d-gqw87",
+                namespace = "default",
+                podDetails = PodDetails(
+                    name = "nginx-deployment-78f56c879d-gqw87",
+                    namespace = "default",
+                    status = PodStatus.RUNNING,
+                    node = "worker-node-1",
+                    ip = "10.244.1.42",
+                    hostIp = "192.168.1.15",
+                    startTime = "2026-08-18T14:32:00Z",
+                    labels = mapOf("app" to "nginx", "env" to "production"),
+                    annotations = mapOf("deployment.kubernetes.io/revision" to "1"),
+                    containers = listOf(
+                        ContainerDetail(
+                            name = "nginx",
+                            image = "nginx:1.25-alpine",
+                            ready = true,
+                            restartCount = 0,
+                            state = "Running",
+                        )
+                    ),
+                    conditions = listOf(
+                        PodConditionDetail(type = "Ready", status = "True"),
+                        PodConditionDetail(type = "ContainersReady", status = "True"),
+                    ),
+                    events = emptyList(),
+                ),
+                isLoading = false,
+            ),
+            onAction = {},
+            onNavigateBack = {},
         )
     }
 }

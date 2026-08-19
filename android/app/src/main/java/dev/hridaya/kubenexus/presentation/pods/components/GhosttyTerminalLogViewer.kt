@@ -61,8 +61,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import kotlinx.coroutines.launch
 
 private val TerminalBg = Color(0xFF000000)
@@ -481,5 +483,21 @@ private fun appendWithHighlight(
         }
 
         start = matchEnd
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun GhosttyTerminalLogViewerPreview() {
+    KubeNexusTheme {
+        GhosttyTerminalLogViewer(
+            logs = listOf(
+                "2026-08-19T10:00:00.123456Z [info] Starting server on port 8080",
+                "2026-08-19T10:00:01.234567Z [debug] Loaded configuration module",
+                "2026-08-19T10:00:02.345678Z [info] Ready to accept incoming connections",
+            ),
+            isStreaming = true,
+            onClearLogs = {},
+        )
     }
 }

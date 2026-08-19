@@ -31,7 +31,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -174,6 +176,44 @@ private fun ActionMenuItem(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun FabActionBottomSheetPreview() {
+    KubeNexusTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+        ) {
+            Column {
+                Text(
+                    text = "Create Resource",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                ActionMenuItem(
+                    icon = Icons.Outlined.Layers,
+                    title = "Add Pod",
+                    subtitle = "Deploy a containerized workload in active namespace",
+                    onClick = {},
+                )
+                ActionMenuItem(
+                    icon = Icons.Outlined.Apps,
+                    title = "Add Deployment",
+                    subtitle = "Create a scalable replica-set workload",
+                    onClick = {},
+                )
+                ActionMenuItem(
+                    icon = Icons.Outlined.Add,
+                    title = "Add Another Cluster",
+                    subtitle = "Import a kubeconfig YAML or file to connect",
+                    onClick = {},
                 )
             }
         }

@@ -23,7 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun EmptyClustersView(modifier: Modifier = Modifier, onAddClusterClick: (() -> Unit)? = null) {
@@ -89,5 +91,13 @@ fun EmptyClustersView(modifier: Modifier = Modifier, onAddClusterClick: (() -> U
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EmptyClustersViewPreview() {
+    KubeNexusTheme {
+        EmptyClustersView(onAddClusterClick = {})
     }
 }

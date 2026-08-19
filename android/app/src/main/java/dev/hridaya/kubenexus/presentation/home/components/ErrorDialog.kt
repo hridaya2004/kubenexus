@@ -32,9 +32,11 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.presentation.home.ErrorDialogData
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Suppress("DEPRECATION")
 @Composable
@@ -131,4 +133,20 @@ fun ErrorDialog(
             }
         },
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ErrorDialogPreview() {
+    KubeNexusTheme {
+        ErrorDialog(
+            data = ErrorDialogData(
+                title = "Connection Failed",
+                errorMessage = "Could not establish TLS handshake with Kubernetes API.",
+                rawErrorTrace = "HTTP 503 Service Unavailable: connection refused at https://192.168.1.1:6443/version",
+            ),
+            onDismiss = {},
+            onCopy = {},
+        )
+    }
 }

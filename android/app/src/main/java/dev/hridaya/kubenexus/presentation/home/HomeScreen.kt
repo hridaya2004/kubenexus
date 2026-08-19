@@ -37,10 +37,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
+import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
 import dev.hridaya.kubenexus.presentation.home.components.AddClusterBottomSheet
 import dev.hridaya.kubenexus.presentation.home.components.ClusterPill
@@ -49,6 +52,7 @@ import dev.hridaya.kubenexus.presentation.home.components.EmptyClustersView
 import dev.hridaya.kubenexus.presentation.home.components.ErrorDialog
 import dev.hridaya.kubenexus.presentation.home.components.FabActionBottomSheet
 import dev.hridaya.kubenexus.presentation.home.components.ResourcePreferenceCard
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun HomeRoute(
@@ -296,5 +300,61 @@ fun HomeScreen(
                 onCopy = { text -> onAction(HomeUiAction.CopyErrorClicked(text)) },
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomeScreenPreview() {
+    KubeNexusTheme {
+        HomeScreen(
+            uiState = HomeUiState(
+                clusters = listOf(
+                    Cluster(
+                        id = "1",
+                        name = "production-cluster",
+                        serverUrl = "https://10.0.0.1:6443",
+                        contextName = "prod",
+                        userName = "admin",
+                        namespace = "default",
+                        rawKubeconfig = "",
+                        isActive = true,
+                    )
+                ),
+                activeCluster = Cluster(
+                    id = "1",
+                    name = "production-cluster",
+                    serverUrl = "https://10.0.0.1:6443",
+                    contextName = "prod",
+                    userName = "admin",
+                    namespace = "default",
+                    rawKubeconfig = "",
+                    isActive = true,
+                ),
+                clusterConnectionStatus = ClusterConnectionStatus.CONNECTED,
+                totalPodsCount = 10,
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+            onNavigateToManageClusters = {},
+            onNavigateToPods = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomeScreenEmptyPreview() {
+    KubeNexusTheme {
+        HomeScreen(
+            uiState = HomeUiState(
+                clusters = emptyList(),
+                activeCluster = null,
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+            onNavigateToManageClusters = {},
+            onNavigateToPods = {},
+        )
     }
 }

@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,8 +40,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -227,4 +230,46 @@ private fun getFileName(context: Context, uri: Uri): String? {
         }
     }
     return result ?: uri.lastPathSegment
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AddClusterBottomSheetPreview() {
+    KubeNexusTheme {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(24.dp),
+        ) {
+            Column {
+                Text(
+                    text = "Add Kubernetes Cluster",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = "Production US-East",
+                    onValueChange = {},
+                    label = { Text("Cluster Alias / Name (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = "apiVersion: v1\nkind: Config\nclusters: []",
+                    onValueChange = {},
+                    label = { Text("Kubeconfig (YAML)") },
+                    minLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {},
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) {
+                    Text("Connect & Save")
+                }
+            }
+        }
+    }
 }

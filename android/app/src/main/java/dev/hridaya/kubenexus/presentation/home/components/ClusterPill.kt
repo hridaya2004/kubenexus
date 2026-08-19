@@ -28,9 +28,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun ClusterPill(
@@ -106,6 +108,29 @@ fun ClusterPill(
                 contentDescription = "Switch cluster",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ClusterPillPreview() {
+    KubeNexusTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            ClusterPill(
+                activeCluster = Cluster(
+                    id = "1",
+                    name = "minikube",
+                    serverUrl = "https://127.0.0.1:8443",
+                    contextName = "minikube",
+                    userName = "minikube",
+                    namespace = "default",
+                    rawKubeconfig = "",
+                ),
+                totalClusters = 2,
+                onClick = {},
+                connectionStatus = ClusterConnectionStatus.CONNECTED,
             )
         }
     }

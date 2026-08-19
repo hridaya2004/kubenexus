@@ -13,7 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun LoadingContent(modifier: Modifier = Modifier, message: String = "Loading...") {
@@ -37,5 +39,13 @@ fun LoadingContent(modifier: Modifier = Modifier, message: String = "Loading..."
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LoadingContentPreview() {
+    KubeNexusTheme {
+        LoadingContent(message = "Fetching cluster pods...")
     }
 }

@@ -78,12 +78,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import dev.hridaya.kubenexus.domain.model.ResourceField
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 
 @Composable
@@ -1123,5 +1126,75 @@ private fun ExplainDescriptionText(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier,
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ExploreScreenPreview() {
+    KubeNexusTheme {
+        ExploreScreen(
+            uiState = ExploreUiState(
+                activeCluster = Cluster(
+                    id = "1",
+                    name = "production-cluster",
+                    serverUrl = "https://10.0.0.1:6443",
+                    contextName = "prod",
+                    userName = "admin",
+                    namespace = "default",
+                    rawKubeconfig = "",
+                ),
+                resources = listOf(
+                    APIResource(
+                        name = "pods",
+                        singularName = "pod",
+                        namespaced = true,
+                        kind = "Pod",
+                        verbs = listOf("get", "list", "watch", "create", "delete"),
+                        group = "",
+                        version = "v1",
+                    ),
+                    APIResource(
+                        name = "deployments",
+                        singularName = "deployment",
+                        namespaced = true,
+                        kind = "Deployment",
+                        verbs = listOf("get", "list", "watch", "create", "delete", "update"),
+                        group = "apps",
+                        version = "v1",
+                    ),
+                    APIResource(
+                        name = "services",
+                        singularName = "service",
+                        namespaced = true,
+                        kind = "Service",
+                        verbs = listOf("get", "list", "watch", "create"),
+                        group = "",
+                        version = "v1",
+                    ),
+                ),
+                filteredResources = listOf(
+                    APIResource(
+                        name = "pods",
+                        singularName = "pod",
+                        namespaced = true,
+                        kind = "Pod",
+                        verbs = listOf("get", "list", "watch", "create", "delete"),
+                        group = "",
+                        version = "v1",
+                    ),
+                    APIResource(
+                        name = "deployments",
+                        singularName = "deployment",
+                        namespaced = true,
+                        kind = "Deployment",
+                        verbs = listOf("get", "list", "watch", "create", "delete", "update"),
+                        group = "apps",
+                        version = "v1",
+                    ),
+                ),
+            ),
+            onAction = {},
+        )
+    }
 }
 

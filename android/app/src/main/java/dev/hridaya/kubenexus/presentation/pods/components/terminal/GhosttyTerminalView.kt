@@ -84,10 +84,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiAction
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiState
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 private val GhosttyBg = Color(0xFF000000)
 private val GhosttySurface = Color(0xFF000000)
@@ -791,6 +793,23 @@ private fun TerminalKeyButton(
                 fontWeight = FontWeight.SemiBold,
                 color = if (isActive) Color.Black else GhosttyText,
             )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TerminalKeyButtonPreview() {
+    KubeNexusTheme {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(12.dp),
+        ) {
+            TerminalKeyButton(label = "ESC", onClick = {})
+            TerminalKeyButton(label = "TAB", onClick = {})
+            TerminalKeyButton(label = "CTRL", onClick = {}, isActive = true)
+            TerminalKeyButton(label = "ALT", onClick = {})
+            TerminalKeyButton(label = "↑", onClick = {})
         }
     }
 }

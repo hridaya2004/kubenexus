@@ -16,8 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun EditClusterDialog(
@@ -74,4 +76,24 @@ fun EditClusterDialog(
         },
         modifier = modifier,
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EditClusterDialogPreview() {
+    KubeNexusTheme {
+        EditClusterDialog(
+            cluster = Cluster(
+                id = "1",
+                name = "k8s-production",
+                serverUrl = "https://k8s.example.com:6443",
+                contextName = "prod-context",
+                userName = "admin",
+                namespace = "default",
+                rawKubeconfig = "",
+            ),
+            onDismiss = {},
+            onSaveName = { _, _ -> },
+        )
+    }
 }

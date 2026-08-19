@@ -7,7 +7,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun DeleteClusterDialog(
@@ -47,4 +49,24 @@ fun DeleteClusterDialog(
         },
         modifier = modifier,
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun DeleteClusterDialogPreview() {
+    KubeNexusTheme {
+        DeleteClusterDialog(
+            cluster = Cluster(
+                id = "1",
+                name = "production-cluster",
+                serverUrl = "https://k8s.example.com:6443",
+                contextName = "prod-context",
+                userName = "admin",
+                namespace = "default",
+                rawKubeconfig = "",
+            ),
+            onDismiss = {},
+            onConfirmDelete = {},
+        )
+    }
 }

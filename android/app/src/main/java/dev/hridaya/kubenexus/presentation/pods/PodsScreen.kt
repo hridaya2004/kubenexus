@@ -49,13 +49,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
+import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.home.HomeUiAction
 import dev.hridaya.kubenexus.presentation.home.HomeUiState
 import dev.hridaya.kubenexus.presentation.home.components.PodCard
 import dev.hridaya.kubenexus.presentation.pods.components.DeleteNamespaceDialog
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -346,6 +350,53 @@ fun PodsScreen(
             clusterName = uiState.activeCluster?.name,
             onDismiss = { onAction(HomeUiAction.DismissDeleteNamespace) },
             onConfirmDelete = { onAction(HomeUiAction.ConfirmDeleteNamespace(it)) },
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PodsScreenPreview() {
+    KubeNexusTheme {
+        PodsScreen(
+            uiState = HomeUiState(
+                activeCluster = Cluster(
+                    id = "1",
+                    name = "production-cluster",
+                    serverUrl = "https://10.0.0.1:6443",
+                    contextName = "prod",
+                    userName = "admin",
+                    namespace = "default",
+                    rawKubeconfig = "",
+                ),
+                availableNamespaces = listOf("default", "kube-system", "monitoring"),
+                selectedNamespace = "default",
+                pods = listOf(
+                    Pod(
+                        id = "1",
+                        name = "coredns-559bb7b579-24r9k",
+                        namespace = "kube-system",
+                        status = PodStatus.RUNNING,
+                        readyContainers = "1/1",
+                        restarts = 0,
+                        age = "12d",
+                        ip = "10.244.0.2",
+                    ),
+                    Pod(
+                        id = "2",
+                        name = "nginx-deployment-78f56c879d-gqw87",
+                        namespace = "default",
+                        status = PodStatus.RUNNING,
+                        readyContainers = "1/1",
+                        restarts = 1,
+                        age = "2d",
+                        ip = "10.244.0.15",
+                    ),
+                ),
+            ),
+            onAction = {},
+            onNavigateBack = {},
+            onNavigateToPodDetail = {},
         )
     }
 }

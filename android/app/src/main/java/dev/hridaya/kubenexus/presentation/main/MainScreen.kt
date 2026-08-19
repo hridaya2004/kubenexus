@@ -17,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.presentation.explore.ExploreRoute
 import dev.hridaya.kubenexus.presentation.explore.ExploreViewModel
+import androidx.compose.ui.tooling.preview.Preview
 import dev.hridaya.kubenexus.presentation.home.HomeRoute
 import dev.hridaya.kubenexus.presentation.home.HomeUiEffect
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
@@ -29,6 +30,7 @@ import dev.hridaya.kubenexus.presentation.pods.PodsScreen
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailRoute
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
 import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun MainScreen(
@@ -162,6 +164,28 @@ fun MainScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun MainScreenNavigationPreview() {
+    KubeNexusTheme {
+        Scaffold(
+            bottomBar = {
+                AppNavigationBar(
+                    destinations = Destination.topLevelDestinations,
+                    currentDestination = Destination.Home,
+                    onDestinationSelected = {},
+                )
+            },
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+            )
         }
     }
 }

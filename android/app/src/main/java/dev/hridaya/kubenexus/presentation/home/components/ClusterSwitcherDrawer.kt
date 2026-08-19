@@ -38,9 +38,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -230,6 +232,49 @@ fun ClusterSwitcherDrawer(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ClusterSwitcherDrawerPreview() {
+    KubeNexusTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(20.dp),
+        ) {
+            Column {
+                Text(
+                    text = "Kubernetes Clusters",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Text(
+                    text = "2 configured",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                ClusterCard(
+                    cluster = Cluster(
+                        id = "1",
+                        name = "production-cluster",
+                        serverUrl = "https://k8s.example.com:6443",
+                        contextName = "prod-context",
+                        userName = "admin",
+                        namespace = "default",
+                        rawKubeconfig = "",
+                        isActive = true,
+                        status = ClusterStatus.CONNECTED,
+                    ),
+                    onSelect = {},
+                    onTestConnection = {},
+                    onDelete = {},
+                    isConnecting = false,
+                )
+            }
         }
     }
 }

@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.presentation.home.components.AddClusterBottomSheet
@@ -49,6 +50,7 @@ import dev.hridaya.kubenexus.presentation.home.components.DeleteClusterDialog
 import dev.hridaya.kubenexus.presentation.home.components.EditClusterDialog
 import dev.hridaya.kubenexus.presentation.home.components.EmptyClustersView
 import dev.hridaya.kubenexus.presentation.home.components.ErrorDialog
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -325,5 +327,40 @@ private fun ManageClusterCard(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ManageClustersScreenPreview() {
+    KubeNexusTheme {
+        ManageClustersScreen(
+            uiState = HomeUiState(
+                clusters = listOf(
+                    Cluster(
+                        id = "1",
+                        name = "production-cluster",
+                        serverUrl = "https://k8s.example.com:6443",
+                        contextName = "prod-context",
+                        userName = "admin",
+                        namespace = "default",
+                        rawKubeconfig = "",
+                        isActive = true,
+                    ),
+                    Cluster(
+                        id = "2",
+                        name = "staging-cluster",
+                        serverUrl = "https://192.168.1.100:6443",
+                        contextName = "staging-context",
+                        userName = "developer",
+                        namespace = "staging",
+                        rawKubeconfig = "",
+                        isActive = false,
+                    ),
+                ),
+            ),
+            onAction = {},
+            onNavigateBack = {},
+        )
     }
 }

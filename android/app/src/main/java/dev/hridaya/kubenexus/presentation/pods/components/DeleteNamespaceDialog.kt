@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun DeleteNamespaceDialog(
@@ -58,4 +60,17 @@ fun DeleteNamespaceDialog(
         },
         modifier = modifier,
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun DeleteNamespaceDialogPreview() {
+    KubeNexusTheme {
+        DeleteNamespaceDialog(
+            namespace = "staging-feature-x",
+            clusterName = "production-cluster",
+            onDismiss = {},
+            onConfirmDelete = {},
+        )
+    }
 }

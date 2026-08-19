@@ -35,10 +35,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -243,6 +245,60 @@ fun ClusterCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ClusterCardActivePreview() {
+    KubeNexusTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            ClusterCard(
+                cluster = Cluster(
+                    id = "1",
+                    name = "production-us-east",
+                    serverUrl = "https://k8s-prod.example.com:6443",
+                    contextName = "admin@prod",
+                    userName = "admin",
+                    namespace = "default",
+                    rawKubeconfig = "",
+                    isActive = true,
+                    status = ClusterStatus.CONNECTED,
+                    lastConnectedAt = System.currentTimeMillis(),
+                ),
+                onSelect = {},
+                onTestConnection = {},
+                onDelete = {},
+                isConnecting = false,
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ClusterCardInactivePreview() {
+    KubeNexusTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            ClusterCard(
+                cluster = Cluster(
+                    id = "2",
+                    name = "staging-cluster",
+                    serverUrl = "https://192.168.1.100:6443",
+                    contextName = "dev@staging",
+                    userName = "developer",
+                    namespace = "staging",
+                    rawKubeconfig = "",
+                    isActive = false,
+                    status = ClusterStatus.DISCONNECTED,
+                    lastConnectedAt = null,
+                ),
+                onSelect = {},
+                onTestConnection = {},
+                onDelete = {},
+                isConnecting = false,
+            )
         }
     }
 }

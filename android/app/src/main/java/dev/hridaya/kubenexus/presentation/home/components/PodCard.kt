@@ -26,10 +26,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.scaleOnPress
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
 fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -121,6 +123,29 @@ fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PodCardPreview() {
+    KubeNexusTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            PodCard(
+                pod = Pod(
+                    id = "1",
+                    name = "nginx-deployment-78f56c879d-gqw87",
+                    namespace = "default",
+                    status = PodStatus.RUNNING,
+                    readyContainers = "1/1",
+                    restarts = 0,
+                    age = "2d4h",
+                    ip = "10.244.0.15",
+                    node = "node-1",
+                ),
+                onClick = {},
+            )
         }
     }
 }

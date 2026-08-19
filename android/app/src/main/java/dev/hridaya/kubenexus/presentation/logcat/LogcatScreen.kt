@@ -87,11 +87,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.launch
 
@@ -680,4 +682,52 @@ private fun getLogLevelColor(level: LogLevel): Color = when (level) {
     LogLevel.ERROR -> LogErrorColor
     LogLevel.FATAL -> LogFatalColor
     LogLevel.UNKNOWN -> LogVerboseColor
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LogcatScreenPreview() {
+    KubeNexusTheme {
+        LogcatScreen(
+            uiState = LogcatUiState(
+                logs = listOf(
+                    LogcatEntry(
+                        id = 1L,
+                        timestamp = "16:42:05.123",
+                        pid = "1234",
+                        tid = "5678",
+                        level = LogLevel.INFO,
+                        tag = "KubeNexusNative",
+                        message = "Connected to Kubernetes API at https://10.0.0.1:6443",
+                        raw = "08-19 16:42:05.123  1234  5678 I KubeNexusNative: Connected to Kubernetes API",
+                    ),
+                    LogcatEntry(
+                        id = 2L,
+                        timestamp = "16:42:05.150",
+                        pid = "1234",
+                        tid = "5678",
+                        level = LogLevel.DEBUG,
+                        tag = "GhosttyBridge",
+                        message = "VT stream parser initialized with DEC mode 2027",
+                        raw = "08-19 16:42:05.150  1234  5678 D GhosttyBridge: VT stream parser initialized with DEC mode 2027",
+                    ),
+                ),
+                filteredLogs = listOf(
+                    LogcatEntry(
+                        id = 1L,
+                        timestamp = "16:42:05.123",
+                        pid = "1234",
+                        tid = "5678",
+                        level = LogLevel.INFO,
+                        tag = "KubeNexusNative",
+                        message = "Connected to Kubernetes API at https://10.0.0.1:6443",
+                        raw = "08-19 16:42:05.123  1234  5678 I KubeNexusNative: Connected to Kubernetes API",
+                    ),
+                ),
+                isLoading = false,
+            ),
+            onAction = {},
+            onNavigateBack = {},
+        )
+    }
 }

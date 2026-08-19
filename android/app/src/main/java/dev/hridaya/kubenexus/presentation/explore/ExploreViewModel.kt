@@ -20,8 +20,11 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class ExploreViewModel(
+@HiltViewModel
+class ExploreViewModel @Inject constructor(
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
     private val getAPIResourcesUseCase: GetAPIResourcesUseCase,
     private val explainResourceUseCase: ExplainResourceUseCase,

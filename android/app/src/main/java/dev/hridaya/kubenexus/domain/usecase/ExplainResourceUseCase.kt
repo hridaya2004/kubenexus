@@ -4,8 +4,9 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import dev.hridaya.kubenexus.domain.repository.ExploreRepository
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class ExplainResourceUseCase(
+class ExplainResourceUseCase @Inject constructor(
     private val exploreRepository: ExploreRepository,
 ) {
     suspend operator fun invoke(

@@ -5,18 +5,16 @@ import android.security.keystore.KeyProperties
 import java.security.KeyStore
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.inject.Inject
 
 /**
  * Android Keystore-backed implementation of [KubeconfigEncryptor].
  *
  * Persists the master AES-256 key inside hardware-backed Android KeyStore (TEE / StrongBox when available).
  */
-class AndroidKeystoreKubeconfigEncryptor(
-    private val keyAlias: String = DEFAULT_KEY_ALIAS,
-    private val keyStoreProvider: String = ANDROID_KEYSTORE_PROVIDER,
-) : AesGcmKubeconfigEncryptor(
+class AndroidKeystoreKubeconfigEncryptor @Inject constructor() : AesGcmKubeconfigEncryptor(
     keyProvider = {
-        getOrCreateSecretKey(keyAlias, keyStoreProvider)
+        getOrCreateSecretKey(DEFAULT_KEY_ALIAS, ANDROID_KEYSTORE_PROVIDER)
     },
 ) {
 

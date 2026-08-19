@@ -19,8 +19,9 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import javax.inject.Inject
 
-class ClusterRepositoryImpl(
+class ClusterRepositoryImpl @Inject constructor(
     private val clusterDao: ClusterDao,
     private val connectionTester: ClusterConnectionTester,
     private val encryptor: KubeconfigEncryptor = NoOpKubeconfigEncryptor,

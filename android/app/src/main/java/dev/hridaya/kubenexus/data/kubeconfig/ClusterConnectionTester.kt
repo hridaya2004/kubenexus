@@ -18,8 +18,9 @@ import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import javax.inject.Inject
 
-open class ClusterConnectionTester(private val nativeBridge: KubeNexusNativeBridge) {
+open class ClusterConnectionTester @Inject constructor(private val nativeBridge: KubeNexusNativeBridge) {
 
     companion object {
         private const val TAG = "ClusterConnTester"

@@ -2,8 +2,9 @@ package dev.hridaya.kubenexus.domain.usecase
 
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class StreamPodLogsUseCase(private val podRepository: PodRepository) {
+class StreamPodLogsUseCase @Inject constructor(private val podRepository: PodRepository) {
     operator fun invoke(
         clusterId: String?,
         namespace: String,

@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hridaya.kubenexus.core.di.AppContainer
@@ -34,8 +35,8 @@ import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
 @Composable
 fun MainScreen(
     homeViewModel: HomeViewModel,
-    appContainer: AppContainer,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    appContainer: AppContainer? = null,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
@@ -61,13 +62,14 @@ fun MainScreen(
         selectedPodName != null && selectedPodNamespace != null -> {
             val podName = selectedPodName!!
             val podNamespace = selectedPodNamespace!!
-            val podDetailViewModel: PodDetailViewModel = viewModel(
+            val podDetailViewModel: PodDetailViewModel = hiltViewModel(
                 key = "pod_detail_${podNamespace}_$podName",
-                factory = PodDetailViewModel.provideFactory(
-                    podName = podName,
-                    namespace = podNamespace,
-                    container = appContainer,
-                ),
+                creationCallback = { factory: PodDetailViewModel.Factory ->
+                    factory.create(
+                        podName = podName,
+                        namespace = podNamespace,
+                    )
+                },
             )
             BackHandler {
                 selectedPodName = null
@@ -110,9 +112,7 @@ fun MainScreen(
         }
 
         isViewingLogcat -> {
-            val logcatViewModel: LogcatViewModel = viewModel(
-                factory = LogcatViewModel.provideFactory(appContainer),
-            )
+            val logcatViewModel: LogcatViewModel = hiltViewModel()
             BackHandler { isViewingLogcat = false }
             LogcatRoute(
                 viewModel = logcatViewModel,
@@ -150,9 +150,7 @@ fun MainScreen(
                         }
 
                         Destination.Explore -> {
-                            val exploreViewModel: ExploreViewModel = viewModel(
-                                factory = ExploreViewModel.provideFactory(appContainer),
-                            )
+                            val exploreViewModel: ExploreViewModel = hiltViewModel()
                             ExploreRoute(
                                 viewModel = exploreViewModel,
                             )

@@ -22,8 +22,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class LogcatViewModel(
+@HiltViewModel
+class LogcatViewModel @Inject constructor(
     private val getLogcatStreamUseCase: GetLogcatStreamUseCase,
     private val dumpLogcatUseCase: DumpLogcatUseCase,
     private val clearLogcatUseCase: ClearLogcatUseCase,

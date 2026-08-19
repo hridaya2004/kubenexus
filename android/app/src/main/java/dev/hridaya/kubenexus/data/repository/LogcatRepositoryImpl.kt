@@ -8,8 +8,9 @@ import dev.hridaya.kubenexus.domain.model.LogcatEntry
 import dev.hridaya.kubenexus.domain.repository.LogcatRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-class LogcatRepositoryImpl(
+class LogcatRepositoryImpl @Inject constructor(
     private val localDataSource: LogcatLocalDataSource,
     private val dispatcherProvider: DispatcherProvider
 ) : LogcatRepository {

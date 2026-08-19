@@ -17,6 +17,8 @@ import org.json.JSONObject
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import dev.hridaya.kubenexus.domain.model.ResourceField
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import client.Namespace as NativeNamespace
 import client.Pod as NativePod
 import client.PodDetails as NativePodDetails
@@ -157,7 +159,9 @@ interface KubeNexusNativeBridge {
     ): Result<ExecSession>
 }
 
-class KubeNexusNativeBridgeImpl(private val context: Context) : KubeNexusNativeBridge {
+class KubeNexusNativeBridgeImpl @Inject constructor(
+    @param:ApplicationContext private val context: Context
+) : KubeNexusNativeBridge {
 
     companion object {
         private const val TAG = "KubeNexusNativeBridge"

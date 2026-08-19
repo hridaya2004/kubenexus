@@ -14,6 +14,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.atomic.AtomicLong
 import java.util.regex.Pattern
+import javax.inject.Inject
 
 interface LogcatLocalDataSource {
     fun streamLogs(maxBufferSize: Int): Flow<List<LogcatEntry>>
@@ -21,7 +22,7 @@ interface LogcatLocalDataSource {
     suspend fun clearLogs()
 }
 
-class DefaultLogcatLocalDataSource(private val dispatcherProvider: DispatcherProvider) :
+class DefaultLogcatLocalDataSource @Inject constructor(private val dispatcherProvider: DispatcherProvider) :
     LogcatLocalDataSource {
 
     private val entryIdSequence = AtomicLong(1L)

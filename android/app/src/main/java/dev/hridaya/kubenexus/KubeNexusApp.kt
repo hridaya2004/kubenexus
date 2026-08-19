@@ -1,16 +1,28 @@
 package dev.hridaya.kubenexus
 
 import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
 import dev.hridaya.kubenexus.core.di.AppContainer
+import dev.hridaya.kubenexus.core.di.ApplicationScope
 import dev.hridaya.kubenexus.core.di.DefaultAppContainer
+import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class KubeNexusApp : Application() {
+@HiltAndroidApp(Application::class)
+class KubeNexusApp : Hilt_KubeNexusApp() {
 
-    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject
+    @ApplicationScope
+    lateinit var applicationScope: CoroutineScope
+
+    @Inject
+    lateinit var nativeBridge: KubeNexusNativeBridge
+
+    @Inject
+    lateinit var clusterRepository: ClusterRepository
 
     lateinit var container: AppContainer
         private set
@@ -18,11 +30,11 @@ class KubeNexusApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = DefaultAppContainer(applicationContext)
-        container.nativeBridge.initialize()
+        nativeBridge.initialize()
 
         // Migrate any legacy plaintext cluster kubeconfigs to Keystore-backed encryption
         applicationScope.launch {
-            container.clusterRepository.migratePlaintextClusters()
+            clusterRepository.migratePlaintextClusters()
         }
     }
 }

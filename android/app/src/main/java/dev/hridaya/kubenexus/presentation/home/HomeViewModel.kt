@@ -33,9 +33,12 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HomeViewModel(
+@HiltViewModel
+class HomeViewModel @Inject constructor(
     private val getClustersUseCase: GetClustersUseCase,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
     private val getPodsUseCase: GetPodsUseCase,

@@ -4,8 +4,9 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-class TestClusterConnectionUseCase(
+class TestClusterConnectionUseCase @Inject constructor(
     private val repository: ClusterRepository,
     private val dispatcherProvider: DispatcherProvider
 ) {

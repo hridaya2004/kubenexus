@@ -28,9 +28,15 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class PodDetailViewModel(
-    private val podName: String,
-    private val namespace: String,
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
+
+@HiltViewModel(assistedFactory = PodDetailViewModel.Factory::class)
+class PodDetailViewModel @AssistedInject constructor(
+    @Assisted("podName") private val podName: String,
+    @Assisted("namespace") private val namespace: String,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
     private val describePodUseCase: DescribePodUseCase,
     private val getPodLogsUseCase: GetPodLogsUseCase,
@@ -42,6 +48,14 @@ class PodDetailViewModel(
     private val networkMonitor: NetworkMonitor,
     private val dispatcherProvider: DispatcherProvider,
 ) : ViewModel() {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            @Assisted("podName") podName: String,
+            @Assisted("namespace") namespace: String,
+        ): PodDetailViewModel
+    }
 
     val terminalEngine = GhosttyTerminalEngine()
 
@@ -753,6 +767,17 @@ class PodDetailViewModel(
     }
 
     companion object {
+        fun provideFactory(
+            factory: Factory,
+            podName: String,
+            namespace: String,
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return factory.create(podName, namespace) as T
+            }
+        }
+
         fun provideFactory(
             podName: String,
             namespace: String,

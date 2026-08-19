@@ -19,8 +19,9 @@ import dev.hridaya.kubenexus.domain.repository.ExploreRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-class ExploreRepositoryImpl(
+class ExploreRepositoryImpl @Inject constructor(
     private val clusterDao: ClusterDao,
     private val apiResourceDao: APIResourceDao,
     private val explainedResourceDao: ExplainedResourceDao,

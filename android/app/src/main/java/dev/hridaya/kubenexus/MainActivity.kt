@@ -9,8 +9,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import dagger.hilt.android.AndroidEntryPoint
+import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.main.MainScreen
+import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalAmoledDark
 import dev.hridaya.kubenexus.ui.theme.LocalOnAmoledDarkChange
@@ -18,13 +21,15 @@ import dev.hridaya.kubenexus.ui.theme.LocalOnThemeModeChange
 import dev.hridaya.kubenexus.ui.theme.LocalThemeMode
 import dev.hridaya.kubenexus.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MainActivity : ComponentActivity() {
+@AndroidEntryPoint(ComponentActivity::class)
+class MainActivity : Hilt_MainActivity() {
 
-    private val viewModel: HomeViewModel by viewModels {
-        val app = application as KubeNexusApp
-        HomeViewModel.provideFactory(app.container)
-    }
+    @Inject
+    lateinit var themePreferencesRepository: ThemePreferencesRepository
+
+    private val viewModel: HomeViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,7 +37,7 @@ class MainActivity : ComponentActivity() {
         window.isNavigationBarContrastEnforced = false
 
         val app = application as KubeNexusApp
-        val themeRepo = app.container.themePreferencesRepository
+        val themeRepo = themePreferencesRepository
 
         setContent {
             val themeMode by themeRepo.getThemeModeStream()

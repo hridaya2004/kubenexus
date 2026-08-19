@@ -8,14 +8,16 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.core.content.getSystemService
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
 
-class ConnectivityNetworkMonitor(
-    private val context: Context,
+class ConnectivityNetworkMonitor @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val dispatcherProvider: DispatcherProvider
 ) : NetworkMonitor {
 

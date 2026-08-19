@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.ui.theme.ThemeMode
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -18,8 +20,8 @@ interface ThemePreferencesLocalDataSource {
     suspend fun setAmoledDark(enabled: Boolean)
 }
 
-class SharedPrefsThemePreferencesDataSource(
-    context: Context,
+class SharedPrefsThemePreferencesDataSource @Inject constructor(
+    @ApplicationContext context: Context,
     private val dispatcherProvider: DispatcherProvider
 ) : ThemePreferencesLocalDataSource {
 

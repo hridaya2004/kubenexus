@@ -5,8 +5,9 @@ import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import javax.inject.Inject
 
-class GetClustersUseCase(
+class GetClustersUseCase @Inject constructor(
     private val repository: ClusterRepository,
     private val dispatcherProvider: DispatcherProvider
 ) {

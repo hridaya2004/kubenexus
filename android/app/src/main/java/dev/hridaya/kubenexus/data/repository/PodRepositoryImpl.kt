@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 class NativeTerminalSession(private val session: client.ExecSession) : TerminalSession {
     override fun write(input: String) {
@@ -43,7 +44,7 @@ class NativeTerminalSession(private val session: client.ExecSession) : TerminalS
     }
 }
 
-class PodRepositoryImpl(
+class PodRepositoryImpl @Inject constructor(
     private val clusterDao: ClusterDao,
     private val podDao: PodDao,
     private val namespaceDao: NamespaceDao,

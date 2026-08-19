@@ -4,8 +4,9 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.repository.ExploreRepository
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class GetAPIResourcesUseCase(
+class GetAPIResourcesUseCase @Inject constructor(
     private val exploreRepository: ExploreRepository,
 ) {
     fun getStream(clusterId: String?): Flow<List<APIResource>> {

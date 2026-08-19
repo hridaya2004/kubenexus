@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const ndk = @import("src/ndk.zig");
 
 const default_build_targets: []const std.Target.Query = &.{
-    .{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .android, .android_api_level = 24 },
+    .{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .android, .android_api_level = 35 },
 };
 
 fn resolveBuildTargets(b: *std.Build) []const std.Target.Query {
@@ -44,17 +44,19 @@ fn resolveNdkHome(b: *std.Build, ndk_root: []const u8) []const u8 {
     if (ndk_root.len == 0) return ndk_root;
 
     const toolchains_path = b.pathJoin(&.{ ndk_root, "toolchains", "llvm" });
-    std.fs.cwd().access(toolchains_path, .{}) catch {
-        var dir = std.fs.cwd().openDir(ndk_root, .{ .iterate = true }) catch return ndk_root;
-        defer dir.close();
-
-        var iter = dir.iterate();
-        while (iter.next() catch null) |entry| {
-            if (entry.kind != .directory) continue;
-            return b.pathJoin(&.{ ndk_root, entry.name });
-        }
+    if (std.Io.Dir.openDirAbsolute(b.graph.io, toolchains_path, .{})) |dir| {
+        dir.close(b.graph.io);
         return ndk_root;
-    };
+    } else |_| {
+        if (std.Io.Dir.openDirAbsolute(b.graph.io, ndk_root, .{ .iterate = true })) |dir| {
+            defer dir.close(b.graph.io);
+            var iter = dir.iterate();
+            while (iter.next(b.graph.io) catch null) |entry| {
+                if (entry.kind != .directory) continue;
+                return b.pathJoin(&.{ ndk_root, entry.name });
+            }
+        } else |_| {}
+    }
 
     return ndk_root;
 }
@@ -70,12 +72,12 @@ fn buildNativeLibrary(
         .simd = false,
     });
 
-    const ndk_root = b.graph.env_map.get("ANDROID_NDK_HOME") orelse
-        b.graph.env_map.get("ANDROID_NDK_ROOT") orelse blk: {
-        if (b.graph.env_map.get("ANDROID_HOME") orelse b.graph.env_map.get("ANDROID_SDK_ROOT")) |sdk| {
+    const ndk_root = b.graph.environ_map.get("ANDROID_NDK_HOME") orelse
+        b.graph.environ_map.get("ANDROID_NDK_ROOT") orelse blk: {
+        if (b.graph.environ_map.get("ANDROID_HOME") orelse b.graph.environ_map.get("ANDROID_SDK_ROOT")) |sdk| {
             break :blk b.pathJoin(&.{ sdk, "ndk", "27.0.12077973" });
         }
-        if (b.graph.env_map.get("HOME")) |home| {
+        if (b.graph.environ_map.get("HOME")) |home| {
             break :blk b.pathJoin(&.{ home, "Android", "Sdk", "ndk", "27.0.12077973" });
         }
         std.debug.panic("ANDROID_NDK_HOME or ANDROID_NDK_ROOT must be set", .{});
@@ -118,6 +120,15 @@ fn buildNativeLibrary(
     });
     root_module.addIncludePath(b.path("src"));
     root_module.addImport("ghostty-vt", ghostty_dep.module("ghostty-vt"));
+    root_module.addIncludePath(.{ .cwd_relative = include_dir });
+    root_module.addIncludePath(.{ .cwd_relative = target_include_dir });
+
+    const api_dir = b.fmt("{d}", .{android_api_version});
+    const lib_dir = b.pathJoin(&.{ ndk_sysroot, "usr", "lib", android_target, api_dir });
+    root_module.addLibraryPath(.{ .cwd_relative = lib_dir });
+    root_module.linkSystemLibrary("log", .{});
+    root_module.linkSystemLibrary("z", .{});
+    root_module.link_libc = true;
 
     const lib = b.addLibrary(.{
         .linkage = .dynamic,
@@ -133,17 +144,7 @@ fn buildNativeLibrary(
     root_module.unwind_tables = .none;
     root_module.omit_frame_pointer = true;
 
-    lib.addIncludePath(.{ .cwd_relative = include_dir });
-    lib.addIncludePath(.{ .cwd_relative = target_include_dir });
-
-    const api_dir = b.fmt("{d}", .{android_api_version});
-    const lib_dir = b.pathJoin(&.{ ndk_sysroot, "usr", "lib", android_target, api_dir });
-    lib.addLibraryPath(.{ .cwd_relative = lib_dir });
-
     lib.setLibCFile(libc_config);
-    lib.linkSystemLibrary("log");
-    lib.linkSystemLibrary("z");
-    lib.linkLibC();
     lib.version_script = b.path("src/version-script.map");
 
     b.installArtifact(lib);

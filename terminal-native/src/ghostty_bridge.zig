@@ -264,6 +264,14 @@ fn logWarn(comptime fmt: []const u8, args: anytype) void {
     logLine(c.ANDROID_LOG_WARN, line);
 }
 
+fn getNanoTimestamp() i64 {
+    var threaded_io: std.Io.Threaded = .init_single_threaded;
+    const io = threaded_io.io();
+    defer threaded_io.deinit();
+
+    return @intCast(std.Io.Clock.now(.awake, io).toNanoseconds());
+}
+
 fn maybeLogSnapshotPerf(
     terminal: *ChuchuTerminal,
     cols: usize,
@@ -282,7 +290,7 @@ fn maybeLogSnapshotPerf(
     terminal.snapshot_perf_calls += 1;
     terminal.snapshot_perf_total_ns +%= total_u64;
 
-    const now: i64 = @intCast(std.time.nanoTimestamp());
+    const now: i64 = getNanoTimestamp();
     const slow = total_ns >= 8 * std.time.ns_per_ms or update_ns >= 4 * std.time.ns_per_ms or build_ns >= 6 * std.time.ns_per_ms;
     const interval_elapsed = now - terminal.snapshot_perf_last_log_ns >= std.time.ns_per_s;
     if (!slow and !interval_elapsed) return;
@@ -408,6 +416,10 @@ fn chuchuTitleChanged(handler: *ghostty.TerminalStream.Handler) void {
     updateMetadata(terminalFromHandler(handler));
 }
 
+fn chuchuPwdChanged(handler: *ghostty.TerminalStream.Handler) void {
+    updateMetadata(terminalFromHandler(handler));
+}
+
 fn chuchuColorScheme(handler: *ghostty.TerminalStream.Handler) ?ghostty.device_status.ColorScheme {
     const terminal = terminalFromHandler(handler);
     if (!terminal.color_scheme_set) return null;
@@ -468,14 +480,14 @@ export fn chuchu_create_terminal(cols: c.jint, rows: c.jint, max_scrollback: c.j
 
     const init_cols: u16 = @intCast(clampI32(cols, 1, 80));
     const init_rows: u16 = @intCast(clampI32(rows, 1, 24));
-    var inner = ghostty.Terminal.init(allocator, .{
+    var inner = ghostty.Terminal.init((ghostty.TinyIo.init).io(), allocator, .{
         .cols = init_cols,
         .rows = init_rows,
-        .max_scrollback = @intCast(clampI32(max_scrollback, 0, 10000)),
+        .max_scrollback_lines = @intCast(clampI32(max_scrollback, 0, 10000)),
         .kitty_image_storage_limit = 64 * 1024 * 1024,
         .kitty_image_loading_limits = .{
             .file = false,
-            .temporary_file = true,
+            .temporary_file = .disabled,
             .shared_memory = true,
         },
     }) catch return 0;
@@ -495,18 +507,25 @@ export fn chuchu_create_terminal(cols: c.jint, rows: c.jint, max_scrollback: c.j
     handler.effects = .{
         .write_pty = chuchuWritePty,
         .bell = chuchuBell,
+        .desktop_notification = null,
         .color_scheme = chuchuColorScheme,
         .device_attributes = chuchuDeviceAttributes,
         .enquiry = null,
         .size = chuchuSize,
         .title_changed = chuchuTitleChanged,
+        .pwd_changed = chuchuPwdChanged,
+        .progress_report = null,
+        .clipboard_write = null,
         .xtversion = chuchuXtversion,
     };
     terminal.stream_handler = .{
         .owner = terminal,
         .inner = handler,
     };
-    terminal.stream = ChuchuTerminalStream.initAlloc(allocator, &terminal.stream_handler);
+    terminal.stream = ChuchuTerminalStream.init(.{
+        .handler = &terminal.stream_handler,
+        .allocator = allocator,
+    });
     enableGraphemeClusterMode(terminal);
 
     update_render_state(terminal);
@@ -653,8 +672,8 @@ export fn Java_dev_hridaya_kubenexus_core_terminal_GhosttyBridge_nativeSetMouseE
 export fn Java_dev_hridaya_kubenexus_core_terminal_GhosttyBridge_nativeEncodeKey(env: *c.JNIEnv, thiz: c.jobject, handle: c.jlong, key: c.jint, codepoint: c.jint, mods: c.jint, action: c.jint, utf8_jstring: c.jstring) callconv(.c) c.jbyteArray {
     _ = thiz;
     const terminal = chuchuFromHandle(handle) orelse return jniEmptyByteArray(env);
-    const action_value: ghostty.input.KeyAction = std.meta.intToEnum(ghostty.input.KeyAction, action) catch return jniEmptyByteArray(env);
-    const key_value: ghostty.input.Key = std.meta.intToEnum(ghostty.input.Key, key) catch return jniEmptyByteArray(env);
+    const action_value: ghostty.input.KeyAction = std.enums.fromInt(ghostty.input.KeyAction, action) orelse return jniEmptyByteArray(env);
+    const key_value: ghostty.input.Key = std.enums.fromInt(ghostty.input.Key, key) orelse return jniEmptyByteArray(env);
 
     // Convert Java string to Zig slice for Ghostty's utf8 field.
     // For printable characters this allows the legacy encoding path to emit
@@ -859,9 +878,9 @@ export fn chuchu_build_text_snapshot(handle: c.jlong, out_size: [*c]usize) callc
     const terminal = chuchuFromHandle(handle) orelse return null;
     if (out_size == null) return null;
 
-    const t_start = std.time.nanoTimestamp();
+    const t_start = getNanoTimestamp();
     update_render_state(terminal);
-    const t_after_update = std.time.nanoTimestamp();
+    const t_after_update = getNanoTimestamp();
 
     const cols: usize = terminal.render_state.cols;
     const rows: usize = terminal.render_state.rows;
@@ -968,7 +987,7 @@ export fn chuchu_build_text_snapshot(handle: c.jlong, out_size: [*c]usize) callc
     if (extras_records == 0) {
         out_size.* = base_total_size;
 
-        const t_end = std.time.nanoTimestamp();
+        const t_end = getNanoTimestamp();
         maybeLogSnapshotPerf(
             terminal,
             cols,
@@ -1009,7 +1028,7 @@ export fn chuchu_build_text_snapshot(handle: c.jlong, out_size: [*c]usize) callc
 
     out_size.* = total_size;
 
-    const t_end = std.time.nanoTimestamp();
+    const t_end = getNanoTimestamp();
     maybeLogSnapshotPerf(
         terminal,
         cols,
@@ -1275,7 +1294,7 @@ export fn chuchu_resize(handle: c.jlong, cols: c.jint, rows: c.jint, cell_width:
     const terminal = chuchuFromHandle(handle) orelse return;
     const new_cols: u16 = @intCast(clampI32(cols, 1, terminal.cols));
     const new_rows: u16 = @intCast(clampI32(rows, 1, terminal.rows));
-    terminal.terminal.resize(allocator, new_cols, new_rows) catch return;
+    terminal.terminal.resize(allocator, .{ .cols = new_cols, .rows = new_rows }) catch return;
     terminal.cols = new_cols;
     terminal.rows = new_rows;
     terminal.cell_width = @intCast(clampI32(cell_width, 1, 1));
@@ -1374,8 +1393,11 @@ export fn chuchu_scroll_to_active(handle: c.jlong) callconv(.c) void {
 }
 
 const default_word_boundaries: [20]u21 = .{
-    0,   ' ', '\t', '\'', '"', '│', '`', '|', ':', ';', ',',
-    '(', ')', '[',  ']',  '{', '}',   '<', '>', '$',
+    0,   ' ', '\t', '\'', '"',
+    '│',
+    '`', '|', ':',  ';',  ',',
+    '(', ')', '[',  ']',  '{',
+    '}', '<', '>',  '$',
 };
 
 fn viewportCellToPin(terminal: *ChuchuTerminal, vp_x: u32, vp_y: u32) ?ghostty.Pin {

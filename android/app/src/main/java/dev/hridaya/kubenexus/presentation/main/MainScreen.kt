@@ -3,8 +3,11 @@ package dev.hridaya.kubenexus.presentation.main
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.presentation.explore.ExploreRoute
@@ -24,7 +26,6 @@ import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.home.ManageClustersScreen
 import dev.hridaya.kubenexus.presentation.logcat.LogcatRoute
 import dev.hridaya.kubenexus.presentation.logcat.LogcatViewModel
-import dev.hridaya.kubenexus.presentation.navigation.AppNavigationBar
 import dev.hridaya.kubenexus.presentation.navigation.Destination
 import dev.hridaya.kubenexus.presentation.pods.PodsScreen
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailRoute
@@ -121,23 +122,38 @@ fun MainScreen(
         }
 
         else -> {
-            Scaffold(
-                modifier = modifier.fillMaxSize(),
-                containerColor = Color.Transparent,
-                bottomBar = {
-                    AppNavigationBar(
-                        destinations = Destination.topLevelDestinations,
-                        currentDestination = currentDestination,
-                        onDestinationSelected = { destination ->
-                            currentDestination = destination
-                        },
-                    )
+            NavigationSuiteScaffold(
+                navigationSuiteItems = {
+                    Destination.topLevelDestinations.forEach { destination ->
+                        item(
+                            selected = currentDestination == destination,
+                            onClick = { currentDestination = destination },
+                            icon = {
+                                BadgedBox(
+                                    badge = {
+                                        destination.badgeCount?.let { count ->
+                                            Badge {
+                                                Text(text = "$count")
+                                            }
+                                        }
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = if (currentDestination == destination) destination.selectedIcon else destination.unselectedIcon,
+                                        contentDescription = destination.title,
+                                    )
+                                }
+                            },
+                            label = {
+                                Text(text = destination.title)
+                            },
+                        )
+                    }
                 },
-            ) { innerPadding ->
+                modifier = modifier.fillMaxSize(),
+            ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = innerPadding.calculateBottomPadding()),
+                    modifier = Modifier.fillMaxSize(),
                 ) {
                     when (currentDestination) {
                         Destination.Home -> {
@@ -172,20 +188,26 @@ fun MainScreen(
 @Composable
 private fun MainScreenNavigationPreview() {
     KubeNexusTheme {
-        Scaffold(
-            bottomBar = {
-                AppNavigationBar(
-                    destinations = Destination.topLevelDestinations,
-                    currentDestination = Destination.Home,
-                    onDestinationSelected = {},
-                )
+        NavigationSuiteScaffold(
+            navigationSuiteItems = {
+                Destination.topLevelDestinations.forEach { destination ->
+                    item(
+                        selected = destination == Destination.Home,
+                        onClick = {},
+                        icon = {
+                            Icon(
+                                imageVector = destination.selectedIcon,
+                                contentDescription = destination.title,
+                            )
+                        },
+                        label = {
+                            Text(text = destination.title)
+                        },
+                    )
+                }
             },
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-            )
+        ) {
+            Box(modifier = Modifier.fillMaxSize())
         }
     }
 }

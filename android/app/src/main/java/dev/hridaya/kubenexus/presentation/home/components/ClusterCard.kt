@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,11 +56,8 @@ fun ClusterCard(
     modifier: Modifier = Modifier,
 ) {
     val isCurrentActive = cluster.isActive
-    val statusColor = when (cluster.status) {
-        ClusterStatus.CONNECTED -> Color(0xFF4CAF50)
-        ClusterStatus.ERROR -> MaterialTheme.colorScheme.error
-        ClusterStatus.DISCONNECTED -> MaterialTheme.colorScheme.outline
-    }
+    val statusColors = LocalStatusColors.current
+    val statusColor = statusColors.forClusterStatus(cluster.status)
 
     val cardBorder = if (isCurrentActive) {
         BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
@@ -69,7 +67,7 @@ fun ClusterCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = if (isCurrentActive) {
@@ -132,7 +130,7 @@ fun ClusterCard(
                 if (isCurrentActive) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(MaterialTheme.shapes.small)
                             .background(MaterialTheme.colorScheme.primary)
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                     ) {
@@ -159,7 +157,7 @@ fun ClusterCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f))
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -174,7 +172,7 @@ fun ClusterCard(
                 Text(
                     text = cluster.serverUrl,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -210,7 +208,7 @@ fun ClusterCard(
                     OutlinedButton(
                         onClick = onSelect,
                         enabled = !isConnecting,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.small,
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.PowerSettingsNew,

@@ -548,7 +548,7 @@ private fun APIResourceCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
@@ -637,7 +637,7 @@ private fun APIResourceCard(
                 ) {
                     resource.verbs.forEach { verb ->
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ) {
@@ -815,7 +815,7 @@ private fun ExploreExplainDetailView(
                         // Resource Overview Card with VERSION beneath KIND
                         item {
                             Card(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 ),
@@ -919,7 +919,7 @@ private fun ExploreExplainDetailView(
                                 },
                                 singleLine = true,
                                 maxLines = 1,
-                                shape = RoundedCornerShape(10.dp),
+                                shape = MaterialTheme.shapes.small,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
@@ -969,7 +969,7 @@ private fun ResourceFieldCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.small,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),

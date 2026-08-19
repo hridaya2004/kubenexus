@@ -32,15 +32,17 @@ import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.scaleOnPress
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
 
 @Composable
 fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val statusColors = LocalStatusColors.current
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.medium)
             .scaleOnPress(targetScale = 0.97f, onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
@@ -59,13 +61,7 @@ fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f),
                 ) {
-                    val dotColor = when (pod.status) {
-                        PodStatus.RUNNING -> Color(0xFF22C55E)
-                        PodStatus.PENDING -> Color(0xFFEAB308)
-                        PodStatus.COMPLETED -> Color(0xFF3B82F6)
-                        PodStatus.FAILED, PodStatus.CRASH_LOOP -> MaterialTheme.colorScheme.error
-                        PodStatus.UNKNOWN -> MaterialTheme.colorScheme.outline
-                    }
+                    val dotColor = statusColors.forPodStatus(pod.status)
 
                     Box(
                         modifier = Modifier
@@ -88,7 +84,7 @@ fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {

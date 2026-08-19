@@ -90,7 +90,7 @@ fun ErrorDialog(
                         .heightIn(min = 80.dp, max = 220.dp)
                         .background(
                             color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.small,
                         )
                         .padding(10.dp)
                         .verticalScroll(verticalScrollState)

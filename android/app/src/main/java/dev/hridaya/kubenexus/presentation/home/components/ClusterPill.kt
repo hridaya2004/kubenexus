@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
 
 @Composable
 fun ClusterPill(
@@ -69,12 +70,8 @@ fun ClusterPill(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
         ) {
-            val dotColor = when (connectionStatus) {
-                ClusterConnectionStatus.CONNECTED -> Color(0xFF22C55E) // Green
-                ClusterConnectionStatus.CONNECTING -> Color(0xFFEAB308) // Yellow
-                ClusterConnectionStatus.DISCONNECTED -> Color(0xFFEF4444) // Red
-                ClusterConnectionStatus.OFFLINE -> Color(0xFF9CA3AF) // Greyed out
-            }
+            val statusColors = LocalStatusColors.current
+            val dotColor = statusColors.forConnectionStatus(connectionStatus)
 
             val dotAlpha =
                 if (connectionStatus == ClusterConnectionStatus.CONNECTING) alphaAnim else 1f

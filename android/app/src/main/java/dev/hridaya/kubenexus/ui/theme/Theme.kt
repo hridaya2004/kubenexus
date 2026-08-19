@@ -8,6 +8,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,7 @@ val LocalOnAmoledDarkChange = compositionLocalOf<(Boolean) -> Unit> { {} }
 fun KubeNexusTheme(
     themeMode: ThemeMode = LocalThemeMode.current,
     amoledDark: Boolean = LocalAmoledDark.current,
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val systemInDark = isSystemInDarkTheme()
@@ -42,10 +44,17 @@ fun KubeNexusTheme(
     }
     val context = LocalContext.current
 
-    val dynamicLight = remember(context) { dynamicLightColorScheme(context) }
-    val dynamicDark = remember(context) { dynamicDarkColorScheme(context) }
-
-    val baseColorScheme = if (isDark) dynamicDark else dynamicLight
+    val baseColorScheme = remember(isDark, dynamicColor, context) {
+        if (dynamicColor) {
+            try {
+                if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            } catch (_: Exception) {
+                if (isDark) DarkColorScheme else LightColorScheme
+            }
+        } else {
+            if (isDark) DarkColorScheme else LightColorScheme
+        }
+    }
 
     val colorScheme = remember(isDark, amoledDark, baseColorScheme) {
         if (isDark && amoledDark) {
@@ -64,6 +73,10 @@ fun KubeNexusTheme(
         }
     }
 
+    val statusColors = remember(isDark) {
+        if (isDark) DarkStatusColors else LightStatusColors
+    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         LaunchedEffect(isDark) {
@@ -76,15 +89,17 @@ fun KubeNexusTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        shapes = Shapes,
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background,
-            content = content,
-        )
+    CompositionLocalProvider(LocalStatusColors provides statusColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = Shapes,
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background,
+                content = content,
+            )
+        }
     }
 }

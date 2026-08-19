@@ -117,7 +117,7 @@ fun AddClusterBottomSheet(
                 onClick = { filePickerLauncher.launch("*/*") },
                 enabled = !isConnecting,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
             ) {
                 Icon(
                     imageVector = Icons.Outlined.FileUpload,
@@ -137,7 +137,7 @@ fun AddClusterBottomSheet(
                 placeholder = { Text("e.g. Production US-East") },
                 singleLine = true,
                 enabled = !isConnecting,
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -171,7 +171,7 @@ fun AddClusterBottomSheet(
                 minLines = 7,
                 maxLines = 14,
                 enabled = !isConnecting,
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -183,7 +183,7 @@ fun AddClusterBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
             ) {
                 if (isConnecting) {
                     CircularProgressIndicator(

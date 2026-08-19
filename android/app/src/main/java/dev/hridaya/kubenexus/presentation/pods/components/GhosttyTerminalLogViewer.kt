@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SmallFloatingActionButton
@@ -125,11 +126,11 @@ fun GhosttyTerminalLogViewer(
 
     Surface(
         color = TerminalBg,
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.small,
         modifier = modifier
             .fillMaxSize()
-            .border(1.dp, TerminalBorder, RoundedCornerShape(10.dp))
-            .clip(RoundedCornerShape(10.dp)),
+            .border(1.dp, TerminalBorder, MaterialTheme.shapes.small)
+            .clip(MaterialTheme.shapes.small),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Minimal header bar

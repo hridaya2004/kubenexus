@@ -255,12 +255,12 @@ fun GhosttyTerminalView(
         // Pure pitch black terminal box
         Surface(
             color = GhosttyBg,
-            shape = RoundedCornerShape(10.dp),
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .border(1.dp, GhosttyBorder, RoundedCornerShape(10.dp))
-                .clip(RoundedCornerShape(10.dp)),
+                .border(1.dp, GhosttyBorder, MaterialTheme.shapes.small)
+                .clip(MaterialTheme.shapes.small),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header bar
@@ -502,66 +502,65 @@ fun GhosttyTerminalView(
                         )
 
                         // Floating Selection Action Bar
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = terminalSelection != null,
-                            enter = fadeIn() + slideInVertically(),
-                            exit = fadeOut() + slideOutVertically(),
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(8.dp),
-                        ) {
-                            Surface(
-                                color = GhosttyKeyBg,
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
+                        if (terminalSelection != null) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(8.dp),
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                Surface(
+                                    color = GhosttyKeyBg,
+                                    shape = MaterialTheme.shapes.small,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
                                 ) {
-                                    Text(
-                                        text = "Text Selected",
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp,
-                                        color = Color.White,
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    IconButton(
-                                        onClick = {
-                                            val snap = snapshot
-                                            if (snap != null) {
-                                                val sel = terminalSelection?.normalized(snap.cols * snap.rows)
-                                                if (sel != null) {
-                                                    val text = extractSelectionText(snap, sel)
-                                                    if (!text.isNullOrBlank()) {
-                                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                        clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Selection", text))
-                                                        Toast.makeText(context, "Selection copied", Toast.LENGTH_SHORT).show()
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    ) {
+                                        Text(
+                                            text = "Text Selected",
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 11.sp,
+                                            color = Color.White,
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        IconButton(
+                                            onClick = {
+                                                val snap = snapshot
+                                                if (snap != null) {
+                                                    val sel = terminalSelection?.normalized(snap.cols * snap.rows)
+                                                    if (sel != null) {
+                                                        val text = extractSelectionText(snap, sel)
+                                                        if (!text.isNullOrBlank()) {
+                                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                            clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Selection", text))
+                                                            Toast.makeText(context, "Selection copied", Toast.LENGTH_SHORT).show()
+                                                        }
                                                     }
                                                 }
-                                            }
-                                            terminalSelection = null
-                                        },
-                                        modifier = Modifier.size(24.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.ContentCopy,
-                                            contentDescription = "Copy Selection",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    IconButton(
-                                        onClick = { terminalSelection = null },
-                                        modifier = Modifier.size(24.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Close,
-                                            contentDescription = "Close",
-                                            tint = GhosttyGutter,
-                                            modifier = Modifier.size(14.dp),
-                                        )
+                                                terminalSelection = null
+                                            },
+                                            modifier = Modifier.size(24.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.ContentCopy,
+                                                contentDescription = "Copy Selection",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        IconButton(
+                                            onClick = { terminalSelection = null },
+                                            modifier = Modifier.size(24.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Close,
+                                                contentDescription = "Close",
+                                                tint = GhosttyGutter,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -570,7 +569,7 @@ fun GhosttyTerminalView(
                         if (!uiState.isTerminalActive) {
                             Surface(
                                 color = Color.Black.copy(alpha = 0.85f),
-                                shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
+                                shape = MaterialTheme.shapes.small,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Row(
@@ -605,8 +604,8 @@ fun GhosttyTerminalView(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(GhosttyBg, RoundedCornerShape(8.dp))
-                    .border(1.dp, GhosttyBorder, RoundedCornerShape(8.dp))
+                    .background(GhosttyBg, MaterialTheme.shapes.small)
+                    .border(1.dp, GhosttyBorder, MaterialTheme.shapes.small)
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Text(
@@ -777,7 +776,7 @@ private fun TerminalKeyButton(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(6.dp),
+        shape = MaterialTheme.shapes.extraSmall,
         color = if (isActive) Color.White else GhosttyKeyBg,
         border = androidx.compose.foundation.BorderStroke(1.dp, if (isActive) Color.White else GhosttyKeyBorder),
         modifier = Modifier.height(32.dp),

@@ -188,7 +188,7 @@ private fun ManageClusterCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (cluster.isActive) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
@@ -277,7 +277,7 @@ private fun ManageClusterCard(
                 if (!cluster.isActive) {
                     FilledTonalButton(
                         onClick = onSelectActive,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(
@@ -291,7 +291,7 @@ private fun ManageClusterCard(
                 } else {
                     OutlinedButton(
                         onClick = onTestConnection,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(

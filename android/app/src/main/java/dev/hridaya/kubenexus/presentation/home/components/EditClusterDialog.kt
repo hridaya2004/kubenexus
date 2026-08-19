@@ -52,7 +52,7 @@ fun EditClusterDialog(
                     onValueChange = { nameInput = it },
                     label = { Text("Cluster Alias") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

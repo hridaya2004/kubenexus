@@ -135,12 +135,12 @@ private fun ActionMenuItem(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp)),
+            .clip(MaterialTheme.shapes.medium),
     ) {
         Row(
             modifier = Modifier

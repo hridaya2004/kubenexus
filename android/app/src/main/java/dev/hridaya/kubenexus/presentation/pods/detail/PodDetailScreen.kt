@@ -100,6 +100,7 @@ import dev.hridaya.kubenexus.presentation.pods.components.GhosttyTerminalLogView
 import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalEngine
 import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalView
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
 
 @Composable
 fun PodDetailRoute(
@@ -362,6 +363,8 @@ private fun DescribeTabContent(
         return
     }
 
+    val statusColors = LocalStatusColors.current
+
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -369,7 +372,7 @@ private fun DescribeTabContent(
     ) {
         item {
             ElevatedCard(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
@@ -387,13 +390,7 @@ private fun DescribeTabContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            val dotColor = when (details.status) {
-                                PodStatus.RUNNING -> Color(0xFF22C55E)
-                                PodStatus.COMPLETED -> Color(0xFF3B82F6)
-                                PodStatus.PENDING -> Color(0xFFEAB308)
-                                PodStatus.FAILED, PodStatus.CRASH_LOOP -> MaterialTheme.colorScheme.error
-                                PodStatus.UNKNOWN -> MaterialTheme.colorScheme.outline
-                            }
+                            val dotColor = statusColors.forPodStatus(details.status)
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
@@ -478,7 +475,7 @@ private fun DescribeTabContent(
 
             item {
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -521,7 +518,7 @@ private fun DescribeTabContent(
 
             item {
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -566,7 +563,7 @@ private fun DescribeTabContent(
 
             item {
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -609,7 +606,7 @@ private fun DescribeTabContent(
                     1.dp,
                     MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
                 ),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -757,7 +754,7 @@ private fun ContainerCard(
         isOnline && (container.ready || container.state.equals("Running", ignoreCase = true))
 
     ElevatedCard(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
@@ -779,7 +776,7 @@ private fun ContainerCard(
                     if (isInitContainer) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             color = MaterialTheme.colorScheme.secondaryContainer,
                         ) {
                             Text(
@@ -793,7 +790,7 @@ private fun ContainerCard(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.small,
                     color = if (container.ready) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
                 ) {
                     Text(
@@ -833,7 +830,7 @@ private fun ContainerCard(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Logs", fontSize = 12.sp)
+                    Text("Logs", style = MaterialTheme.typography.labelMedium)
                 }
 
                 Button(
@@ -847,7 +844,7 @@ private fun ContainerCard(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isAttachable) "Terminal" else "Detached", fontSize = 12.sp)
+                    Text(if (isAttachable) "Terminal" else "Detached", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -856,6 +853,7 @@ private fun ContainerCard(
 
 @Composable
 private fun ConditionRow(condition: PodConditionDetail) {
+    val statusColors = LocalStatusColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -880,7 +878,7 @@ private fun ConditionRow(condition: PodConditionDetail) {
         Icon(
             imageVector = if (isTrue) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
             contentDescription = condition.status,
-            tint = if (isTrue) Color(0xFF22C55E) else MaterialTheme.colorScheme.error,
+            tint = if (isTrue) statusColors.connected else MaterialTheme.colorScheme.error,
             modifier = Modifier.size(18.dp),
         )
     }
@@ -888,8 +886,9 @@ private fun ConditionRow(condition: PodConditionDetail) {
 
 @Composable
 private fun EventCard(event: PodEventDetail) {
+    val statusColors = LocalStatusColors.current
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = MaterialTheme.shapes.small,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -905,7 +904,7 @@ private fun EventCard(event: PodEventDetail) {
                         ignoreCase = true,
                     )
                 ) {
-                    Color(0xFFD29922)
+                    statusColors.connecting
                 } else {
                     MaterialTheme.colorScheme.primary
                 },

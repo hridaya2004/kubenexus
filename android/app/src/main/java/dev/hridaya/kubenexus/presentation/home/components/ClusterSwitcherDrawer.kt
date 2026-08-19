@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,7 +133,7 @@ fun ClusterSwitcherDrawer(
                                     }
                                     onDismiss()
                                 },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = MaterialTheme.shapes.medium,
                             colors = CardDefaults.cardColors(containerColor = cardBg),
                         ) {
                             Row(
@@ -141,13 +142,11 @@ fun ClusterSwitcherDrawer(
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                val statusColors = LocalStatusColors.current
                                 val dotColor = when {
-                                    cluster.isActive && cluster.status == ClusterStatus.CONNECTED -> Color(
-                                        0xFF22C55E,
-                                    )
-
+                                    cluster.isActive && cluster.status == ClusterStatus.CONNECTED -> statusColors.connected
                                     cluster.status == ClusterStatus.ERROR -> MaterialTheme.colorScheme.error
-                                    cluster.isActive -> Color(0xFFEAB308)
+                                    cluster.isActive -> statusColors.connecting
                                     else -> MaterialTheme.colorScheme.outline
                                 }
 

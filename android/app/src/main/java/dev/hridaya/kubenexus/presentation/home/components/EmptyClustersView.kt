@@ -79,7 +79,6 @@ fun EmptyClustersView(modifier: Modifier = Modifier, onAddClusterClick: (() -> U
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = onAddClusterClick,
-                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Add,

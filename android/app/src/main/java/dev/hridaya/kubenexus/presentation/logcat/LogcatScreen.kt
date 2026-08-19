@@ -348,7 +348,7 @@ fun LogcatScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.small,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = GhosttyText,
                             unfocusedTextColor = GhosttyText,
@@ -606,7 +606,7 @@ private fun LogcatEntryRow(
 
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(2.dp))
+                .clip(MaterialTheme.shapes.extraSmall)
                 .background(levelColor.copy(alpha = 0.2f))
                 .padding(horizontal = 3.dp, vertical = 0.5.dp),
         ) {

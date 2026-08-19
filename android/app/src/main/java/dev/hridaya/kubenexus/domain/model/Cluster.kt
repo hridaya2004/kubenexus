@@ -27,4 +27,7 @@ data class ParsedKubeconfig(
     val userName: String,
     val namespace: String,
     val rawKubeconfig: String,
+    val certificateAuthorityData: String? = null,
+    val insecureSkipTlsVerify: Boolean = false,
 )
+

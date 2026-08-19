@@ -13,10 +13,13 @@ object KubeconfigParser {
         require(trimmed.isNotBlank()) { "Kubeconfig content cannot be empty." }
 
         val currentContext = extractValue(trimmed, "current-context")
-        val serverUrl = extractServerUrl(trimmed)
         val clusterName = extractClusterName(trimmed, currentContext)
+        val clusterBlock = extractClusterBlock(trimmed, clusterName)
+        val serverUrl = extractServerUrl(clusterBlock, trimmed)
         val userName = extractUserName(trimmed, currentContext)
         val namespace = extractNamespace(trimmed, currentContext) ?: "default"
+        val caData = extractCertificateAuthorityData(clusterBlock, trimmed)
+        val insecureSkip = extractInsecureSkipTlsVerify(clusterBlock, trimmed)
 
         require(serverUrl.isNotBlank()) {
             "No Kubernetes API server URL found in kubeconfig. Please verify the 'clusters.cluster.server' field."
@@ -24,8 +27,8 @@ object KubeconfigParser {
 
         val finalClusterName = when {
             !customName.isNullOrBlank() -> customName.trim()
-            currentContext.isNotBlank() -> currentContext
             clusterName.isNotBlank() -> clusterName
+            currentContext.isNotBlank() -> currentContext
             else -> "k8s-cluster"
         }
 
@@ -36,6 +39,8 @@ object KubeconfigParser {
             userName = userName,
             namespace = namespace,
             rawKubeconfig = trimmed,
+            certificateAuthorityData = caData,
+            insecureSkipTlsVerify = insecureSkip,
         )
     }
 
@@ -46,11 +51,72 @@ object KubeconfigParser {
         return match?.groupValues?.get(1)?.trim().orEmpty()
     }
 
-    private fun extractServerUrl(content: String): String {
-        val regex =
+    private fun extractClusterBlock(content: String, clusterName: String): String? {
+        if (clusterName.isNotBlank()) {
+            // Pattern 1: - cluster: ... name: clusterName
+            val p1 = Regex(
+                """-[ \t]*cluster:\s*([\s\S]*?)name:\s*["']?${Regex.escape(clusterName)}["']?""",
+                RegexOption.IGNORE_CASE,
+            )
+            val m1 = p1.find(content)
+            if (m1 != null) {
+                return m1.groupValues[1]
+            }
+
+            // Pattern 2: - name: clusterName ... cluster: ...
+            val p2 = Regex(
+                """-[ \t]*name:\s*["']?${Regex.escape(clusterName)}["']?[\s\S]*?cluster:\s*([\s\S]*?)(?=\n[ \t]*-[ \t]*|\n[a-zA-Z0-9_-]+:|\Z)""",
+                RegexOption.IGNORE_CASE,
+            )
+            val m2 = p2.find(content)
+            if (m2 != null) {
+                return m2.groupValues[1]
+            }
+        }
+        return null
+    }
+
+    private fun extractServerUrl(clusterBlock: String?, content: String): String {
+        val serverRegex =
             Regex("""(?:^|\n)\s*server\s*:\s*["']?([^"'\r\n#\s]+)["']?""", RegexOption.IGNORE_CASE)
-        val match = regex.find(content)
+        if (clusterBlock != null) {
+            val match = serverRegex.find(clusterBlock)
+            if (match != null) return match.groupValues[1].trim()
+        }
+        val match = serverRegex.find(content)
         return match?.groupValues?.get(1)?.trim().orEmpty()
+    }
+
+    private fun extractCertificateAuthorityData(clusterBlock: String?, content: String): String? {
+        val caRegex = Regex(
+            """certificate-authority-data\s*:\s*["']?([^"'\r\n#\s]+)["']?""",
+            RegexOption.IGNORE_CASE,
+        )
+        if (clusterBlock != null) {
+            val match = caRegex.find(clusterBlock)
+            if (match != null) {
+                val data = match.groupValues[1].trim()
+                if (data.isNotBlank()) return data
+            }
+        }
+        val match = caRegex.find(content)
+        val data = match?.groupValues?.get(1)?.trim().orEmpty()
+        return data.ifBlank { null }
+    }
+
+    private fun extractInsecureSkipTlsVerify(clusterBlock: String?, content: String): Boolean {
+        val insecureRegex = Regex(
+            """insecure-skip-tls-verify\s*:\s*["']?(true|false)["']?""",
+            RegexOption.IGNORE_CASE,
+        )
+        if (clusterBlock != null) {
+            val match = insecureRegex.find(clusterBlock)
+            if (match != null) {
+                return match.groupValues[1].trim().equals("true", ignoreCase = true)
+            }
+        }
+        val match = insecureRegex.find(content)
+        return match?.groupValues?.get(1)?.trim()?.equals("true", ignoreCase = true) ?: false
     }
 
     private fun extractClusterName(content: String, currentContext: String): String {

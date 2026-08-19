@@ -70,7 +70,16 @@ fn buildNativeLibrary(
         .simd = false,
     });
 
-    const ndk_root = b.graph.env_map.get("ANDROID_NDK_HOME") orelse b.graph.env_map.get("ANDROID_NDK_ROOT") orelse "/home/hridaya/Android/Sdk/ndk/27.0.12077973";
+    const ndk_root = b.graph.env_map.get("ANDROID_NDK_HOME") orelse
+        b.graph.env_map.get("ANDROID_NDK_ROOT") orelse blk: {
+        if (b.graph.env_map.get("ANDROID_HOME") orelse b.graph.env_map.get("ANDROID_SDK_ROOT")) |sdk| {
+            break :blk b.pathJoin(&.{ sdk, "ndk", "27.0.12077973" });
+        }
+        if (b.graph.env_map.get("HOME")) |home| {
+            break :blk b.pathJoin(&.{ home, "Android", "Sdk", "ndk", "27.0.12077973" });
+        }
+        std.debug.panic("ANDROID_NDK_HOME or ANDROID_NDK_ROOT must be set", .{});
+    };
     const ndk_home = resolveNdkHome(b, ndk_root);
 
     const android_target = ndk.getAndroidTriple(target.result) catch {

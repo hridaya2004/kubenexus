@@ -1,0 +1,10 @@
+{
+  global:
+    Java_*;
+    kubenexus_*;
+    update_render_state;
+    shm_open;
+    shm_unlink;
+  local:
+    *;
+};

@@ -9,6 +9,13 @@ export ANDROID_NDK_ROOT ?= $(ANDROID_NDK_HOME)
 export ANDROID_HOME ?= $(HOME)/Android/Sdk
 export ANDROID_SDK_ROOT ?= $(ANDROID_HOME)
 
+# Module Commit SHAs
+export KUBENEXUS_APP_COMMIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+export KUBENEXUS_LIBGHOSTTY_COMMIT_SHA ?= $(shell grep -oP 'ghostty#[a-f0-9]+' $(TERMINAL_DIR)/build.zig.zon 2>/dev/null | cut -d'#' -f2 | cut -c1-7 || echo a746d0f)
+export KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA ?= $(shell git log -n 1 --format=%h -- $(TERMINAL_DIR) 2>/dev/null || echo unknown)
+export KUBENEXUS_GO_CORE_COMMIT_SHA ?= $(shell git log -n 1 --format=%h -- $(CORE_DIR) 2>/dev/null || echo unknown)
+export KUBENEXUS_CLIENT_GO_COMMIT_SHA ?= 44a8af2
+
 .DEFAULT_GOAL := help
 
 .PHONY: help go-core ghostty debug release build bundle lint fmt test clean install-debug go-clean go-test go-lint go-fmt ghostty-fmt

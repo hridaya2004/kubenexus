@@ -1,3 +1,5 @@
+import java.util.concurrent.TimeUnit
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -12,12 +14,57 @@ android {
 
     ndkVersion = "27.0.12077973"
 
+    val repoDir = project.rootDir.parentFile ?: project.rootDir
+
+    fun getGitCommitSha(path: String? = null): String {
+        return try {
+            val execOutput = providers.exec {
+                workingDir = repoDir
+                if (path != null) {
+                    commandLine("git", "log", "-n", "1", "--format=%h", "--", path)
+                } else {
+                    commandLine("git", "rev-parse", "--short", "HEAD")
+                }
+            }.standardOutput.asText.get().trim()
+            if (execOutput.isNotEmpty()) execOutput else "unknown"
+        } catch (e: Exception) {
+            "unknown"
+        }
+    }
+
+    fun extractGhosttyZonSha(): String {
+        return try {
+            val zonFile = File(repoDir, "terminal-native/build.zig.zon")
+            if (zonFile.exists()) {
+                val content = zonFile.readText()
+                val match = Regex("""github\.com/ghostty-org/ghostty#([a-f0-9]+)""").find(content)
+                match?.groupValues?.get(1)?.take(7) ?: "a746d0f"
+            } else {
+                "a746d0f"
+            }
+        } catch (e: Exception) {
+            "a746d0f"
+        }
+    }
+
+    val appCommitSha = System.getenv("KUBENEXUS_APP_COMMIT_SHA") ?: getGitCommitSha()
+    val libghosttyCommitSha = System.getenv("KUBENEXUS_LIBGHOSTTY_COMMIT_SHA") ?: extractGhosttyZonSha()
+    val ghosttyBridgeCommitSha = System.getenv("KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA") ?: getGitCommitSha("terminal-native")
+    val goCoreCommitSha = System.getenv("KUBENEXUS_GO_CORE_COMMIT_SHA") ?: getGitCommitSha("core")
+    val clientGoCommitSha = System.getenv("KUBENEXUS_CLIENT_GO_COMMIT_SHA") ?: "44a8af2"
+
     defaultConfig {
         applicationId = "dev.hridaya.kubenexus"
         minSdk = 35
         targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
+
+        buildConfigField("String", "APP_COMMIT_SHA", "\"$appCommitSha\"")
+        buildConfigField("String", "LIBGHOSTTY_COMMIT_SHA", "\"$libghosttyCommitSha\"")
+        buildConfigField("String", "GHOSTTY_BRIDGE_COMMIT_SHA", "\"$ghosttyBridgeCommitSha\"")
+        buildConfigField("String", "GO_CORE_COMMIT_SHA", "\"$goCoreCommitSha\"")
+        buildConfigField("String", "CLIENT_GO_COMMIT_SHA", "\"$clientGoCommitSha\"")
 
         ndk {
             abiFilters += listOf("arm64-v8a")

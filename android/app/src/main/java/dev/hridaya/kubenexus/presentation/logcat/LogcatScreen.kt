@@ -18,11 +18,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.WrapText
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Clear
@@ -73,11 +75,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -87,16 +92,27 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
+import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.launch
 
-private val LogVerboseColor = Color(0xFF9E9E9E)
-private val LogDebugColor = Color(0xFF42A5F5)
-private val LogInfoColor = Color(0xFF66BB6A)
-private val LogWarnColor = Color(0xFFFFA726)
-private val LogErrorColor = Color(0xFFEF5350)
-private val LogFatalColor = Color(0xFFAB47BC)
-private val LogTagColor = Color(0xFF26A69A)
-private val TerminalBackground = Color(0xFF0D1117)
+private val GhosttyBg = Color(0xFF000000)
+private val GhosttySurface = Color(0xFF000000)
+private val GhosttyText = Color(0xFFFFFFFF)
+private val GhosttyGutter = Color(0xFF777777)
+private val GhosttyGreen = Color(0xFF3FB950)
+private val GhosttyYellow = Color(0xFFD29922)
+private val GhosttyRed = Color(0xFFF85149)
+private val GhosttyCyan = Color(0xFF58A6FF)
+private val GhosttyPurple = Color(0xFFBC8CFF)
+private val GhosttyBorderHighlight = Color(0xFF222222)
+
+private val LogVerboseColor = Color(0xFF888888)
+private val LogDebugColor = Color(0xFF58A6FF)
+private val LogInfoColor = Color(0xFF3FB950)
+private val LogWarnColor = Color(0xFFD29922)
+private val LogErrorColor = Color(0xFFF85149)
+private val LogFatalColor = Color(0xFFBC8CFF)
+private val LogTagColor = Color(0xFFE0E0E0)
 
 @Composable
 fun LogcatRoute(
@@ -157,6 +173,7 @@ fun LogcatScreen(
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
+    var wrapLines by remember { mutableStateOf(true) }
 
     LaunchedEffect(uiState.filteredLogs.size, uiState.autoScroll) {
         if (uiState.autoScroll && uiState.filteredLogs.isNotEmpty()) {
@@ -166,21 +183,40 @@ fun LogcatScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = GhosttyBg,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(GhosttySurface),
+            ) {
                 TopAppBar(
                     title = {
                         Column {
-                            Text(
-                                text = "Logcat",
-                                style = MaterialTheme.typography.headlineSmall,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(
+                                            if (uiState.isPaused) GhosttyYellow else GhosttyGreen,
+                                            CircleShape,
+                                        ),
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (uiState.isPaused) "ghostty (logcat paused)" else "ghostty (logcat stream)",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GhosttyText,
+                                )
+                            }
                             Text(
                                 text = "dev.hridaya.kubenexus • ${uiState.filteredLogs.size} lines",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                color = GhosttyGutter,
                             )
                         }
                     },
@@ -189,6 +225,7 @@ fun LogcatScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = "Back",
+                                tint = GhosttyText,
                             )
                         }
                     },
@@ -197,6 +234,14 @@ fun LogcatScreen(
                             Icon(
                                 imageVector = if (uiState.isSearchExpanded) Icons.Outlined.Close else Icons.Outlined.Search,
                                 contentDescription = "Search",
+                                tint = if (uiState.isSearchExpanded) GhosttyCyan else GhosttyText,
+                            )
+                        }
+                        IconButton(onClick = { wrapLines = !wrapLines }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.WrapText,
+                                contentDescription = "Wrap lines",
+                                tint = if (wrapLines) GhosttyGreen else GhosttyGutter,
                             )
                         }
                         IconButton(onClick = {
@@ -206,7 +251,7 @@ fun LogcatScreen(
                             Icon(
                                 imageVector = if (uiState.isPaused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
                                 contentDescription = if (uiState.isPaused) "Resume" else "Pause",
-                                tint = if (uiState.isPaused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                tint = if (uiState.isPaused) GhosttyYellow else GhosttyGreen,
                             )
                         }
                         IconButton(onClick = {
@@ -216,6 +261,7 @@ fun LogcatScreen(
                             Icon(
                                 imageVector = Icons.Outlined.DeleteOutline,
                                 contentDescription = "Clear Logs",
+                                tint = GhosttyText,
                             )
                         }
                         Box {
@@ -223,6 +269,7 @@ fun LogcatScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.MoreVert,
                                     contentDescription = "More Options",
+                                    tint = GhosttyText,
                                 )
                             }
                             DropdownMenu(
@@ -263,7 +310,7 @@ fun LogcatScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
+                        containerColor = GhosttySurface,
                     ),
                 )
 
@@ -275,15 +322,22 @@ fun LogcatScreen(
                     OutlinedTextField(
                         value = uiState.searchQuery,
                         onValueChange = { onAction(LogcatUiAction.UpdateSearchQuery(it)) },
-                        placeholder = { Text("Filter by tag, message, or keyword...") },
+                        placeholder = {
+                            Text(
+                                "Filter by tag, message, or keyword...",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                color = GhosttyGutter,
+                            )
+                        },
                         singleLine = true,
                         leadingIcon = {
-                            Icon(Icons.Outlined.Search, contentDescription = null)
+                            Icon(Icons.Outlined.Search, contentDescription = null, tint = GhosttyCyan)
                         },
                         trailingIcon = {
                             if (uiState.searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { onAction(LogcatUiAction.UpdateSearchQuery("")) }) {
-                                    Icon(Icons.Outlined.Clear, contentDescription = "Clear query")
+                                    Icon(Icons.Outlined.Clear, contentDescription = "Clear query", tint = GhosttyText)
                                 }
                             }
                         },
@@ -291,11 +345,15 @@ fun LogcatScreen(
                         keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            focusedTextColor = GhosttyText,
+                            unfocusedTextColor = GhosttyText,
+                            focusedBorderColor = GhosttyCyan,
+                            unfocusedBorderColor = GhosttyGutter,
+                            focusedContainerColor = GhosttyBg,
+                            unfocusedContainerColor = GhosttyBg,
                         ),
                     )
                 }
@@ -304,8 +362,8 @@ fun LogcatScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FilterChip(
@@ -314,8 +372,17 @@ fun LogcatScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onAction(LogcatUiAction.SelectLogLevel(null))
                         },
-                        label = { Text("All (${uiState.logs.size})") },
-                        colors = FilterChipDefaults.filterChipColors(),
+                        label = {
+                            Text(
+                                "All (${uiState.logs.size})",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = GhosttyBorderHighlight,
+                            selectedLabelColor = GhosttyText,
+                        ),
                     )
 
                     val levels = listOf(
@@ -335,44 +402,57 @@ fun LogcatScreen(
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onAction(LogcatUiAction.SelectLogLevel(if (uiState.selectedLogLevel == level) null else level))
                             },
-                            label = { Text("${level.code} ($count)") },
+                            label = {
+                                Text(
+                                    "${level.code} ($count)",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                )
+                            },
                             leadingIcon = {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(7.dp)
                                         .background(getLogLevelColor(level), CircleShape),
                                 )
                             },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = GhosttyBorderHighlight,
+                                selectedLabelColor = GhosttyText,
+                            ),
                         )
                     }
                 }
-                HorizontalDivider()
+                HorizontalDivider(color = GhosttySurface)
             }
         },
         bottomBar = {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 2.dp,
+                color = GhosttySurface,
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Auto-scroll",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            color = GhosttyText,
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Switch(
                             checked = uiState.autoScroll,
                             onCheckedChange = { onAction(LogcatUiAction.ToggleAutoScroll) },
-                            colors = SwitchDefaults.colors(),
-                            modifier = Modifier.size(36.dp),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = GhosttyGreen,
+                                checkedTrackColor = GhosttySurface,
+                            ),
+                            modifier = Modifier.size(width = 36.dp, height = 20.dp),
                         )
                     }
 
@@ -384,18 +464,17 @@ fun LogcatScreen(
                             onClick = {
                                 scope.launch {
                                     if (uiState.filteredLogs.isNotEmpty()) {
-                                        listState.animateScrollToItem(
-                                            0,
-                                        )
+                                        listState.animateScrollToItem(0)
                                     }
                                 }
                             },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(28.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.ArrowUpward,
                                 contentDescription = "Scroll to top",
-                                modifier = Modifier.size(18.dp),
+                                tint = GhosttyText,
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                         IconButton(
@@ -406,12 +485,13 @@ fun LogcatScreen(
                                     }
                                 }
                             },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(28.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.ArrowDownward,
                                 contentDescription = "Scroll to bottom",
-                                modifier = Modifier.size(18.dp),
+                                tint = GhosttyText,
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                     }
@@ -423,14 +503,14 @@ fun LogcatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(TerminalBackground),
+                .background(GhosttyBg),
         ) {
             if (uiState.isLoading && uiState.logs.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    CircularProgressIndicator(color = GhosttyCyan)
                 }
             } else if (uiState.filteredLogs.isEmpty()) {
                 Box(
@@ -443,29 +523,42 @@ fun LogcatScreen(
                         } else {
                             "No logcat entries available"
                         },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
                         fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        color = GhosttyGutter,
                     )
                 }
             } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    items(
-                        items = uiState.filteredLogs,
-                        key = { it.id },
-                    ) { entry ->
-                        LogcatEntryRow(
-                            entry = entry,
-                            onCopy = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onAction(LogcatUiAction.CopyLogEntry(entry))
-                            },
-                        )
+                val horizontalScrollState = rememberScrollState()
+                val listModifier = if (wrapLines) {
+                    Modifier.fillMaxSize()
+                } else {
+                    Modifier
+                        .fillMaxSize()
+                        .horizontalScroll(horizontalScrollState)
+                }
+
+                SelectionContainer(modifier = listModifier) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                    ) {
+                        itemsIndexed(
+                            items = uiState.filteredLogs,
+                            key = { _, item -> item.id },
+                        ) { index, entry ->
+                            LogcatEntryRow(
+                                index = index + 1,
+                                entry = entry,
+                                searchQuery = uiState.searchQuery,
+                                onCopy = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onAction(LogcatUiAction.CopyLogEntry(entry))
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -474,22 +567,36 @@ fun LogcatScreen(
 }
 
 @Composable
-private fun LogcatEntryRow(entry: LogcatEntry, onCopy: () -> Unit, modifier: Modifier = Modifier) {
+private fun LogcatEntryRow(
+    index: Int,
+    entry: LogcatEntry,
+    searchQuery: String,
+    onCopy: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val levelColor = getLogLevelColor(entry.level)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onCopy)
-            .padding(vertical = 2.dp),
+            .padding(vertical = 1.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        Text(
+            text = index.toString().padStart(4, ' '),
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            color = GhosttyGutter,
+            modifier = Modifier.width(32.dp),
+        )
+
         if (entry.timestamp.isNotBlank()) {
             Text(
                 text = entry.timestamp.takeLast(12),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
-                color = Color.Gray,
+                color = GhosttyGutter,
                 maxLines = 1,
                 modifier = Modifier.padding(end = 4.dp),
             )
@@ -497,13 +604,14 @@ private fun LogcatEntryRow(entry: LogcatEntry, onCopy: () -> Unit, modifier: Mod
 
         Box(
             modifier = Modifier
-                .background(levelColor.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
-                .padding(horizontal = 3.dp, vertical = 1.dp),
+                .clip(RoundedCornerShape(2.dp))
+                .background(levelColor.copy(alpha = 0.2f))
+                .padding(horizontal = 3.dp, vertical = 0.5.dp),
         ) {
             Text(
                 text = entry.level.code,
                 fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = levelColor,
             )
@@ -524,15 +632,44 @@ private fun LogcatEntryRow(entry: LogcatEntry, onCopy: () -> Unit, modifier: Mod
             )
         }
 
+        val annotatedMessage = remember(entry.message, searchQuery) {
+            buildAnnotatedMessage(entry.message, searchQuery)
+        }
+
         Text(
-            text = entry.message,
+            text = annotatedMessage,
             fontFamily = FontFamily.Monospace,
             fontSize = 11.sp,
-            color = Color(0xFFECEFF1),
+            color = GhosttyText,
             lineHeight = 15.sp,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f, fill = false),
         )
     }
+}
+
+private fun buildAnnotatedMessage(message: String, query: String): AnnotatedString {
+    if (query.isBlank()) return AnnotatedString(message)
+    val builder = AnnotatedString.Builder()
+    var lastIndex = 0
+    var index = message.indexOf(query, 0, ignoreCase = true)
+    while (index >= 0) {
+        builder.append(message.substring(lastIndex, index))
+        builder.pushStyle(
+            SpanStyle(
+                background = GhosttyYellow.copy(alpha = 0.35f),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+            ),
+        )
+        builder.append(message.substring(index, index + query.length))
+        builder.pop()
+        lastIndex = index + query.length
+        index = message.indexOf(query, lastIndex, ignoreCase = true)
+    }
+    if (lastIndex < message.length) {
+        builder.append(message.substring(lastIndex))
+    }
+    return builder.toAnnotatedString()
 }
 
 private fun getLogLevelColor(level: LogLevel): Color = when (level) {

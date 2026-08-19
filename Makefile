@@ -1,12 +1,17 @@
-# Makefile for KubeNexus
-
 ANDROID_DIR := android
 CORE_DIR := core
+TERMINAL_DIR := terminal-native
 GRADLEW := ./gradlew
+
+ANDROID_NDK_HOME ?= $(HOME)/Android/Sdk/ndk/27.0.12077973
+export ANDROID_NDK_HOME
+export ANDROID_NDK_ROOT ?= $(ANDROID_NDK_HOME)
+export ANDROID_HOME ?= $(HOME)/Android/Sdk
+export ANDROID_SDK_ROOT ?= $(ANDROID_HOME)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help aar debug release build bundle lint fmt test clean install-debug go-clean go-test go-lint go-fmt
+.PHONY: help go-core ghostty debug release build bundle lint fmt test clean install-debug go-clean go-test go-lint go-fmt ghostty-fmt
 
 help: ## Display this help message
 	@echo "KubeNexus Build & Development Commands"
@@ -17,10 +22,17 @@ help: ## Display this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-aar: ## Build kubenexus.aar from core Go source and copy to android libs
+go-core: ## Build kubenexus.aar from core Go source and copy to android libs
 	cd $(CORE_DIR) && $(MAKE) build-android
 	cp $(CORE_DIR)/kubenexus.aar $(ANDROID_DIR)/app/libs/kubenexus.aar
 	@echo "Updated $(ANDROID_DIR)/app/libs/kubenexus.aar"
+
+ghostty: ## Cross-compile libghostty_jni.so for Android (arm64-v8a) using Zig
+	cd $(TERMINAL_DIR) && zig build -Doptimize=ReleaseSmall jni
+	@echo "Built libghostty_jni.so in $(ANDROID_DIR)/app/src/main/jniLibs"
+
+ghostty-fmt: ## Format terminal native Zig source code
+	cd $(TERMINAL_DIR) && zig fmt build.zig src/
 
 go-clean: ## Clean core Go build artifacts and gomobile cache
 	cd $(CORE_DIR) && $(MAKE) clean
@@ -49,7 +61,7 @@ bundle: ## Build release Android App Bundle (AAB)
 lint: ## Run Android Lint checks
 	cd $(ANDROID_DIR) && $(GRADLEW) lint
 
-fmt: go-fmt ## Apply safe formatting and lint quickfixes across Go and Android
+fmt: go-fmt ghostty-fmt ## Apply formatting across Go, Zig, and Android
 	cd $(ANDROID_DIR) && $(GRADLEW) lintFix
 
 test: ## Run unit tests

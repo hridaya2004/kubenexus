@@ -229,6 +229,21 @@ class PodDetailViewModelTest {
             assertNotNull(viewModel.uiState.value.podDetails)
         }
 
+    @Test
+    fun `refreshDescribe when describe fails sets error and resets isRefreshing`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            fakePodRepository.describeError = "Connection refused: cannot reach cluster"
+            viewModel.onAction(PodDetailUiAction.RefreshDescribe)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertFalse(state.isRefreshing)
+            assertFalse(state.isLoading)
+            assertEquals("Connection refused: cannot reach cluster", state.errorMessage)
+        }
+
     private class FakeClusterRepository : ClusterRepository {
         private val activeCluster = Cluster(
             id = "c-1",
@@ -268,6 +283,8 @@ class PodDetailViewModelTest {
     }
 
     private class FakePodRepository : PodRepository {
+        var describeError: String? = null
+
         override fun getPodsStream(
             clusterId: String?,
             namespace: String?
@@ -287,6 +304,9 @@ class PodDetailViewModelTest {
             namespace: String,
             podName: String
         ): Result<PodDetails> {
+            describeError?.let {
+                return Result.Error(dev.hridaya.kubenexus.core.common.result.AppError.Network(it))
+            }
             val details = PodDetails(
                 name = podName,
                 namespace = namespace,

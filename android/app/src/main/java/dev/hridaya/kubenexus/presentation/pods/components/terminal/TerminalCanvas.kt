@@ -44,8 +44,8 @@ fun TerminalCanvas(
     snapshot: TerminalSnapshot?,
     modifier: Modifier = Modifier,
     fontSizeSp: Float = 13f,
-    cursorColor: Color = Color.White.copy(alpha = 0.4f),
-    selectionBackgroundColor: Color = Color(0x663B82F6),
+    cursorColor: Color = Color.White.copy(alpha = 0.5f),
+    selectionBackgroundColor: Color = Color(0xFF444444),
     selection: TerminalSelection? = null,
     onSelectionChange: (TerminalSelection?) -> Unit = {},
     terminalHandle: Long = 0,
@@ -62,6 +62,7 @@ fun TerminalCanvas(
     var lastResizedGrid by remember { mutableStateOf(Pair(0, 0)) }
     val androidViewConfiguration = remember(context) { ViewConfiguration.get(context) }
     val touchSlopPx = remember(androidViewConfiguration) { androidViewConfiguration.scaledTouchSlop.toFloat() }
+    val longPressTimeoutMs = remember(androidViewConfiguration) { ViewConfiguration.getLongPressTimeout().toLong() }
 
     val primaryTypeface = remember { Typeface.MONOSPACE }
     val boldTypeface = remember { Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
@@ -101,6 +102,8 @@ fun TerminalCanvas(
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnScroll by rememberUpdatedState(onScroll)
     val currentSnapshot by rememberUpdatedState(snapshot)
+    val currentSelection by rememberUpdatedState(selection)
+    val currentOnSelectionChange by rememberUpdatedState(onSelectionChange)
 
     Canvas(
         modifier = modifier
@@ -109,33 +112,71 @@ fun TerminalCanvas(
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    val downTime = System.currentTimeMillis()
                     var accumulatedScrollY = 0f
                     var isDrag = false
+                    var isSelecting = false
+                    var initialAnchor = -1
+
+                    val snap = currentSnapshot
+                    if (snap != null && cellWidth > 0f && cellHeight > 0f && snap.cols > 0 && snap.rows > 0) {
+                        val col = (down.position.x / cellWidth).toInt().coerceIn(0, snap.cols - 1)
+                        val row = (down.position.y / cellHeight).toInt().coerceIn(0, snap.rows - 1)
+                        initialAnchor = (row * snap.cols + col).coerceIn(0, (snap.cols * snap.rows) - 1)
+                    }
 
                     while (true) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
 
                         if (change.pressed) {
+                            val elapsed = System.currentTimeMillis() - downTime
                             val dragDistance = change.position - down.position
-                            if (!isDrag && dragDistance.getDistance() > touchSlopPx) {
-                                isDrag = true
-                            }
-                            if (isDrag) {
-                                val previousPos = change.previousPosition
-                                val deltaY = change.position.y - previousPos.y
-                                accumulatedScrollY += deltaY
 
-                                if (cellHeight > 0f && abs(accumulatedScrollY) >= cellHeight) {
-                                    val rowsToScroll = (accumulatedScrollY / cellHeight).toInt()
-                                    currentOnScroll(-rowsToScroll, change.position.x, change.position.y)
-                                    accumulatedScrollY -= rowsToScroll * cellHeight
+                            if (!isSelecting && !isDrag && elapsed >= longPressTimeoutMs && initialAnchor >= 0) {
+                                isSelecting = true
+                                val wordRange = currentSnapshot?.wordAt(initialAnchor)
+                                if (wordRange != null) {
+                                    currentOnSelectionChange(TerminalSelection(wordRange.first, wordRange.last))
+                                } else {
+                                    currentOnSelectionChange(TerminalSelection(initialAnchor, initialAnchor))
+                                }
+                            }
+
+                            if (isSelecting) {
+                                val s = currentSnapshot
+                                if (s != null && cellWidth > 0f && cellHeight > 0f && s.cols > 0 && s.rows > 0) {
+                                    val col = (change.position.x / cellWidth).toInt().coerceIn(0, s.cols - 1)
+                                    val row = (change.position.y / cellHeight).toInt().coerceIn(0, s.rows - 1)
+                                    val currentCell = (row * s.cols + col).coerceIn(0, (s.cols * s.rows) - 1)
+                                    val currentAnchor = currentSelection?.anchorIndex ?: initialAnchor
+                                    currentOnSelectionChange(TerminalSelection(currentAnchor, currentCell))
                                 }
                                 change.consume()
+                            } else {
+                                if (!isDrag && dragDistance.getDistance() > touchSlopPx) {
+                                    isDrag = true
+                                }
+                                if (isDrag) {
+                                    val previousPos = change.previousPosition
+                                    val deltaY = change.position.y - previousPos.y
+                                    accumulatedScrollY += deltaY
+
+                                    if (cellHeight > 0f && abs(accumulatedScrollY) >= cellHeight) {
+                                        val rowsToScroll = (accumulatedScrollY / cellHeight).toInt()
+                                        currentOnScroll(-rowsToScroll, change.position.x, change.position.y)
+                                        accumulatedScrollY -= rowsToScroll * cellHeight
+                                    }
+                                    change.consume()
+                                }
                             }
                         } else {
-                            if (!isDrag) {
-                                currentOnTap()
+                            if (!isDrag && !isSelecting) {
+                                if (currentSelection != null) {
+                                    currentOnSelectionChange(null)
+                                } else {
+                                    currentOnTap()
+                                }
                             }
                             break
                         }
@@ -154,8 +195,8 @@ fun TerminalCanvas(
         drawIntoCanvas { canvas ->
             val native = canvas.nativeCanvas
 
-            // Fill default background
-            native.drawColor(snap.defaultBgArgb)
+            // Fill default pure pitch black background
+            native.drawColor(0xFF000000.toInt())
 
             for (row in 0 until snap.rows) {
                 val rowY = row * cellHeight
@@ -170,13 +211,15 @@ fun TerminalCanvas(
                     if ((cellFlag and TerminalSnapshot.CELL_FLAG_SPACER) != 0) continue
 
                     val cellX = col * cellWidth
-                    val fgColor = snap.fgArgb[idx]
-                    val bgColor = snap.bgArgb[idx]
                     val isSelected = normalizedSelection != null && idx in normalizedSelection
+                    val rawFg = snap.fgArgb[idx]
+                    val rawBg = snap.bgArgb[idx]
 
-                    // Draw cell background if different from default background
-                    val effectiveBg = if (isSelected) selBgArgb else bgColor
-                    if (effectiveBg != snap.defaultBgArgb) {
+                    val effectiveBg = if (isSelected) selBgArgb else rawBg
+                    val effectiveFg = if (isSelected) 0xFFFFFFFF.toInt() else if (rawFg == 0 || rawFg == 0xFF000000.toInt()) 0xFFFFFFFF.toInt() else rawFg
+
+                    // Draw cell background if non-black or selected
+                    if (effectiveBg != 0xFF000000.toInt() && effectiveBg != 0) {
                         bgRect.set(cellX, rowY, cellX + cellWidth, rowY + cellHeight)
                         textPaint.color = effectiveBg
                         native.drawRect(bgRect, textPaint)
@@ -201,7 +244,7 @@ fun TerminalCanvas(
                             else -> primaryTypeface
                         }
 
-                        textPaint.color = fgColor
+                        textPaint.color = effectiveFg
                         textPaint.isUnderlineText = (cellFlag and TerminalSnapshot.CELL_FLAG_UNDERLINE) != 0
 
                         val glyph = snap.glyphAt(idx)

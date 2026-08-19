@@ -16,6 +16,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
 import dev.hridaya.kubenexus.domain.usecase.StartExecSessionUseCase
 import dev.hridaya.kubenexus.domain.usecase.StartPodTerminalUseCase
 import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
+import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,8 @@ class PodDetailViewModel(
     private val dispatcherProvider: DispatcherProvider,
 ) : ViewModel() {
 
+    val terminalEngine = GhosttyTerminalEngine()
+
     private val _uiState = MutableStateFlow(
         PodDetailUiState(
             podName = podName,
@@ -58,6 +61,7 @@ class PodDetailViewModel(
     private var activeTerminalSession: TerminalSession? = null
 
     init {
+        terminalEngine.initialize(80, 24)
         observeNetwork()
         loadClusterAndDescribe()
     }
@@ -123,7 +127,11 @@ class PodDetailViewModel(
     fun onAction(action: PodDetailUiAction) {
         when (action) {
             is PodDetailUiAction.RefreshDescribe -> {
-                fetchDescribe(isRefresh = true)
+                if (activeClusterId == null) {
+                    loadClusterAndDescribe()
+                } else {
+                    fetchDescribe(isRefresh = true)
+                }
             }
 
             is PodDetailUiAction.SelectTab -> {
@@ -180,6 +188,7 @@ class PodDetailViewModel(
             }
 
             is PodDetailUiAction.ClearTerminal -> {
+                terminalEngine.initialize(80, 24)
                 _uiState.update { it.copy(terminalLines = emptyList()) }
             }
 
@@ -194,7 +203,17 @@ class PodDetailViewModel(
     }
 
     private fun fetchDescribe(isRefresh: Boolean = false) {
-        val cid = activeClusterId ?: return
+        val cid = activeClusterId
+        if (cid == null) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isRefreshing = false,
+                    errorMessage = "No active Kubernetes cluster configured.",
+                )
+            }
+            return
+        }
         _uiState.update {
             if (isRefresh) {
                 it.copy(isRefreshing = true, errorMessage = null)
@@ -447,6 +466,7 @@ class PodDetailViewModel(
             command = command,
             tty = true,
             onStdout = { output ->
+                terminalEngine.feedRemoteOutput(output)
                 viewModelScope.launch(dispatcherProvider.main) {
                     output.lines().forEach { line ->
                         _uiState.update {
@@ -461,6 +481,7 @@ class PodDetailViewModel(
                 }
             },
             onStderr = { output ->
+                terminalEngine.feedRemoteOutput(output)
                 if (output.contains("executable file not found", ignoreCase = true) ||
                     output.contains("no such file", ignoreCase = true) ||
                     output.contains("OCI runtime exec failed", ignoreCase = true)
@@ -521,6 +542,7 @@ class PodDetailViewModel(
                 kotlinx.coroutines.delay(500)
                 if (!hadFatalError) {
                     activeTerminalSession = sessionResult.data
+                    terminalEngine.attachSession(sessionResult.data)
                     _uiState.update {
                         it.copy(
                             isTerminalActive = true,
@@ -533,6 +555,7 @@ class PodDetailViewModel(
                     }
                     true
                 } else {
+                    terminalEngine.detachSession()
                     activeTerminalSession?.close()
                     activeTerminalSession = null
                     false
@@ -551,6 +574,7 @@ class PodDetailViewModel(
             podName = podName,
             containerName = container,
             onStdout = { output ->
+                terminalEngine.feedRemoteOutput(output)
                 viewModelScope.launch(dispatcherProvider.main) {
                     output.lines().forEach { line ->
                         _uiState.update {
@@ -565,6 +589,7 @@ class PodDetailViewModel(
                 }
             },
             onStderr = { output ->
+                terminalEngine.feedRemoteOutput(output)
                 viewModelScope.launch(dispatcherProvider.main) {
                     output.lines().forEach { line ->
                         _uiState.update {
@@ -609,6 +634,7 @@ class PodDetailViewModel(
         when (defaultResult) {
             is Result.Success -> {
                 activeTerminalSession = defaultResult.data
+                terminalEngine.attachSession(defaultResult.data)
                 _uiState.update {
                     it.copy(
                         isTerminalActive = true,
@@ -666,6 +692,7 @@ class PodDetailViewModel(
     }
 
     private fun stopTerminal() {
+        terminalEngine.detachSession()
         try {
             activeTerminalSession?.close()
         } catch (_: Throwable) {
@@ -722,6 +749,7 @@ class PodDetailViewModel(
         super.onCleared()
         stopStreaming()
         stopTerminal()
+        terminalEngine.destroy()
     }
 
     companion object {

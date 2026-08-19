@@ -6,7 +6,13 @@ import android.content.Context
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,13 +37,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Button
@@ -53,44 +64,40 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiAction
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiState
 
-private val GhosttyBg = Color(0xFF0D1117)
-private val GhosttySurface = Color(0xFF161B22)
-private val GhosttyText = Color(0xFFC9D1D9)
-private val GhosttyGutter = Color(0xFF6E7681)
+private val GhosttyBg = Color(0xFF000000)
+private val GhosttySurface = Color(0xFF000000)
+private val GhosttyBorder = Color(0xFF222222)
+private val GhosttyText = Color(0xFFFFFFFF)
+private val GhosttyGutter = Color(0xFF777777)
+private val GhosttyKeyBg = Color(0xFF141414)
+private val GhosttyKeyBorder = Color(0xFF2E2E2E)
 private val GhosttyGreen = Color(0xFF3FB950)
-private val GhosttyYellow = Color(0xFFD29922)
 private val GhosttyRed = Color(0xFFF85149)
-private val GhosttyKeyBg = Color(0xFF21262D)
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -108,14 +115,24 @@ fun GhosttyTerminalView(
     val isImeVisible = WindowInsets.isImeVisible
     val containers = (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
 
+    var terminalSelection by remember { mutableStateOf<TerminalSelection?>(null) }
+    var localInput by remember { mutableStateOf("") }
+    var commandHistory by remember { mutableStateOf(listOf<String>()) }
+    var historyIndex by remember { mutableIntStateOf(-1) }
     var ctrlActive by remember { mutableStateOf(false) }
     var altActive by remember { mutableStateOf(false) }
-    var textFieldValue by remember { mutableStateOf(TextFieldValue("  ", TextRange(2))) }
 
-    // When soft keyboard is visible and user presses back, clear focus and hide keyboard so layout expands to full screen
+    // When soft keyboard is visible and user presses back, forcefully clear focus and hide keyboard so layout expands to full screen
     BackHandler(enabled = isImeVisible) {
-        focusManager.clearFocus()
+        focusManager.clearFocus(force = true)
         keyboardController?.hide()
+    }
+
+    // Force layout expansion when IME visibility changes to hidden (e.g. system back key / IME close)
+    LaunchedEffect(isImeVisible) {
+        if (!isImeVisible) {
+            focusManager.clearFocus(force = true)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -125,9 +142,24 @@ fun GhosttyTerminalView(
     }
 
     LaunchedEffect(uiState.isTerminalActive) {
-        if (uiState.isTerminalActive) {
-            focusRequester.requestFocus()
-            keyboardController?.show()
+        if (!uiState.isTerminalActive) {
+            localInput = ""
+            terminalSelection = null
+            focusManager.clearFocus(force = true)
+        }
+    }
+
+    fun executeLocalCommand() {
+        if (localInput.isNotEmpty()) {
+            val cmd = localInput
+            if (commandHistory.isEmpty() || commandHistory.last() != cmd) {
+                commandHistory = commandHistory + cmd
+            }
+            historyIndex = -1
+            engine.sendText(cmd + "\n")
+            localInput = ""
+        } else {
+            engine.sendText("\n")
         }
     }
 
@@ -164,6 +196,7 @@ fun GhosttyTerminalView(
                                 label = { Text(c.name) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                 ),
                             )
                         }
@@ -171,9 +204,10 @@ fun GhosttyTerminalView(
                 } else {
                     Text(
                         text = uiState.selectedContainer ?: "default",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -183,7 +217,10 @@ fun GhosttyTerminalView(
             if (uiState.isTerminalActive) {
                 Button(
                     onClick = { onAction(PodDetailUiAction.StopInteractiveTerminal) },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                     modifier = Modifier.height(34.dp),
                 ) {
@@ -213,24 +250,25 @@ fun GhosttyTerminalView(
             }
         }
 
-        // Ghostty Canvas terminal box
+        // Pure pitch black terminal box
         Surface(
             color = GhosttyBg,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(10.dp),
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp)),
+                .border(1.dp, GhosttyBorder, RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(10.dp)),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header bar with clear session status
+                // Header bar
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(GhosttySurface)
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val dotColor = when {
@@ -244,9 +282,9 @@ fun GhosttyTerminalView(
                             else -> "DETACHED"
                         }
                         val statusSubtitle = when {
-                            !uiState.isOnline -> "(network disconnected)"
+                            !uiState.isOnline -> "(disconnected)"
                             uiState.isTerminalActive -> "(${uiState.activeShellCommand ?: "sh"})"
-                            else -> "(session inactive)"
+                            else -> "(inactive)"
                         }
 
                         Box(
@@ -272,22 +310,75 @@ fun GhosttyTerminalView(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Keyboard toggle button
+                        // Toggle Keyboard button
                         IconButton(
                             onClick = {
-                                focusRequester.requestFocus()
-                                keyboardController?.show()
+                                if (isImeVisible) {
+                                    focusManager.clearFocus(force = true)
+                                    keyboardController?.hide()
+                                } else {
+                                    focusRequester.requestFocus()
+                                    keyboardController?.show()
+                                }
                             },
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(26.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Keyboard,
-                                contentDescription = "Show Keyboard",
-                                tint = GhosttyText,
-                                modifier = Modifier.size(14.dp),
+                                contentDescription = "Toggle Keyboard",
+                                tint = if (isImeVisible) GhosttyGreen else GhosttyText,
+                                modifier = Modifier.size(15.dp),
                             )
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+
+                        // Select All button
+                        IconButton(
+                            onClick = {
+                                val snap = snapshot
+                                if (snap != null && snap.cols > 0 && snap.rows > 0) {
+                                    terminalSelection = TerminalSelection(0, (snap.cols * snap.rows) - 1)
+                                }
+                            },
+                            modifier = Modifier.size(26.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.SelectAll,
+                                contentDescription = "Select All",
+                                tint = GhosttyText,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(2.dp))
+
+                        // Copy button
+                        IconButton(
+                            onClick = {
+                                val snap = snapshot
+                                if (snap != null) {
+                                    val sel = terminalSelection?.normalized(snap.cols * snap.rows)
+                                    val text = if (sel != null) {
+                                        extractSelectionText(snap, sel)
+                                    } else {
+                                        extractSelectionText(snap, 0 until (snap.cols * snap.rows))
+                                    }
+                                    if (!text.isNullOrBlank()) {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Output", text))
+                                        Toast.makeText(context, "Terminal output copied", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(26.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ContentCopy,
+                                contentDescription = "Copy",
+                                tint = GhosttyText,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(2.dp))
 
                         // Paste button
                         IconButton(
@@ -297,79 +388,51 @@ fun GhosttyTerminalView(
                                 if (clip != null && clip.itemCount > 0) {
                                     val pasteText = clip.getItemAt(0).text?.toString().orEmpty()
                                     if (pasteText.isNotEmpty()) {
-                                        engine.sendPaste(pasteText)
+                                        if (uiState.isTerminalActive) {
+                                            localInput += pasteText
+                                            focusRequester.requestFocus()
+                                        } else {
+                                            engine.sendPaste(pasteText)
+                                        }
                                     }
                                 }
                             },
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(26.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.ContentPaste,
                                 contentDescription = "Paste",
                                 tint = GhosttyText,
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(15.dp),
                             )
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // Copy button
-                        IconButton(
-                            onClick = {
-                                val snap = snapshot
-                                if (snap != null) {
-                                    val text = extractSelectionText(snap, 0 until (snap.cols * snap.rows))
-                                    if (!text.isNullOrBlank()) {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Output", text))
-                                        Toast.makeText(context, "Terminal output copied", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(24.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = GhosttyText,
-                                modifier = Modifier.size(14.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
 
                         // Clear button
                         IconButton(
                             onClick = {
                                 onAction(PodDetailUiAction.ClearTerminal)
                                 engine.initialize()
+                                terminalSelection = null
                             },
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(26.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Clear,
                                 contentDescription = "Clear",
                                 tint = GhosttyText,
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(15.dp),
                             )
                         }
                     }
                 }
 
-                // Render TerminalCanvas & Integrated Hidden Key Interceptor
+                // Render TerminalCanvas & selection controls
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .weight(1f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            if (uiState.isTerminalActive) {
-                                focusRequester.requestFocus()
-                                keyboardController?.show()
-                            } else if (uiState.isContainerAttachable && !uiState.isExecutingCommand) {
-                                onAction(PodDetailUiAction.StartInteractiveTerminal())
-                            }
-                        },
+                        .background(GhosttyBg),
                 ) {
                     val hasContent = snapshot?.let { snap ->
                         snap.codepoints.any { it != 0 && it != 32 }
@@ -402,7 +465,7 @@ fun GhosttyTerminalView(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = if (uiState.isOnline) {
-                                        "Container '${uiState.selectedContainer ?: "default"}' is ready.\nTap 'Attach' above or tap here to connect."
+                                        "Container '${uiState.selectedContainer ?: "default"}' is ready.\nTap 'Attach' to connect terminal."
                                     } else {
                                         "Network offline. Connect to network to attach terminal."
                                     },
@@ -417,6 +480,8 @@ fun GhosttyTerminalView(
                         TerminalCanvas(
                             snapshot = snapshot,
                             terminalHandle = engine.terminalHandle,
+                            selection = terminalSelection,
+                            onSelectionChange = { terminalSelection = it },
                             onResize = { cols, rows, cellW, cellH, _, _ ->
                                 engine.resize(cols, rows, cellW, cellH)
                             },
@@ -424,19 +489,85 @@ fun GhosttyTerminalView(
                                 engine.scroll(delta, x, y)
                             },
                             onTap = {
-                                if (uiState.isTerminalActive) {
-                                    focusRequester.requestFocus()
-                                    keyboardController?.show()
-                                } else if (uiState.isContainerAttachable && !uiState.isExecutingCommand) {
-                                    onAction(PodDetailUiAction.StartInteractiveTerminal())
+                                if (terminalSelection != null) {
+                                    terminalSelection = null
+                                } else if (isImeVisible) {
+                                    focusManager.clearFocus(force = true)
+                                    keyboardController?.hide()
                                 }
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
 
+                        // Floating Selection Action Bar
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = terminalSelection != null,
+                            enter = fadeIn() + slideInVertically(),
+                            exit = fadeOut() + slideOutVertically(),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(8.dp),
+                        ) {
+                            Surface(
+                                color = GhosttyKeyBg,
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                ) {
+                                    Text(
+                                        text = "Text Selected",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 11.sp,
+                                        color = Color.White,
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = {
+                                            val snap = snapshot
+                                            if (snap != null) {
+                                                val sel = terminalSelection?.normalized(snap.cols * snap.rows)
+                                                if (sel != null) {
+                                                    val text = extractSelectionText(snap, sel)
+                                                    if (!text.isNullOrBlank()) {
+                                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                        clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Selection", text))
+                                                        Toast.makeText(context, "Selection copied", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                            terminalSelection = null
+                                        },
+                                        modifier = Modifier.size(24.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.ContentCopy,
+                                            contentDescription = "Copy Selection",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    IconButton(
+                                        onClick = { terminalSelection = null },
+                                        modifier = Modifier.size(24.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Close,
+                                            contentDescription = "Close",
+                                            tint = GhosttyGutter,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         if (!uiState.isTerminalActive) {
                             Surface(
-                                color = GhosttySurface.copy(alpha = 0.92f),
+                                color = Color.Black.copy(alpha = 0.85f),
                                 shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -461,93 +592,59 @@ fun GhosttyTerminalView(
                             }
                         }
                     }
+                }
+            }
+        }
 
-                    // Integrated hidden keyboard event listener
-                    BasicTextField(
-                        value = textFieldValue,
-                        onValueChange = { newValue ->
-                            val oldText = textFieldValue.text
-                            val newText = newValue.text
-
-                            if (newText.length > oldText.length) {
-                                val inserted = newText.substring(oldText.length)
-                                if (ctrlActive && inserted.length == 1) {
-                                    val c = inserted[0]
-                                    if (c in 'a'..'z' || c in 'A'..'Z') {
-                                        val ctrlChar = (c.uppercaseChar().code - 64).toChar()
-                                        engine.sendText(ctrlChar.toString())
-                                    } else {
-                                        engine.sendText(inserted)
-                                    }
-                                    ctrlActive = false
-                                } else if (altActive && inserted.length == 1) {
-                                    engine.sendText("\u001B" + inserted)
-                                    altActive = false
-                                } else {
-                                    engine.sendText(inserted)
-                                }
-                            } else if (newText.length < oldText.length) {
-                                val count = oldText.length - newText.length
-                                repeat(count) {
-                                    engine.sendText("\u007F")
-                                }
-                            }
-                            textFieldValue = TextFieldValue("  ", TextRange(2))
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            autoCorrectEnabled = false,
-                            keyboardType = KeyboardType.Ascii,
-                            imeAction = ImeAction.None,
-                        ),
-                        modifier = Modifier
-                            .size(1.dp)
-                            .alpha(0.01f)
-                            .focusRequester(focusRequester)
-                            .onKeyEvent { keyEvent ->
-                                if (keyEvent.type == KeyEventType.KeyDown) {
-                                    val meta = (if (ctrlActive) KeyEvent.META_CTRL_ON else 0) or
-                                        (if (altActive) KeyEvent.META_ALT_ON else 0) or
-                                        keyEvent.nativeKeyEvent.metaState
-
-                                    when (keyEvent.key) {
-                                        Key.Enter -> {
-                                            engine.sendText("\r")
-                                            true
-                                        }
-                                        Key.Tab -> {
-                                            engine.sendKey(KeyEvent.KEYCODE_TAB, 0, meta)
-                                            true
-                                        }
-                                        Key.Escape -> {
-                                            engine.sendKey(KeyEvent.KEYCODE_ESCAPE, 0, meta)
-                                            true
-                                        }
-                                        Key.DirectionUp -> {
-                                            engine.sendKey(KeyEvent.KEYCODE_DPAD_UP, 0, meta)
-                                            true
-                                        }
-                                        Key.DirectionDown -> {
-                                            engine.sendKey(KeyEvent.KEYCODE_DPAD_DOWN, 0, meta)
-                                            true
-                                        }
-                                        Key.DirectionLeft -> {
-                                            engine.sendKey(KeyEvent.KEYCODE_DPAD_LEFT, 0, meta)
-                                            true
-                                        }
-                                        Key.DirectionRight -> {
-                                            engine.sendKey(KeyEvent.KEYCODE_DPAD_RIGHT, 0, meta)
-                                            true
-                                        }
-                                        Key.Backspace -> {
-                                            engine.sendText("\u007F")
-                                            true
-                                        }
-                                        else -> false
-                                    }
-                                } else {
-                                    false
-                                }
-                            },
+        // Dedicated local command input line with 0ms local latency
+        if (uiState.isTerminalActive) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(GhosttyBg, RoundedCornerShape(8.dp))
+                    .border(1.dp, GhosttyBorder, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = "❯ ",
+                    color = Color.White,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                )
+                BasicTextField(
+                    value = localInput,
+                    onValueChange = { localInput = it },
+                    textStyle = TextStyle(
+                        color = GhosttyText,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                    ),
+                    cursorBrush = SolidColor(Color.White),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        autoCorrectEnabled = false,
+                        keyboardType = KeyboardType.Ascii,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = { executeLocalCommand() },
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                )
+                IconButton(
+                    onClick = { executeLocalCommand() },
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Send,
+                        contentDescription = "Send Command",
+                        tint = if (localInput.isNotEmpty()) Color.White else GhosttyGutter,
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -571,7 +668,11 @@ fun GhosttyTerminalView(
             TerminalKeyButton(
                 label = "TAB",
                 onClick = {
-                    engine.sendKey(KeyEvent.KEYCODE_TAB)
+                    if (uiState.isTerminalActive) {
+                        localInput += "\t"
+                    } else {
+                        engine.sendKey(KeyEvent.KEYCODE_TAB)
+                    }
                     focusRequester.requestFocus()
                 },
             )
@@ -594,47 +695,57 @@ fun GhosttyTerminalView(
             TerminalKeyButton(
                 label = "^C",
                 onClick = {
-                    engine.sendKey(
-                        keyCode = KeyEvent.KEYCODE_C,
-                        codepoint = 0,
-                        metaState = KeyEvent.META_CTRL_ON,
-                    )
+                    engine.sendText("\u0003")
+                    localInput = ""
                     focusRequester.requestFocus()
                 },
             )
             TerminalKeyButton(
                 label = "^D",
                 onClick = {
-                    engine.sendKey(
-                        keyCode = KeyEvent.KEYCODE_D,
-                        codepoint = 0,
-                        metaState = KeyEvent.META_CTRL_ON,
-                    )
+                    engine.sendText("\u0004")
                     focusRequester.requestFocus()
                 },
             )
             TerminalKeyButton(
                 label = "^Z",
                 onClick = {
-                    engine.sendKey(
-                        keyCode = KeyEvent.KEYCODE_Z,
-                        codepoint = 0,
-                        metaState = KeyEvent.META_CTRL_ON,
-                    )
+                    engine.sendText("\u001A")
                     focusRequester.requestFocus()
                 },
             )
             TerminalKeyButton(
                 label = "↑",
                 onClick = {
-                    engine.sendKey(KeyEvent.KEYCODE_DPAD_UP)
+                    if (commandHistory.isNotEmpty()) {
+                        val nextIdx = if (historyIndex == -1) {
+                            commandHistory.lastIndex
+                        } else {
+                            (historyIndex - 1).coerceAtLeast(0)
+                        }
+                        historyIndex = nextIdx
+                        localInput = commandHistory[nextIdx]
+                    } else {
+                        engine.sendKey(KeyEvent.KEYCODE_DPAD_UP)
+                    }
                     focusRequester.requestFocus()
                 },
             )
             TerminalKeyButton(
                 label = "↓",
                 onClick = {
-                    engine.sendKey(KeyEvent.KEYCODE_DPAD_DOWN)
+                    if (commandHistory.isNotEmpty() && historyIndex != -1) {
+                        val nextIdx = historyIndex + 1
+                        if (nextIdx <= commandHistory.lastIndex) {
+                            historyIndex = nextIdx
+                            localInput = commandHistory[nextIdx]
+                        } else {
+                            historyIndex = -1
+                            localInput = ""
+                        }
+                    } else {
+                        engine.sendKey(KeyEvent.KEYCODE_DPAD_DOWN)
+                    }
                     focusRequester.requestFocus()
                 },
             )
@@ -665,7 +776,8 @@ private fun TerminalKeyButton(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(6.dp),
-        color = if (isActive) MaterialTheme.colorScheme.primary else GhosttyKeyBg,
+        color = if (isActive) Color.White else GhosttyKeyBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isActive) Color.White else GhosttyKeyBorder),
         modifier = Modifier.height(32.dp),
     ) {
         Box(
@@ -677,7 +789,7 @@ private fun TerminalKeyButton(
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isActive) MaterialTheme.colorScheme.onPrimary else GhosttyText,
+                color = if (isActive) Color.Black else GhosttyText,
             )
         }
     }

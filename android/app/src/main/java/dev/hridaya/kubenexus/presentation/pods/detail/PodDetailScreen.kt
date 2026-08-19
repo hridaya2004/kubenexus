@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,10 +25,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -41,6 +44,7 @@ import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.AlertDialog
@@ -79,6 +83,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,16 +94,9 @@ import dev.hridaya.kubenexus.domain.model.PodConditionDetail
 import dev.hridaya.kubenexus.domain.model.PodEventDetail
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
-import dev.hridaya.kubenexus.presentation.pods.components.TermuxTerminalLogViewer
-
-private val TermuxBg = Color(0xFF0D1117)
-private val TermuxSurface = Color(0xFF161B22)
-private val TermuxText = Color(0xFFC9D1D9)
-private val TermuxGreen = Color(0xFF3FB950)
-private val TermuxYellow = Color(0xFFD29922)
-private val TermuxRed = Color(0xFFF85149)
-private val TermuxCyan = Color(0xFF58A6FF)
-private val TermuxPurple = Color(0xFFBC8CFF)
+import dev.hridaya.kubenexus.presentation.pods.components.GhosttyTerminalLogViewer
+import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalEngine
+import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalView
 
 @Composable
 fun PodDetailRoute(
@@ -125,6 +123,7 @@ fun PodDetailRoute(
 
     PodDetailScreen(
         uiState = uiState,
+        engine = viewModel.terminalEngine,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
         modifier = modifier,
@@ -138,6 +137,7 @@ fun PodDetailScreen(
     onAction: (PodDetailUiAction) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    engine: GhosttyTerminalEngine? = null,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -174,7 +174,8 @@ fun PodDetailScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding),
         ) {
             PrimaryTabRow(
                 selectedTabIndex = uiState.selectedTab.ordinal,
@@ -237,6 +238,7 @@ fun PodDetailScreen(
                 PodDetailTab.TERMINAL -> {
                     TerminalTabContent(
                         uiState = uiState,
+                        engine = engine,
                         onAction = onAction,
                     )
                 }
@@ -296,8 +298,15 @@ private fun DescribeTabContent(
     onNavigateToLogs: (String) -> Unit,
     onNavigateToTerminal: (String) -> Unit,
 ) {
-    if (uiState.isLoading) {
-        LoadingContent(message = "Executing describe pod...")
+    if (uiState.isLoading && uiState.podDetails == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center,
+        ) {
+            LoadingContent(message = "Executing describe pod...")
+        }
         return
     }
 
@@ -306,14 +315,46 @@ private fun DescribeTabContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = uiState.errorMessage ?: "No pod details available.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Connection Failed",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = uiState.errorMessage ?: "Failed to retrieve pod details. Swipe down or tap retry to connect.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { onAction(PodDetailUiAction.RefreshDescribe) },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Retry")
+                }
+            }
         }
         return
     }
@@ -676,7 +717,7 @@ private fun LogsTabContent(uiState: PodDetailUiState, onAction: (PodDetailUiActi
             }
         }
 
-        TermuxTerminalLogViewer(
+        GhosttyTerminalLogViewer(
             logs = uiState.logs,
             isStreaming = uiState.isStreamingLogs,
             onClearLogs = { onAction(PodDetailUiAction.ClearLogs) },
@@ -686,287 +727,18 @@ private fun LogsTabContent(uiState: PodDetailUiState, onAction: (PodDetailUiActi
 }
 
 @Composable
-private fun TerminalTabContent(uiState: PodDetailUiState, onAction: (PodDetailUiAction) -> Unit) {
-    val context = LocalContext.current
-    val containers =
-        (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(uiState.terminalLines.size) {
-        if (uiState.terminalLines.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.terminalLines.size - 1)
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(12.dp)
-            .imePadding(),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f, fill = false),
-            ) {
-                Text(
-                    text = "Target:",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                if (containers.size > 1) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(containers) { c ->
-                            FilterChip(
-                                selected = c.name == uiState.selectedContainer,
-                                onClick = { onAction(PodDetailUiAction.SelectContainer(c.name)) },
-                                label = { Text(c.name) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                ),
-                            )
-                        }
-                    }
-                } else {
-                    Text(
-                        text = uiState.selectedContainer ?: "default",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            if (uiState.isTerminalActive) {
-                Button(
-                    onClick = { onAction(PodDetailUiAction.StopInteractiveTerminal) },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    modifier = Modifier.height(34.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Stop,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Disconnect", fontSize = 12.sp)
-                }
-            } else {
-                Button(
-                    onClick = { onAction(PodDetailUiAction.StartInteractiveTerminal()) },
-                    enabled = uiState.isContainerAttachable && !uiState.isExecutingCommand,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    modifier = Modifier.height(34.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Terminal,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = when {
-                            !uiState.isOnline -> "Offline"
-                            !uiState.isContainerAttachable -> "Detached"
-                            else -> "Attach"
-                        },
-                        fontSize = 12.sp,
-                    )
-                }
-            }
-        }
-
-        Surface(
-            color = TermuxBg,
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp)),
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(TermuxSurface)
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(
-                                    if (uiState.isTerminalActive) TermuxGreen else TermuxYellow,
-                                    CircleShape,
-                                ),
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (uiState.isTerminalActive) "interactive session (${uiState.activeShellCommand})" else "terminal",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            color = TermuxText,
-                        )
-                    }
-
-                    Row {
-                        IconButton(
-                            onClick = {
-                                val fullOutput =
-                                    uiState.terminalLines.joinToString("\n") { it.text }
-                                val clipboard =
-                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(
-                                    ClipData.newPlainText(
-                                        "Terminal Output",
-                                        fullOutput,
-                                    ),
-                                )
-                                Toast.makeText(
-                                    context,
-                                    "Terminal output copied",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            },
-                            modifier = Modifier.size(24.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = TermuxText,
-                                modifier = Modifier.size(14.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        IconButton(
-                            onClick = { onAction(PodDetailUiAction.ClearTerminal) },
-                            modifier = Modifier.size(24.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Clear,
-                                contentDescription = "Clear",
-                                tint = TermuxText,
-                                modifier = Modifier.size(14.dp),
-                            )
-                        }
-                    }
-                }
-
-                LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(8.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 4.dp),
-                ) {
-                    if (uiState.terminalLines.isEmpty()) {
-                        item {
-                            Text(
-                                text = "# Type a command below to exec into the pod container.\n# Tap 'Attach' above to open an interactive TTY shell session.",
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                color = Color(0xFF6E7681),
-                            )
-                        }
-                    } else {
-                        itemsIndexed(uiState.terminalLines) { _, line ->
-                            val textColor = when (line.type) {
-                                TerminalLineType.INPUT -> TermuxGreen
-                                TerminalLineType.STDOUT -> TermuxText
-                                TerminalLineType.STDERR -> TermuxRed
-                                TerminalLineType.SYSTEM -> TermuxCyan
-                                TerminalLineType.ERROR -> TermuxRed
-                            }
-                            Text(
-                                text = line.text,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                color = textColor,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            OutlinedTextField(
-                value = uiState.execInputText,
-                onValueChange = { onAction(PodDetailUiAction.UpdateExecInput(it)) },
-                enabled = uiState.isOnline && !uiState.isExecutingCommand,
-                placeholder = {
-                    Text(
-                        text = when {
-                            !uiState.isOnline -> "Network offline..."
-                            uiState.isTerminalActive -> "Send stdin/command to shell..."
-                            else -> "Run command (e.g. ps aux)..."
-                        },
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                    )
-                },
-                prefix = {
-                    Text(
-                        text = "$ ",
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        if (uiState.execInputText.isNotBlank() && uiState.isOnline) {
-                            onAction(PodDetailUiAction.ExecuteCommand(uiState.execInputText))
-                        }
-                    },
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp),
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Button(
-                onClick = {
-                    if (uiState.execInputText.isNotBlank() && uiState.isOnline) {
-                        onAction(PodDetailUiAction.ExecuteCommand(uiState.execInputText))
-                    }
-                },
-                enabled = uiState.isOnline && uiState.execInputText.isNotBlank() && !uiState.isExecutingCommand,
-                modifier = Modifier.height(52.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Send",
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
+private fun TerminalTabContent(
+    uiState: PodDetailUiState,
+    engine: GhosttyTerminalEngine?,
+    onAction: (PodDetailUiAction) -> Unit,
+) {
+    if (engine != null) {
+        GhosttyTerminalView(
+            uiState = uiState,
+            engine = engine,
+            onAction = onAction,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 

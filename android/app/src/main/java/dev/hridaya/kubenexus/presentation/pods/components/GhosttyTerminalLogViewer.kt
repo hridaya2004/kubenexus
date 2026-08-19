@@ -4,11 +4,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.WrapText
@@ -37,20 +38,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -63,26 +65,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
-private val TermuxBg = Color(0xFF0D1117)
-private val TermuxSurface = Color(0xFF161B22)
-private val TermuxText = Color(0xFFC9D1D9)
-private val TermuxGutter = Color(0xFF484F58)
-private val TermuxGreen = Color(0xFF3FB950)
-private val TermuxYellow = Color(0xFFD29922)
-private val TermuxRed = Color(0xFFF85149)
-private val TermuxCyan = Color(0xFF58A6FF)
-private val TermuxPurple = Color(0xFFBC8CFF)
+private val TerminalBg = Color(0xFF000000)
+private val TerminalHeaderBg = Color(0xFF000000)
+private val TerminalBorder = Color(0xFF222222)
+private val TerminalText = Color(0xFFFFFFFF)
+private val TerminalGutter = Color(0xFF777777)
+private val TerminalFabBg = Color(0xFF141414)
+private val TerminalGreen = Color(0xFF3FB950)
+private val TerminalYellow = Color(0xFFD29922)
+private val TerminalRed = Color(0xFFF85149)
+private val TerminalCyan = Color(0xFF58A6FF)
+private val TerminalPurple = Color(0xFFBC8CFF)
 
 @Composable
-fun TermuxTerminalLogViewer(
+fun GhosttyTerminalLogViewer(
     logs: List<String>,
     isStreaming: Boolean,
     onClearLogs: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
-    var autoScroll by remember { mutableStateOf(true) }
     var wrapLines by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
@@ -97,89 +100,99 @@ fun TermuxTerminalLogViewer(
         }
     }
 
-    LaunchedEffect(filteredLogs.size, autoScroll) {
-        if (autoScroll && filteredLogs.isNotEmpty()) {
-            listState.animateScrollToItem(filteredLogs.size - 1)
+    // Content-aware bottom detection
+    val isAtBottom by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty() || layoutInfo.totalItemsCount == 0) {
+                true
+            } else {
+                val lastVisibleItem = visibleItems.last()
+                lastVisibleItem.index >= layoutInfo.totalItemsCount - 2
+            }
         }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "cursor_blink")
-    val cursorAlpha by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "cursor_alpha",
-    )
+    // Content-aware auto-scrolling: only stick to bottom if user is already at the end
+    LaunchedEffect(filteredLogs.size) {
+        if (isAtBottom && filteredLogs.isNotEmpty()) {
+            listState.scrollToItem(filteredLogs.size - 1)
+        }
+    }
 
     Surface(
-        color = TermuxBg,
-        shape = RoundedCornerShape(12.dp),
+        color = TerminalBg,
+        shape = RoundedCornerShape(10.dp),
         modifier = modifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(12.dp)),
+            .border(1.dp, TerminalBorder, RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(10.dp)),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Minimal header bar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(TermuxSurface)
+                    .background(TerminalHeaderBg)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(8.dp)
                             .background(
-                                if (isStreaming) TermuxGreen else TermuxYellow,
-                                shape = RoundedCornerShape(5.dp),
+                                if (isStreaming) TerminalGreen else TerminalYellow,
+                                shape = CircleShape,
                             ),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isStreaming) "termux (live stream)" else "termux (log output)",
+                        text = if (isStreaming) "LIVE LOGS" else "LOGS",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TermuxText,
+                        color = TerminalText,
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "(${filteredLogs.size} lines)",
+                        text = "(${filteredLogs.size})",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
-                        color = TermuxGutter,
+                        color = TerminalGutter,
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { showSearch = !showSearch },
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Search,
                             contentDescription = "Search",
-                            tint = if (showSearch) TermuxCyan else TermuxText,
+                            tint = if (showSearch) TerminalCyan else TerminalText,
                             modifier = Modifier.size(16.dp),
                         )
                     }
 
+                    Spacer(modifier = Modifier.width(2.dp))
+
                     IconButton(
                         onClick = { wrapLines = !wrapLines },
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.WrapText,
                             contentDescription = "Wrap lines",
-                            tint = if (wrapLines) TermuxGreen else TermuxGutter,
+                            tint = if (wrapLines) TerminalGreen else TerminalGutter,
                             modifier = Modifier.size(16.dp),
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(2.dp))
 
                     IconButton(
                         onClick = {
@@ -193,24 +206,26 @@ fun TermuxTerminalLogViewer(
                                 Toast.LENGTH_SHORT,
                             ).show()
                         },
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = "Copy all",
-                            tint = TermuxText,
+                            tint = TerminalText,
                             modifier = Modifier.size(16.dp),
                         )
                     }
 
+                    Spacer(modifier = Modifier.width(2.dp))
+
                     IconButton(
                         onClick = onClearLogs,
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Clear,
                             contentDescription = "Clear",
-                            tint = TermuxText,
+                            tint = TerminalText,
                             modifier = Modifier.size(16.dp),
                         )
                     }
@@ -224,18 +239,18 @@ fun TermuxTerminalLogViewer(
                     placeholder = {
                         Text(
                             "Filter logs...",
-                            color = TermuxGutter,
+                            color = TerminalGutter,
                             fontSize = 12.sp,
                         )
                     },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TermuxText,
-                        unfocusedTextColor = TermuxText,
-                        focusedBorderColor = TermuxCyan,
-                        unfocusedBorderColor = TermuxGutter,
-                        focusedContainerColor = TermuxSurface,
-                        unfocusedContainerColor = TermuxSurface,
+                        focusedTextColor = TerminalText,
+                        unfocusedTextColor = TerminalText,
+                        focusedBorderColor = TerminalCyan,
+                        unfocusedBorderColor = TerminalGutter,
+                        focusedContainerColor = TerminalHeaderBg,
+                        unfocusedContainerColor = TerminalHeaderBg,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -259,7 +274,7 @@ fun TermuxTerminalLogViewer(
                             text = if (isStreaming) "Waiting for container logs..." else "No log output available",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
-                            color = TermuxGutter,
+                            color = TerminalGutter,
                         )
                     }
                 } else {
@@ -268,111 +283,69 @@ fun TermuxTerminalLogViewer(
                         if (wrapLines) {
                             Modifier.fillMaxWidth()
                         } else {
-                            Modifier.horizontalScroll(
-                                horizontalScrollState,
-                            )
+                            Modifier.horizontalScroll(horizontalScrollState)
                         }
 
-                    LazyColumn(
-                        state = listState,
-                        modifier = lineModifier.fillMaxSize(),
-                    ) {
-                        itemsIndexed(filteredLogs) { index, line ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 1.dp),
-                            ) {
-                                Text(
-                                    text = (index + 1).toString().padStart(4, ' '),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
-                                    color = TermuxGutter,
-                                    modifier = Modifier.width(36.dp),
-                                )
-
-                                val parsedLine = remember(line, searchQuery) {
-                                    parseAnsiToAnnotatedString(line, searchQuery)
-                                }
-
-                                Text(
-                                    text = parsedLine,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp,
-                                    color = TermuxText,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
-
-                        if (isStreaming) {
-                            item {
+                    SelectionContainer(modifier = lineModifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            itemsIndexed(filteredLogs) { index, line ->
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 1.dp),
                                 ) {
                                     Text(
-                                        text = "$ ",
+                                        text = (index + 1).toString().padStart(4, ' '),
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 11.sp,
+                                        color = TerminalGutter,
+                                        modifier = Modifier.width(36.dp),
+                                    )
+
+                                    val parsedLine = remember(line, searchQuery) {
+                                        parseAnsiToAnnotatedString(line, searchQuery)
+                                    }
+
+                                    Text(
+                                        text = parsedLine,
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TermuxGreen,
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(width = 8.dp, height = 14.dp)
-                                            .alpha(cursorAlpha)
-                                            .background(TermuxGreen),
+                                        lineHeight = 16.sp,
+                                        color = TerminalText,
+                                        modifier = Modifier.weight(1f),
                                     )
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(TermuxSurface)
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Auto-scroll",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = TermuxText,
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Switch(
-                        checked = autoScroll,
-                        onCheckedChange = { autoScroll = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = TermuxGreen,
-                            checkedTrackColor = TermuxSurface,
-                        ),
-                        modifier = Modifier.size(width = 36.dp, height = 20.dp),
-                    )
-                }
-
-                if (filteredLogs.isNotEmpty()) {
-                    IconButton(
+                // Down arrow button to jump straight to latest log line
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !isAtBottom && filteredLogs.isNotEmpty(),
+                    enter = fadeIn() + scaleIn(),
+                    exit = fadeOut() + scaleOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp),
+                ) {
+                    SmallFloatingActionButton(
                         onClick = {
                             scope.launch {
                                 listState.animateScrollToItem(filteredLogs.size - 1)
                             }
                         },
-                        modifier = Modifier.size(28.dp),
+                        containerColor = TerminalFabBg,
+                        contentColor = TerminalText,
+                        shape = CircleShape,
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ArrowDownward,
-                            contentDescription = "Scroll to bottom",
-                            tint = TermuxText,
-                            modifier = Modifier.size(16.dp),
+                            contentDescription = "Go to latest log",
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
@@ -391,7 +364,7 @@ private fun parseAnsiToAnnotatedString(
     // ANSI parser regex: \u001B\[[0-9;]*m
     val ansiRegex = Regex("""\u001B\[([0-9;]*)m""")
     var lastIndex = 0
-    var currentColor = TermuxText
+    var currentColor = TerminalText
     var isBold = false
 
     val matches = ansiRegex.findAll(cleanText).toList()
@@ -411,28 +384,28 @@ private fun parseAnsiToAnnotatedString(
         val codes = codeStr.split(";").mapNotNull { it.toIntOrNull() }
 
         if (codes.isEmpty() || codes.contains(0)) {
-            currentColor = TermuxText
+            currentColor = TerminalText
             isBold = false
         }
         if (codes.contains(1)) isBold = true
 
         for (c in codes) {
             when (c) {
-                30 -> currentColor = TermuxGutter
-                31 -> currentColor = TermuxRed
-                32 -> currentColor = TermuxGreen
-                33 -> currentColor = TermuxYellow
-                34 -> currentColor = TermuxCyan
-                35 -> currentColor = TermuxPurple
-                36 -> currentColor = TermuxCyan
-                37, 39 -> currentColor = TermuxText
-                90 -> currentColor = TermuxGutter
-                91 -> currentColor = TermuxRed
-                92 -> currentColor = TermuxGreen
-                93 -> currentColor = TermuxYellow
-                94 -> currentColor = TermuxCyan
-                95 -> currentColor = TermuxPurple
-                96 -> currentColor = TermuxCyan
+                30 -> currentColor = TerminalGutter
+                31 -> currentColor = TerminalRed
+                32 -> currentColor = TerminalGreen
+                33 -> currentColor = TerminalYellow
+                34 -> currentColor = TerminalCyan
+                35 -> currentColor = TerminalPurple
+                36 -> currentColor = TerminalCyan
+                37, 39 -> currentColor = TerminalText
+                90 -> currentColor = TerminalGutter
+                91 -> currentColor = TerminalRed
+                92 -> currentColor = TerminalGreen
+                93 -> currentColor = TerminalYellow
+                94 -> currentColor = TerminalCyan
+                95 -> currentColor = TerminalPurple
+                96 -> currentColor = TerminalCyan
                 97 -> currentColor = Color.White
             }
         }
@@ -500,7 +473,7 @@ private fun appendWithHighlight(
         builder.withStyle(
             SpanStyle(
                 color = Color.Black,
-                background = TermuxYellow,
+                background = TerminalYellow,
                 fontWeight = FontWeight.Bold,
             ),
         ) {

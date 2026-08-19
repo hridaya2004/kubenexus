@@ -22,3 +22,12 @@ android/captures/
 .idea/
 *.iws
 out/
+
+# Zig
+.zig-cache/
+zig-out/
+terminal-native/.zig-cache/
+terminal-native/zig-out/
+
+# Agent skills
+.agents/

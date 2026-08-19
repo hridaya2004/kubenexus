@@ -157,7 +157,45 @@ interface KubeNexusNativeBridge {
         tty: Boolean,
         callback: ExecCallback,
     ): Result<ExecSession>
+
+    /**
+     * Pings the Kubernetes cluster verifying connectivity and health endpoints (/readyz, /livez, /healthz, /version).
+     */
+    fun ping(rawKubeconfig: String): Result<String>
+
+    /**
+     * Performs a liveness check against the /livez endpoint.
+     */
+    fun checkLivez(rawKubeconfig: String): Result<Boolean>
+
+    /**
+     * Performs a readiness check against the /readyz endpoint.
+     */
+    fun checkReadyz(rawKubeconfig: String): Result<Boolean>
+
+    /**
+     * Performs a legacy health check against the /healthz endpoint.
+     */
+    fun checkHealthz(rawKubeconfig: String): Result<Boolean>
+
+    /**
+     * Fetches the Kubernetes server version.
+     */
+    fun serverVersion(rawKubeconfig: String): Result<String>
+
+    /**
+     * Returns detailed cluster health inspection data.
+     */
+    fun checkHealth(rawKubeconfig: String): Result<ClusterHealth>
 }
+
+data class ClusterHealth(
+    val livez: Boolean = false,
+    val readyz: Boolean = false,
+    val healthz: Boolean = false,
+    val serverVersion: String = "",
+    val statusMessage: String = "",
+)
 
 class KubeNexusNativeBridgeImpl @Inject constructor(
     @param:ApplicationContext private val context: Context
@@ -464,5 +502,49 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         nativeCatching("Failed to start exec session for pod '$podName'") {
             val client = Client.newClient(rawKubeconfig)
             client.startExecSession(namespace, podName, container, command, tty, callback)
+        }
+
+    override fun ping(rawKubeconfig: String): Result<String> =
+        nativeCatching("Failed to ping cluster") {
+            val client = Client.newClient(rawKubeconfig)
+            client.ping()
+        }
+
+    override fun checkLivez(rawKubeconfig: String): Result<Boolean> =
+        nativeCatching("Failed to check /livez") {
+            val client = Client.newClient(rawKubeconfig)
+            client.checkLivez()
+        }
+
+    override fun checkReadyz(rawKubeconfig: String): Result<Boolean> =
+        nativeCatching("Failed to check /readyz") {
+            val client = Client.newClient(rawKubeconfig)
+            client.checkReadyz()
+        }
+
+    override fun checkHealthz(rawKubeconfig: String): Result<Boolean> =
+        nativeCatching("Failed to check /healthz") {
+            val client = Client.newClient(rawKubeconfig)
+            client.checkHealthz()
+        }
+
+    override fun serverVersion(rawKubeconfig: String): Result<String> =
+        nativeCatching("Failed to retrieve server version") {
+            val client = Client.newClient(rawKubeconfig)
+            client.serverVersion()
+        }
+
+    override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
+        nativeCatching("Failed to check cluster health") {
+            val client = Client.newClient(rawKubeconfig)
+            val jsonStr = client.checkHealthJSON()
+            val obj = JSONObject(jsonStr)
+            ClusterHealth(
+                livez = obj.optBoolean("livez", false),
+                readyz = obj.optBoolean("readyz", false),
+                healthz = obj.optBoolean("healthz", false),
+                serverVersion = obj.optString("serverVersion", ""),
+                statusMessage = obj.optString("statusMessage", ""),
+            )
         }
 }

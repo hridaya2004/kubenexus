@@ -3,6 +3,7 @@ package dev.hridaya.kubenexus.data.repository
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.kubeconfig.ClusterConnectionTester
@@ -177,6 +178,16 @@ class ClusterRepositoryImplTest {
                 callback: client.ExecCallback,
             ): Result<client.ExecSession> =
                 Result.Error(AppError.Unknown("Test mock"))
+
+            override fun ping(rawKubeconfig: String): Result<String> =
+                Result.Success("Cluster ready & healthy (Kubernetes v1.30.0)")
+
+            override fun checkLivez(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
+            override fun checkReadyz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
+            override fun checkHealthz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
+            override fun serverVersion(rawKubeconfig: String): Result<String> = Result.Success("v1.30.0")
+            override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
+                Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
         }
 
         fakeTester = object : ClusterConnectionTester(fakeNativeBridge) {
@@ -187,6 +198,7 @@ class ClusterRepositoryImplTest {
         repository = ClusterRepositoryImpl(
             clusterDao = fakeDao,
             connectionTester = fakeTester,
+            nativeBridge = fakeNativeBridge,
             encryptor = encryptor,
             dispatcherProvider = testDispatcherProvider,
         )
@@ -300,6 +312,30 @@ class ClusterRepositoryImplTest {
             assertTrue(secondMigration is Result.Success)
             assertEquals(0, (secondMigration as Result.Success).data)
         }
+
+    @Test
+    fun `checkClusterHealth queries health status successfully`() = runTest(testDispatcher) {
+        val addResult = repository.addCluster(sampleKubeconfig, "Test Cluster")
+        assertTrue(addResult is Result.Success)
+        val clusterId = (addResult as Result.Success).data.id
+
+        val healthResult = repository.checkClusterHealth(clusterId)
+        assertTrue(healthResult is Result.Success)
+        val health = (healthResult as Result.Success).data
+        assertTrue(health.livez)
+        assertTrue(health.readyz)
+        assertEquals("v1.30.0", health.serverVersion)
+        assertEquals("Ready", health.statusMessage)
+    }
+
+    @Test
+    fun `checkClusterHealthByKubeconfig queries health directly`() = runTest(testDispatcher) {
+        val healthResult = repository.checkClusterHealthByKubeconfig(sampleKubeconfig)
+        assertTrue(healthResult is Result.Success)
+        val health = (healthResult as Result.Success).data
+        assertTrue(health.livez)
+        assertEquals("Ready", health.statusMessage)
+    }
 
     private class FakeClusterDao : ClusterDao() {
         private val storage = mutableMapOf<String, ClusterEntity>()

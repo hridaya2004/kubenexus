@@ -3,6 +3,7 @@ package dev.hridaya.kubenexus.presentation.home
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
@@ -364,6 +365,12 @@ class HomeViewModelTest {
 
         override suspend fun testClusterById(id: String): Result<String> =
             Result.Success("Reachable")
+
+        override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
+            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+
+        override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
+            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
 
         override suspend fun updateClusterStatus(
             id: String,

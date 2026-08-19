@@ -154,6 +154,24 @@ class KubeNexusNativeBridgeTest {
             ): Result<ExecSession> {
                 return Result.Error(AppError.Unknown())
             }
+
+            override fun ping(rawKubeconfig: String): Result<String> =
+                Result.Success("Cluster ready & healthy (Kubernetes v1.30.0)")
+
+            override fun checkLivez(rawKubeconfig: String): Result<Boolean> =
+                Result.Success(true)
+
+            override fun checkReadyz(rawKubeconfig: String): Result<Boolean> =
+                Result.Success(true)
+
+            override fun checkHealthz(rawKubeconfig: String): Result<Boolean> =
+                Result.Success(true)
+
+            override fun serverVersion(rawKubeconfig: String): Result<String> =
+                Result.Success("v1.30.0")
+
+            override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
+                Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
         }
 
         assertFalse(fakeBridge.isAvailable())
@@ -162,5 +180,9 @@ class KubeNexusNativeBridgeTest {
         assertTrue(fakeBridge.touch())
         val pods = fakeBridge.listPods("mock-kubeconfig", null).getOrNull()
         assertEquals(2, pods?.size)
+        assertTrue(fakeBridge.checkLivez("mock-kubeconfig").getOrThrow())
+        assertTrue(fakeBridge.checkReadyz("mock-kubeconfig").getOrThrow())
+        assertEquals("v1.30.0", fakeBridge.serverVersion("mock-kubeconfig").getOrThrow())
+        assertEquals("Ready", fakeBridge.checkHealth("mock-kubeconfig").getOrThrow().statusMessage)
     }
 }

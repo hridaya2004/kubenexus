@@ -2,6 +2,7 @@ package dev.hridaya.kubenexus.presentation.explore
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
@@ -188,6 +189,10 @@ class ExploreViewModelTest {
         override suspend fun updateClusterName(id: String, newName: String): Result<Unit> = Result.Success(Unit)
         override suspend fun testConnection(kubeconfigRaw: String): Result<String> = Result.Success("Reachable")
         override suspend fun testClusterById(id: String): Result<String> = Result.Success("Reachable")
+        override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
+            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+        override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
+            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
         override suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit> = Result.Success(Unit)
         override suspend fun migratePlaintextClusters(): Result<Int> = Result.Success(0)
     }

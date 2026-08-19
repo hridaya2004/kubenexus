@@ -3,6 +3,8 @@ package dev.hridaya.kubenexus.data.repository
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
+import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.core.security.NoOpKubeconfigEncryptor
@@ -24,6 +26,7 @@ import javax.inject.Inject
 class ClusterRepositoryImpl @Inject constructor(
     private val clusterDao: ClusterDao,
     private val connectionTester: ClusterConnectionTester,
+    private val nativeBridge: KubeNexusNativeBridge,
     private val encryptor: KubeconfigEncryptor = NoOpKubeconfigEncryptor,
     private val dispatcherProvider: DispatcherProvider,
 ) : ClusterRepository {
@@ -155,6 +158,31 @@ class ClusterRepositoryImpl @Inject constructor(
                 clusterDao.updateStatus(id, ClusterStatus.ERROR.name, null)
                 val sanitizedMsg = LogSanitizer.sanitize(t.message)
                 val errorMsg = sanitizedMsg.ifEmpty { "Connection test failed." }
+                Result.Error(AppError.Unknown(errorMsg, t))
+            }
+        }
+
+    override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
+        withContext(dispatcherProvider.io) {
+            try {
+                val clusterEntity = clusterDao.getClusterById(id)
+                    ?: return@withContext Result.Error(AppError.Unknown("Cluster with ID '$id' not found."))
+                val decryptedKubeconfig = encryptor.decrypt(clusterEntity.rawKubeconfig)
+                nativeBridge.checkHealth(decryptedKubeconfig)
+            } catch (t: Throwable) {
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                val errorMsg = sanitizedMsg.ifEmpty { "Health check failed." }
+                Result.Error(AppError.Unknown(errorMsg, t))
+            }
+        }
+
+    override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
+        withContext(dispatcherProvider.io) {
+            try {
+                nativeBridge.checkHealth(kubeconfigRaw)
+            } catch (t: Throwable) {
+                val sanitizedMsg = LogSanitizer.sanitize(t.message)
+                val errorMsg = sanitizedMsg.ifEmpty { "Health check failed." }
                 Result.Error(AppError.Unknown(errorMsg, t))
             }
         }

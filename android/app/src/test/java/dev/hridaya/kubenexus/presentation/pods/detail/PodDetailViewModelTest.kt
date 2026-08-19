@@ -2,7 +2,9 @@ package dev.hridaya.kubenexus.presentation.pods.detail
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
+import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
@@ -268,16 +270,21 @@ class PodDetailViewModelTest {
         override suspend fun updateClusterName(id: String, newName: String): Result<Unit> =
             Result.Success(Unit)
 
-        override suspend fun deleteCluster(id: String): Result<Unit> = Result.Success(Unit)
         override suspend fun testConnection(kubeconfigRaw: String): Result<String> =
             Result.Success("OK")
 
         override suspend fun testClusterById(id: String): Result<String> = Result.Success("OK")
+        override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
+            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+        override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
+            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
         override suspend fun updateClusterStatus(
             id: String,
             status: ClusterStatus,
             lastConnectedAt: Long?
         ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun deleteCluster(id: String): Result<Unit> = Result.Success(Unit)
 
         override suspend fun migratePlaintextClusters(): Result<Int> = Result.Success(0)
     }
@@ -305,7 +312,7 @@ class PodDetailViewModelTest {
             podName: String
         ): Result<PodDetails> {
             describeError?.let {
-                return Result.Error(dev.hridaya.kubenexus.core.common.result.AppError.Network(it))
+                return Result.Error(AppError.Network(it))
             }
             val details = PodDetails(
                 name = podName,

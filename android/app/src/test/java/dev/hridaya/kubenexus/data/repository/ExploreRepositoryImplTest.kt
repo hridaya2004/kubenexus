@@ -3,6 +3,7 @@ package dev.hridaya.kubenexus.data.repository
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
@@ -400,5 +401,13 @@ class ExploreRepositoryImplTest {
             )
             return Result.Success(exp)
         }
+
+        override fun ping(rawKubeconfig: String): Result<String> = Result.Success("ready")
+        override fun checkLivez(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
+        override fun checkReadyz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
+        override fun checkHealthz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
+        override fun serverVersion(rawKubeconfig: String): Result<String> = Result.Success("v1.30.0")
+        override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
+            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
     }
 }

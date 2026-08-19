@@ -1,2 +1,5 @@
 # Gomobile compiled AAR
 app/libs/kubenexus.aar
+
+# Ghostty JNI lib
+app/src/main/jniLibs/arm64-v8a/libghostty_jni.so

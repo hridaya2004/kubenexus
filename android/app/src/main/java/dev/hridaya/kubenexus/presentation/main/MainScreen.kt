@@ -15,8 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import dev.hridaya.kubenexus.core.di.AppContainer
 import dev.hridaya.kubenexus.presentation.explore.ExploreRoute
 import dev.hridaya.kubenexus.presentation.explore.ExploreViewModel
 import dev.hridaya.kubenexus.presentation.home.HomeRoute
@@ -36,7 +34,6 @@ import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
 fun MainScreen(
     homeViewModel: HomeViewModel,
     modifier: Modifier = Modifier,
-    appContainer: AppContainer? = null,
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }

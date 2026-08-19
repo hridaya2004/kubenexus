@@ -13,7 +13,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.main.MainScreen
-import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalAmoledDark
 import dev.hridaya.kubenexus.ui.theme.LocalOnAmoledDarkChange
@@ -36,7 +35,6 @@ class MainActivity : Hilt_MainActivity() {
         enableEdgeToEdge()
         window.isNavigationBarContrastEnforced = false
 
-        val app = application as KubeNexusApp
         val themeRepo = themePreferencesRepository
 
         setContent {
@@ -61,7 +59,6 @@ class MainActivity : Hilt_MainActivity() {
                 ) {
                     MainScreen(
                         homeViewModel = viewModel,
-                        appContainer = app.container,
                     )
                 }
             }

@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.di.AppContainer
 import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
@@ -775,30 +774,6 @@ class PodDetailViewModel @AssistedInject constructor(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return factory.create(podName, namespace) as T
-            }
-        }
-
-        fun provideFactory(
-            podName: String,
-            namespace: String,
-            container: AppContainer
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return PodDetailViewModel(
-                    podName = podName,
-                    namespace = namespace,
-                    getActiveClusterUseCase = container.getActiveClusterUseCase,
-                    describePodUseCase = container.describePodUseCase,
-                    getPodLogsUseCase = container.getPodLogsUseCase,
-                    streamPodLogsUseCase = container.streamPodLogsUseCase,
-                    deletePodUseCase = container.deletePodUseCase,
-                    execPodCommandUseCase = container.execPodCommandUseCase,
-                    startPodTerminalUseCase = container.startPodTerminalUseCase,
-                    startExecSessionUseCase = container.startExecSessionUseCase,
-                    networkMonitor = container.networkMonitor,
-                    dispatcherProvider = container.dispatcherProvider,
-                ) as T
             }
         }
     }

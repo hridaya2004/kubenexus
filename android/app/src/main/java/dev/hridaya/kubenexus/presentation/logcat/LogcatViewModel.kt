@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.di.AppContainer
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
 import dev.hridaya.kubenexus.domain.usecase.ClearLogcatUseCase
@@ -213,20 +212,5 @@ class LogcatViewModel @Inject constructor(
                 appendLine(entry.raw)
             }
         }
-    }
-
-    companion object {
-        fun provideFactory(container: AppContainer): ViewModelProvider.Factory =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return LogcatViewModel(
-                        getLogcatStreamUseCase = container.getLogcatStreamUseCase,
-                        dumpLogcatUseCase = container.dumpLogcatUseCase,
-                        clearLogcatUseCase = container.clearLogcatUseCase,
-                        dispatcherProvider = container.dispatcherProvider,
-                    ) as T
-                }
-            }
     }
 }

@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.di.AppContainer
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.ResourceField
 import dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase
@@ -307,20 +306,5 @@ class ExploreViewModel @Inject constructor(
                 field.type.lowercase().contains(trimmed) ||
                 field.description.lowercase().contains(trimmed)
         }
-    }
-
-    companion object {
-        fun provideFactory(container: AppContainer): ViewModelProvider.Factory =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return ExploreViewModel(
-                        getActiveClusterUseCase = container.getActiveClusterUseCase,
-                        getAPIResourcesUseCase = container.getAPIResourcesUseCase,
-                        explainResourceUseCase = container.explainResourceUseCase,
-                        dispatcherProvider = container.dispatcherProvider,
-                    ) as T
-                }
-            }
     }
 }

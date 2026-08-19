@@ -12,11 +12,17 @@ jobs:
     name: Build Debug and Release APKs
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
+      ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/27.0.12077973
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -30,24 +36,24 @@ jobs:
           go-version: '1.26'
           cache-dependency-path: core/go.sum
 
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.0
+
       - name: Install Android NDK
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
         run: echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973"
 
       - name: Install gomobile
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
         run: |
           go install golang.org/x/mobile/cmd/gomobile@latest
           gomobile init
 
-      - name: Build kubenexus.aar
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.0.12077973
-        run: make aar
+      - name: Build Go core (kubenexus.aar)
+        run: make go-core
+
+      - name: Build Ghostty native library (libghostty_jni.so)
+        run: make ghostty
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -56,8 +62,7 @@ jobs:
         run: chmod +x ./android/gradlew
 
       - name: Build Debug and Release APKs
-        working-directory: android
-        run: ./gradlew assembleDebug assembleRelease
+        run: make build
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v7

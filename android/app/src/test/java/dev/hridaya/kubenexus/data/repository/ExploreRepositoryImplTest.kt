@@ -120,7 +120,7 @@ class ExploreRepositoryImplTest {
     }
 
     @Test
-    fun `explainResource caches in room and falls back to room on bridge failure`() = runTest(testDispatcher) {
+    fun `explainResource caches in room and returns error on bridge failure`() = runTest(testDispatcher) {
         val clusterId = "cluster-1"
         fakeClusterDao.insertCluster(
             ClusterEntity(
@@ -158,19 +158,17 @@ class ExploreRepositoryImplTest {
         assertNotNull(cached)
         assertEquals("Pod", cached!!.kind)
 
-        // Now simulate native bridge failure
+        // Now simulate native bridge failure: explainResource should return Error so failed refresh is not counted as success
         fakeNativeBridge.shouldFailExplain = true
-        val cachedResult = repository.explainResource(clusterId, "pods", "v1")
-        assertTrue(cachedResult is Result.Success)
-        val fallbackData = (cachedResult as Result.Success).data
-        assertEquals("Pod", fallbackData.kind)
-        assertEquals("Pod is a collection of containers", fallbackData.description)
-        assertEquals("spec", fallbackData.fields.first().name)
+        val failedResult = repository.explainResource(clusterId, "pods", "v1")
+        assertTrue(failedResult is Result.Error)
 
-        // Test direct getCachedExplainedResource
+        // Test direct getCachedExplainedResource returns cached schema
         val directCached = repository.getCachedExplainedResource(clusterId, "pods", "v1")
         assertNotNull(directCached)
         assertEquals("Pod", directCached!!.kind)
+        assertEquals("Pod is a collection of containers", directCached.description)
+        assertEquals("spec", directCached.fields.first().name)
     }
 
     private class FakeExplainedResourceDao : ExplainedResourceDao {

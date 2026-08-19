@@ -148,24 +148,14 @@ class ExploreRepositoryImpl(
                     }
                 }
             } else {
-                val cached = explainedResourceDao.getExplainedResource(resolvedClusterId, normalizedResourceOrKind, groupVersion)
-                if (cached != null) {
-                    Result.Success(cached.toDomain())
-                } else {
-                    val error = nativeResult.exceptionOrNull()
-                    val sanitizedMsg = LogSanitizer.sanitize(error?.message)
-                    Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to explain resource $resourceOrKind" }))
-                }
+                val error = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(error?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to explain resource $resourceOrKind" }))
             }
         } catch (t: Throwable) {
-            val cached = explainedResourceDao.getExplainedResource(resolvedClusterId, normalizedResourceOrKind, groupVersion)
-            if (cached != null) {
-                Result.Success(cached.toDomain())
-            } else {
-                val sanitizedMsg = LogSanitizer.sanitize(t.message)
-                Log.e(TAG, "Failed to explain resource '$resourceOrKind': $sanitizedMsg", t)
-                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to explain resource" }))
-            }
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to explain resource '$resourceOrKind': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to explain resource" }))
         }
     }
 }

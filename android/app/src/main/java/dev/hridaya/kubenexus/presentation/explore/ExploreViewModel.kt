@@ -185,6 +185,7 @@ class ExploreViewModel(
                             errorMessage = result.error.message,
                         )
                     }
+                    _events.send(ExploreUiEvent.ShowMessage(result.error.message ?: "Failed to refresh API resources"))
                 }
 
                 is Result.Loading -> Unit
@@ -249,6 +250,11 @@ class ExploreViewModel(
                             state.copy(isLoadingExplain = false)
                         }
                     }
+                    _events.send(
+                        ExploreUiEvent.ShowMessage(
+                            result.error.message ?: "Failed to refresh explanation for ${resource.kind}",
+                        ),
+                    )
                 }
 
                 is Result.Loading -> Unit

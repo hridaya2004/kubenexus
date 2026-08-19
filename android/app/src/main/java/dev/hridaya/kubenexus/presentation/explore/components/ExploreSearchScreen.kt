@@ -213,7 +213,7 @@ fun ExploreSearchScreen(
                             start = 16.dp,
                             end = 16.dp,
                             top = 8.dp,
-                            bottom = 0.dp,
+                            bottom = 16.dp,
                         ),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxSize(),

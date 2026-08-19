@@ -40,7 +40,16 @@ class GhosttyBridge {
         cursorRgb: IntArray?,
         paletteRgb: ByteArray?,
     )
-    external fun nativeEncodeKey(handle: Long, key: Int, cp: Int, mods: Int, action: Int, utf8: String?): ByteArray?
+
+    external fun nativeEncodeKey(
+        handle: Long,
+        key: Int,
+        cp: Int,
+        mods: Int,
+        action: Int,
+        utf8: String?
+    ): ByteArray?
+
     external fun nativeEncodePaste(handle: Long, data: String): ByteArray?
     external fun nativeSetMouseEncodingSize(
         handle: Long,
@@ -53,6 +62,7 @@ class GhosttyBridge {
         paddingLeft: Int,
         paddingRight: Int,
     )
+
     external fun nativeEncodeMouse(
         handle: Long,
         action: Int,
@@ -63,12 +73,18 @@ class GhosttyBridge {
         anyButtonPressed: Boolean,
         trackLastCell: Boolean,
     ): ByteArray?
+
     external fun nativeEncodeFocus(handle: Long, focused: Boolean): ByteArray?
     external fun nativeDrainPtyWrites(handle: Long): ByteArray
     external fun nativeSnapshotImages(handle: Long): ByteBuffer
     external fun nativeIsImageLoading(handle: Long): Boolean
     external fun nativeFormatSelectionRange(handle: Long, startCell: Int, endCell: Int): String?
-    external fun nativeFormatSelectionScreenRange(handle: Long, startScreenCell: Int, endScreenCell: Int): String?
+    external fun nativeFormatSelectionScreenRange(
+        handle: Long,
+        startScreenCell: Int,
+        endScreenCell: Int
+    ): String?
+
     external fun nativeSelectWordAt(handle: Long, cellX: Int, cellY: Int): String?
     external fun nativeSelectLineAt(handle: Long, cellX: Int, cellY: Int): String?
     external fun nativeSelectAll(handle: Long): String?

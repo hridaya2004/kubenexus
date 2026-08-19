@@ -1,15 +1,15 @@
 package dev.hridaya.kubenexus.presentation.explore
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.ResourceField
 import dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase
-import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
@@ -98,7 +97,8 @@ class ExploreViewModel @Inject constructor(
 
             is ExploreUiAction.UpdateSearchQuery -> {
                 _uiState.update { state ->
-                    val filtered = applyFilter(state.resources, action.query, state.selectedCategory)
+                    val filtered =
+                        applyFilter(state.resources, action.query, state.selectedCategory)
                     state.copy(
                         searchQuery = action.query,
                         filteredResources = filtered,
@@ -164,12 +164,18 @@ class ExploreViewModel @Inject constructor(
 
     private fun refreshResources(clusterId: String?) {
         viewModelScope.launch(dispatcherProvider.main) {
-            _uiState.update { it.copy(isRefreshing = true, isLoading = it.resources.isEmpty(), errorMessage = null) }
-            val result = getAPIResourcesUseCase.refresh(clusterId)
-            when (result) {
+            _uiState.update {
+                it.copy(
+                    isRefreshing = true,
+                    isLoading = it.resources.isEmpty(),
+                    errorMessage = null
+                )
+            }
+            when (val result = getAPIResourcesUseCase.refresh(clusterId)) {
                 is Result.Success -> {
                     _uiState.update { state ->
-                        val filtered = applyFilter(result.data, state.searchQuery, state.selectedCategory)
+                        val filtered =
+                            applyFilter(result.data, state.searchQuery, state.selectedCategory)
                         state.copy(
                             resources = result.data,
                             filteredResources = filtered,
@@ -187,7 +193,11 @@ class ExploreViewModel @Inject constructor(
                             errorMessage = result.error.message,
                         )
                     }
-                    _events.send(ExploreUiEvent.ShowMessage(result.error.message ?: "Failed to refresh API resources"))
+                    _events.send(
+                        ExploreUiEvent.ShowMessage(
+                            result.error.message ?: "Failed to refresh API resources"
+                        )
+                    )
                 }
 
                 is Result.Loading -> Unit
@@ -201,7 +211,8 @@ class ExploreViewModel @Inject constructor(
 
         explainJob = viewModelScope.launch(dispatcherProvider.main) {
             // Immediately display cached schema from Room database if available
-            val cached = explainResourceUseCase.getCached(clusterId, resource.name, resource.groupVersion)
+            val cached =
+                explainResourceUseCase.getCached(clusterId, resource.name, resource.groupVersion)
             if (cached != null) {
                 _uiState.update { state ->
                     state.copy(
@@ -234,7 +245,10 @@ class ExploreViewModel @Inject constructor(
                         state.copy(
                             selectedResource = resource,
                             explainDetails = result.data,
-                            filteredFields = filterFields(result.data.fields, state.fieldSearchQuery),
+                            filteredFields = filterFields(
+                                result.data.fields,
+                                state.fieldSearchQuery
+                            ),
                             isLoadingExplain = false,
                             explainError = null,
                         )
@@ -254,7 +268,8 @@ class ExploreViewModel @Inject constructor(
                     }
                     _events.send(
                         ExploreUiEvent.ShowMessage(
-                            result.error.message ?: "Failed to refresh explanation for ${resource.kind}",
+                            result.error.message
+                                ?: "Failed to refresh explanation for ${resource.kind}",
                         ),
                     )
                 }
@@ -287,11 +302,11 @@ class ExploreViewModel @Inject constructor(
                 true
             } else {
                 r.name.lowercase().contains(trimmed) ||
-                    r.kind.lowercase().contains(trimmed) ||
-                    r.groupVersion.lowercase().contains(trimmed) ||
-                    r.singularName.lowercase().contains(trimmed) ||
-                    r.shortNames.any { it.lowercase().contains(trimmed) } ||
-                    r.categories.any { it.lowercase().contains(trimmed) }
+                        r.kind.lowercase().contains(trimmed) ||
+                        r.groupVersion.lowercase().contains(trimmed) ||
+                        r.singularName.lowercase().contains(trimmed) ||
+                        r.shortNames.any { it.lowercase().contains(trimmed) } ||
+                        r.categories.any { it.lowercase().contains(trimmed) }
             }
 
             matchesCategory && matchesQuery
@@ -303,8 +318,8 @@ class ExploreViewModel @Inject constructor(
         if (trimmed.isEmpty()) return fields
         return fields.filter { field ->
             field.name.lowercase().contains(trimmed) ||
-                field.type.lowercase().contains(trimmed) ||
-                field.description.lowercase().contains(trimmed)
+                    field.type.lowercase().contains(trimmed) ||
+                    field.description.lowercase().contains(trimmed)
         }
     }
 }

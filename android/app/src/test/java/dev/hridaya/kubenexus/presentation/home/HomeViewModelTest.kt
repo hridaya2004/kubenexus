@@ -270,17 +270,19 @@ class HomeViewModelTest {
         }
 
     @Test
-    fun `request delete namespace updates state and dismiss clears state`() = runTest(testDispatcher) {
-        viewModel.onAction(HomeUiAction.RequestDeleteNamespace("test-namespace"))
-        assertEquals("test-namespace", viewModel.uiState.value.namespaceToDelete)
+    fun `request delete namespace updates state and dismiss clears state`() =
+        runTest(testDispatcher) {
+            viewModel.onAction(HomeUiAction.RequestDeleteNamespace("test-namespace"))
+            assertEquals("test-namespace", viewModel.uiState.value.namespaceToDelete)
 
-        viewModel.onAction(HomeUiAction.DismissDeleteNamespace)
-        assertEquals(null, viewModel.uiState.value.namespaceToDelete)
-    }
+            viewModel.onAction(HomeUiAction.DismissDeleteNamespace)
+            assertEquals(null, viewModel.uiState.value.namespaceToDelete)
+        }
 
     @Test
-    fun `confirm delete namespace clears delete state and deletes namespace`() = runTest(testDispatcher) {
-        val validYaml = """
+    fun `confirm delete namespace clears delete state and deletes namespace`() =
+        runTest(testDispatcher) {
+            val validYaml = """
             apiVersion: v1
             kind: Config
             clusters:
@@ -295,22 +297,22 @@ class HomeViewModelTest {
             current-context: test-cluster
         """.trimIndent()
 
-        viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
-        viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+            viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+            advanceUntilIdle()
 
-        viewModel.onAction(HomeUiAction.SelectNamespace("test-namespace"))
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.SelectNamespace("test-namespace"))
+            advanceUntilIdle()
 
-        viewModel.onAction(HomeUiAction.RequestDeleteNamespace("test-namespace"))
-        assertEquals("test-namespace", viewModel.uiState.value.namespaceToDelete)
+            viewModel.onAction(HomeUiAction.RequestDeleteNamespace("test-namespace"))
+            assertEquals("test-namespace", viewModel.uiState.value.namespaceToDelete)
 
-        viewModel.onAction(HomeUiAction.ConfirmDeleteNamespace("test-namespace"))
-        advanceUntilIdle()
+            viewModel.onAction(HomeUiAction.ConfirmDeleteNamespace("test-namespace"))
+            advanceUntilIdle()
 
-        assertEquals(null, viewModel.uiState.value.namespaceToDelete)
-        assertEquals("All Namespaces", viewModel.uiState.value.selectedNamespace)
-    }
+            assertEquals(null, viewModel.uiState.value.namespaceToDelete)
+            assertEquals("All Namespaces", viewModel.uiState.value.selectedNamespace)
+        }
 
     private class FakeClusterRepository : ClusterRepository {
         private val clustersFlow = MutableStateFlow<List<Cluster>>(emptyList())
@@ -367,10 +369,24 @@ class HomeViewModelTest {
             Result.Success("Reachable")
 
         override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    serverVersion = "v1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
 
         override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    serverVersion = "v1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
 
         override suspend fun updateClusterStatus(
             id: String,
@@ -457,7 +473,6 @@ class HomeViewModelTest {
         ): Result<Unit> {
             return Result.Success(Unit)
         }
-
 
 
         override suspend fun getPodLogs(

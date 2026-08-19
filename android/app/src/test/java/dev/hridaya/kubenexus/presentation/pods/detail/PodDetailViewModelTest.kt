@@ -275,9 +275,25 @@ class PodDetailViewModelTest {
 
         override suspend fun testClusterById(id: String): Result<String> = Result.Success("OK")
         override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    serverVersion = "v1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
+
         override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    serverVersion = "v1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
+
         override suspend fun updateClusterStatus(
             id: String,
             status: ClusterStatus,

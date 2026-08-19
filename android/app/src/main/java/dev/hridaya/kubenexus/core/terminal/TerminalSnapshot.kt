@@ -23,17 +23,17 @@ data class TerminalSnapshot(
         if (this === other) return true
         if (other !is TerminalSnapshot) return false
         return cols == other.cols && rows == other.rows &&
-            cursorX == other.cursorX && cursorY == other.cursorY &&
-            cursorVisible == other.cursorVisible &&
-            defaultBgArgb == other.defaultBgArgb &&
-            defaultFgArgb == other.defaultFgArgb &&
-            codepoints.contentEquals(other.codepoints) &&
-            fgArgb.contentEquals(other.fgArgb) &&
-            bgArgb.contentEquals(other.bgArgb) &&
-            flags.contentEquals(other.flags) &&
-            graphemeExtrasEquals(graphemeExtras, other.graphemeExtras) &&
-            viewportScrollY == other.viewportScrollY &&
-            appHandlesSelectionDrag == other.appHandlesSelectionDrag
+                cursorX == other.cursorX && cursorY == other.cursorY &&
+                cursorVisible == other.cursorVisible &&
+                defaultBgArgb == other.defaultBgArgb &&
+                defaultFgArgb == other.defaultFgArgb &&
+                codepoints.contentEquals(other.codepoints) &&
+                fgArgb.contentEquals(other.fgArgb) &&
+                bgArgb.contentEquals(other.bgArgb) &&
+                flags.contentEquals(other.flags) &&
+                graphemeExtrasEquals(graphemeExtras, other.graphemeExtras) &&
+                viewportScrollY == other.viewportScrollY &&
+                appHandlesSelectionDrag == other.appHandlesSelectionDrag
     }
 
     override fun hashCode(): Int {
@@ -120,9 +120,9 @@ data class TerminalSnapshot(
             var off = 0
             for (i in 0 until cellCount) {
                 codepoints[i] = (cellBytes[off].toInt() and 0xFF) or
-                    ((cellBytes[off + 1].toInt() and 0xFF) shl 8) or
-                    ((cellBytes[off + 2].toInt() and 0xFF) shl 16) or
-                    ((cellBytes[off + 3].toInt() and 0xFF) shl 24)
+                        ((cellBytes[off + 1].toInt() and 0xFF) shl 8) or
+                        ((cellBytes[off + 2].toInt() and 0xFF) shl 16) or
+                        ((cellBytes[off + 3].toInt() and 0xFF) shl 24)
                 off += 4
                 val fgR = cellBytes[off].toInt() and 0xFF; off++
                 val fgG = cellBytes[off].toInt() and 0xFF; off++

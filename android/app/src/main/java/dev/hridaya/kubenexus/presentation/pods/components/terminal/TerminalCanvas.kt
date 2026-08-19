@@ -1,14 +1,13 @@
 package dev.hridaya.kubenexus.presentation.pods.components.terminal
 
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.view.ViewConfiguration
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,11 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -33,15 +28,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.hridaya.kubenexus.core.terminal.GhosttyBridge
 import dev.hridaya.kubenexus.core.terminal.TerminalSnapshot
+import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
-import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.round
 
@@ -67,8 +62,10 @@ fun TerminalCanvas(
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var lastResizedGrid by remember { mutableStateOf(Pair(0, 0)) }
     val androidViewConfiguration = remember(context) { ViewConfiguration.get(context) }
-    val touchSlopPx = remember(androidViewConfiguration) { androidViewConfiguration.scaledTouchSlop.toFloat() }
-    val longPressTimeoutMs = remember(androidViewConfiguration) { ViewConfiguration.getLongPressTimeout().toLong() }
+    val touchSlopPx =
+        remember(androidViewConfiguration) { androidViewConfiguration.scaledTouchSlop.toFloat() }
+    val longPressTimeoutMs =
+        remember(androidViewConfiguration) { ViewConfiguration.getLongPressTimeout().toLong() }
 
     val primaryTypeface = remember { Typeface.MONOSPACE }
     val boldTypeface = remember { Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
@@ -100,7 +97,14 @@ fun TerminalCanvas(
             val rows = max(1, floor(canvasSize.height / cellHeight).toInt())
             if (lastResizedGrid != Pair(cols, rows)) {
                 lastResizedGrid = Pair(cols, rows)
-                onResize(cols, rows, round(cellWidth).toInt(), round(cellHeight).toInt(), canvasSize.width, canvasSize.height)
+                onResize(
+                    cols,
+                    rows,
+                    round(cellWidth).toInt(),
+                    round(cellHeight).toInt(),
+                    canvasSize.width,
+                    canvasSize.height
+                )
             }
         }
     }
@@ -128,7 +132,8 @@ fun TerminalCanvas(
                     if (snap != null && cellWidth > 0f && cellHeight > 0f && snap.cols > 0 && snap.rows > 0) {
                         val col = (down.position.x / cellWidth).toInt().coerceIn(0, snap.cols - 1)
                         val row = (down.position.y / cellHeight).toInt().coerceIn(0, snap.rows - 1)
-                        initialAnchor = (row * snap.cols + col).coerceIn(0, (snap.cols * snap.rows) - 1)
+                        initialAnchor =
+                            (row * snap.cols + col).coerceIn(0, (snap.cols * snap.rows) - 1)
                     }
 
                     while (true) {
@@ -143,20 +148,39 @@ fun TerminalCanvas(
                                 isSelecting = true
                                 val wordRange = currentSnapshot?.wordAt(initialAnchor)
                                 if (wordRange != null) {
-                                    currentOnSelectionChange(TerminalSelection(wordRange.first, wordRange.last))
+                                    currentOnSelectionChange(
+                                        TerminalSelection(
+                                            wordRange.first,
+                                            wordRange.last
+                                        )
+                                    )
                                 } else {
-                                    currentOnSelectionChange(TerminalSelection(initialAnchor, initialAnchor))
+                                    currentOnSelectionChange(
+                                        TerminalSelection(
+                                            initialAnchor,
+                                            initialAnchor
+                                        )
+                                    )
                                 }
                             }
 
                             if (isSelecting) {
                                 val s = currentSnapshot
                                 if (s != null && cellWidth > 0f && cellHeight > 0f && s.cols > 0 && s.rows > 0) {
-                                    val col = (change.position.x / cellWidth).toInt().coerceIn(0, s.cols - 1)
-                                    val row = (change.position.y / cellHeight).toInt().coerceIn(0, s.rows - 1)
-                                    val currentCell = (row * s.cols + col).coerceIn(0, (s.cols * s.rows) - 1)
-                                    val currentAnchor = currentSelection?.anchorIndex ?: initialAnchor
-                                    currentOnSelectionChange(TerminalSelection(currentAnchor, currentCell))
+                                    val col = (change.position.x / cellWidth).toInt()
+                                        .coerceIn(0, s.cols - 1)
+                                    val row = (change.position.y / cellHeight).toInt()
+                                        .coerceIn(0, s.rows - 1)
+                                    val currentCell =
+                                        (row * s.cols + col).coerceIn(0, (s.cols * s.rows) - 1)
+                                    val currentAnchor =
+                                        currentSelection?.anchorIndex ?: initialAnchor
+                                    currentOnSelectionChange(
+                                        TerminalSelection(
+                                            currentAnchor,
+                                            currentCell
+                                        )
+                                    )
                                 }
                                 change.consume()
                             } else {
@@ -170,7 +194,11 @@ fun TerminalCanvas(
 
                                     if (cellHeight > 0f && abs(accumulatedScrollY) >= cellHeight) {
                                         val rowsToScroll = (accumulatedScrollY / cellHeight).toInt()
-                                        currentOnScroll(-rowsToScroll, change.position.x, change.position.y)
+                                        currentOnScroll(
+                                            -rowsToScroll,
+                                            change.position.x,
+                                            change.position.y
+                                        )
                                         accumulatedScrollY -= rowsToScroll * cellHeight
                                     }
                                     change.consume()
@@ -222,7 +250,8 @@ fun TerminalCanvas(
                     val rawBg = snap.bgArgb[idx]
 
                     val effectiveBg = if (isSelected) selBgArgb else rawBg
-                    val effectiveFg = if (isSelected) 0xFFFFFFFF.toInt() else if (rawFg == 0 || rawFg == 0xFF000000.toInt()) 0xFFFFFFFF.toInt() else rawFg
+                    val effectiveFg =
+                        if (isSelected) 0xFFFFFFFF.toInt() else if (rawFg == 0 || rawFg == 0xFF000000.toInt()) 0xFFFFFFFF.toInt() else rawFg
 
                     // Draw cell background if non-black or selected
                     if (effectiveBg != 0xFF000000.toInt() && effectiveBg != 0) {
@@ -251,7 +280,8 @@ fun TerminalCanvas(
                         }
 
                         textPaint.color = effectiveFg
-                        textPaint.isUnderlineText = (cellFlag and TerminalSnapshot.CELL_FLAG_UNDERLINE) != 0
+                        textPaint.isUnderlineText =
+                            (cellFlag and TerminalSnapshot.CELL_FLAG_UNDERLINE) != 0
 
                         val glyph = snap.glyphAt(idx)
                         native.drawText(glyph, cellX, baselineY, textPaint)

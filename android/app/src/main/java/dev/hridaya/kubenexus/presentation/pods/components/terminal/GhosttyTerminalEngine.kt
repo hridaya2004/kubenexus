@@ -1,12 +1,10 @@
 package dev.hridaya.kubenexus.presentation.pods.components.terminal
 
 import dev.hridaya.kubenexus.core.terminal.GhosttyBridge
-import dev.hridaya.kubenexus.core.terminal.GhosttyKey
 import dev.hridaya.kubenexus.core.terminal.GhosttyKeyAction
 import dev.hridaya.kubenexus.core.terminal.KeyMapper
 import dev.hridaya.kubenexus.core.terminal.TerminalSnapshot
 import dev.hridaya.kubenexus.domain.model.TerminalSession
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,11 +84,17 @@ class GhosttyTerminalEngine(
         }
     }
 
-    fun sendKey(keyCode: Int, codepoint: Int = 0, metaState: Int = 0, action: Int = GhosttyKeyAction.Press): Boolean {
+    fun sendKey(
+        keyCode: Int,
+        codepoint: Int = 0,
+        metaState: Int = 0,
+        action: Int = GhosttyKeyAction.Press
+    ): Boolean {
         if (handle == 0L) return false
         val mapped = KeyMapper.map(keyCode, codepoint, metaState) ?: return false
         val utf8 = if (mapped.charCode != 0) String(Character.toChars(mapped.charCode)) else null
-        val encoded = bridge.nativeEncodeKey(handle, mapped.key, mapped.codepoint, mapped.mods, action, utf8)
+        val encoded =
+            bridge.nativeEncodeKey(handle, mapped.key, mapped.codepoint, mapped.mods, action, utf8)
         if (encoded != null && encoded.isNotEmpty()) {
             terminalSession?.writeBytes(encoded)
             return true

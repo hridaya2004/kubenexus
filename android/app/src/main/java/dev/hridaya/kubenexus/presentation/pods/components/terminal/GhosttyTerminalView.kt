@@ -6,16 +6,9 @@ import android.content.Context
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,13 +28,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -115,7 +106,8 @@ fun GhosttyTerminalView(
     val focusRequester = remember { FocusRequester() }
     val snapshot by engine.snapshot.collectAsState()
     val isImeVisible = WindowInsets.isImeVisible
-    val containers = (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
+    val containers =
+        (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
 
     var terminalSelection by remember { mutableStateOf<TerminalSelection?>(null) }
     var localInput by remember { mutableStateOf("") }
@@ -339,7 +331,8 @@ fun GhosttyTerminalView(
                             onClick = {
                                 val snap = snapshot
                                 if (snap != null && snap.cols > 0 && snap.rows > 0) {
-                                    terminalSelection = TerminalSelection(0, (snap.cols * snap.rows) - 1)
+                                    terminalSelection =
+                                        TerminalSelection(0, (snap.cols * snap.rows) - 1)
                                 }
                             },
                             modifier = Modifier.size(26.dp),
@@ -365,9 +358,19 @@ fun GhosttyTerminalView(
                                         extractSelectionText(snap, 0 until (snap.cols * snap.rows))
                                     }
                                     if (!text.isNullOrBlank()) {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Output", text))
-                                        Toast.makeText(context, "Terminal output copied", Toast.LENGTH_SHORT).show()
+                                        val clipboard =
+                                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText(
+                                                "Terminal Output",
+                                                text
+                                            )
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            "Terminal output copied",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 }
                             },
@@ -385,7 +388,8 @@ fun GhosttyTerminalView(
                         // Paste button
                         IconButton(
                             onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clipboard =
+                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clip = clipboard.primaryClip
                                 if (clip != null && clip.itemCount > 0) {
                                     val pasteText = clip.getItemAt(0).text?.toString().orEmpty()
@@ -511,11 +515,17 @@ fun GhosttyTerminalView(
                                 Surface(
                                     color = GhosttyKeyBg,
                                     shape = MaterialTheme.shapes.small,
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        Color.White
+                                    ),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.padding(
+                                            horizontal = 10.dp,
+                                            vertical = 4.dp
+                                        ),
                                     ) {
                                         Text(
                                             text = "Text Selected",
@@ -528,13 +538,24 @@ fun GhosttyTerminalView(
                                             onClick = {
                                                 val snap = snapshot
                                                 if (snap != null) {
-                                                    val sel = terminalSelection?.normalized(snap.cols * snap.rows)
+                                                    val sel =
+                                                        terminalSelection?.normalized(snap.cols * snap.rows)
                                                     if (sel != null) {
                                                         val text = extractSelectionText(snap, sel)
                                                         if (!text.isNullOrBlank()) {
-                                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                            clipboard.setPrimaryClip(ClipData.newPlainText("Terminal Selection", text))
-                                                            Toast.makeText(context, "Selection copied", Toast.LENGTH_SHORT).show()
+                                                            val clipboard =
+                                                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                            clipboard.setPrimaryClip(
+                                                                ClipData.newPlainText(
+                                                                    "Terminal Selection",
+                                                                    text
+                                                                )
+                                                            )
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Selection copied",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
                                                         }
                                                     }
                                                 }
@@ -778,7 +799,10 @@ private fun TerminalKeyButton(
         onClick = onClick,
         shape = MaterialTheme.shapes.extraSmall,
         color = if (isActive) Color.White else GhosttyKeyBg,
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isActive) Color.White else GhosttyKeyBorder),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isActive) Color.White else GhosttyKeyBorder
+        ),
         modifier = Modifier.height(32.dp),
     ) {
         Box(

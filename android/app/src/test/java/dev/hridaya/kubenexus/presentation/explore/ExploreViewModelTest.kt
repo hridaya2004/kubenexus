@@ -11,8 +11,8 @@ import dev.hridaya.kubenexus.domain.model.ResourceField
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.ExploreRepository
 import dev.hridaya.kubenexus.domain.usecase.ExplainResourceUseCase
-import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetAPIResourcesUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -51,7 +51,10 @@ class ExploreViewModelTest {
         fakeExploreRepository = FakeExploreRepository()
 
         viewModel = ExploreViewModel(
-            getActiveClusterUseCase = GetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
+            getActiveClusterUseCase = GetActiveClusterUseCase(
+                fakeClusterRepository,
+                testDispatcherProvider
+            ),
             getAPIResourcesUseCase = GetAPIResourcesUseCase(fakeExploreRepository),
             explainResourceUseCase = ExplainResourceUseCase(fakeExploreRepository),
             dispatcherProvider = testDispatcherProvider,
@@ -82,23 +85,24 @@ class ExploreViewModelTest {
     }
 
     @Test
-    fun `search query filters resources by name, kind, and short names`() = runTest(testDispatcher) {
-        advanceUntilIdle()
+    fun `search query filters resources by name, kind, and short names`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
 
-        viewModel.onAction(ExploreUiAction.UpdateSearchQuery("pod"))
-        var state = viewModel.uiState.value
-        assertEquals(1, state.filteredResources.size)
-        assertEquals("pods", state.filteredResources[0].name)
+            viewModel.onAction(ExploreUiAction.UpdateSearchQuery("pod"))
+            var state = viewModel.uiState.value
+            assertEquals(1, state.filteredResources.size)
+            assertEquals("pods", state.filteredResources[0].name)
 
-        viewModel.onAction(ExploreUiAction.UpdateSearchQuery("deploy"))
-        state = viewModel.uiState.value
-        assertEquals(1, state.filteredResources.size)
-        assertEquals("deployments", state.filteredResources[0].name)
+            viewModel.onAction(ExploreUiAction.UpdateSearchQuery("deploy"))
+            state = viewModel.uiState.value
+            assertEquals(1, state.filteredResources.size)
+            assertEquals("deployments", state.filteredResources[0].name)
 
-        viewModel.onAction(ExploreUiAction.UpdateSearchQuery(""))
-        state = viewModel.uiState.value
-        assertEquals(3, state.filteredResources.size)
-    }
+            viewModel.onAction(ExploreUiAction.UpdateSearchQuery(""))
+            state = viewModel.uiState.value
+            assertEquals(3, state.filteredResources.size)
+        }
 
     @Test
     fun `open and close search updates search state and resets query`() = runTest(testDispatcher) {
@@ -134,32 +138,33 @@ class ExploreViewModelTest {
     }
 
     @Test
-    fun `select resource loads explain schema details and dismiss clears it`() = runTest(testDispatcher) {
-        advanceUntilIdle()
+    fun `select resource loads explain schema details and dismiss clears it`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
 
-        val podResource = APIResource(name = "pods", kind = "Pod", groupVersion = "v1")
-        viewModel.onAction(ExploreUiAction.SelectResource(podResource))
-        advanceUntilIdle()
+            val podResource = APIResource(name = "pods", kind = "Pod", groupVersion = "v1")
+            viewModel.onAction(ExploreUiAction.SelectResource(podResource))
+            advanceUntilIdle()
 
-        var state = viewModel.uiState.value
-        assertEquals(podResource, state.selectedResource)
-        assertNotNull(state.explainDetails)
-        assertEquals("Pod", state.explainDetails?.kind)
-        assertEquals(2, state.filteredFields.size)
+            var state = viewModel.uiState.value
+            assertEquals(podResource, state.selectedResource)
+            assertNotNull(state.explainDetails)
+            assertEquals("Pod", state.explainDetails?.kind)
+            assertEquals(2, state.filteredFields.size)
 
-        // Filter fields
-        viewModel.onAction(ExploreUiAction.UpdateFieldSearchQuery("spec"))
-        state = viewModel.uiState.value
-        assertEquals(1, state.filteredFields.size)
-        assertEquals("spec", state.filteredFields[0].name)
+            // Filter fields
+            viewModel.onAction(ExploreUiAction.UpdateFieldSearchQuery("spec"))
+            state = viewModel.uiState.value
+            assertEquals(1, state.filteredFields.size)
+            assertEquals("spec", state.filteredFields[0].name)
 
-        // Dismiss
-        viewModel.onAction(ExploreUiAction.DismissExplain)
-        state = viewModel.uiState.value
-        assertNull(state.selectedResource)
-        assertNull(state.explainDetails)
-        assertEquals(0, state.filteredFields.size)
-    }
+            // Dismiss
+            viewModel.onAction(ExploreUiAction.DismissExplain)
+            state = viewModel.uiState.value
+            assertNull(state.selectedResource)
+            assertNull(state.explainDetails)
+            assertEquals(0, state.filteredFields.size)
+        }
 
     private class FakeClusterRepository : ClusterRepository {
         private val clustersFlow = MutableStateFlow<List<Cluster>>(emptyList())
@@ -169,9 +174,17 @@ class ExploreViewModelTest {
         }
 
         override fun getClustersStream(): Flow<List<Cluster>> = clustersFlow.asStateFlow()
-        override fun getActiveClusterStream(): Flow<Cluster?> = clustersFlow.map { list -> list.firstOrNull { it.isActive } }
-        override suspend fun getClusterById(id: String): Cluster? = clustersFlow.value.firstOrNull { it.id == id }
-        override suspend fun addCluster(kubeconfigRaw: String, customName: String?, setAsActive: Boolean): Result<Cluster> {
+        override fun getActiveClusterStream(): Flow<Cluster?> =
+            clustersFlow.map { list -> list.firstOrNull { it.isActive } }
+
+        override suspend fun getClusterById(id: String): Cluster? =
+            clustersFlow.value.firstOrNull { it.id == id }
+
+        override suspend fun addCluster(
+            kubeconfigRaw: String,
+            customName: String?,
+            setAsActive: Boolean
+        ): Result<Cluster> {
             val cluster = Cluster(
                 id = "c1",
                 name = customName ?: "test",
@@ -184,31 +197,83 @@ class ExploreViewModelTest {
             )
             return Result.Success(cluster)
         }
+
         override suspend fun setActiveCluster(id: String): Result<Unit> = Result.Success(Unit)
         override suspend fun deleteCluster(id: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun updateClusterName(id: String, newName: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun testConnection(kubeconfigRaw: String): Result<String> = Result.Success("Reachable")
-        override suspend fun testClusterById(id: String): Result<String> = Result.Success("Reachable")
+        override suspend fun updateClusterName(id: String, newName: String): Result<Unit> =
+            Result.Success(Unit)
+
+        override suspend fun testConnection(kubeconfigRaw: String): Result<String> =
+            Result.Success("Reachable")
+
+        override suspend fun testClusterById(id: String): Result<String> =
+            Result.Success("Reachable")
+
         override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    serverVersion = "v1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
+
         override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
-        override suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit> = Result.Success(Unit)
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    serverVersion = "v1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
+
+        override suspend fun updateClusterStatus(
+            id: String,
+            status: ClusterStatus,
+            lastConnectedAt: Long?
+        ): Result<Unit> = Result.Success(Unit)
+
         override suspend fun migratePlaintextClusters(): Result<Int> = Result.Success(0)
     }
 
     private class FakeExploreRepository : ExploreRepository {
         private val resources = listOf(
-            APIResource(name = "pods", singularName = "pod", namespaced = true, kind = "Pod", groupVersion = "v1", shortNames = listOf("po")),
-            APIResource(name = "deployments", singularName = "deployment", namespaced = true, kind = "Deployment", group = "apps", groupVersion = "apps/v1", shortNames = listOf("deploy")),
-            APIResource(name = "nodes", singularName = "node", namespaced = false, kind = "Node", groupVersion = "v1", shortNames = listOf("no")),
+            APIResource(
+                name = "pods",
+                singularName = "pod",
+                namespaced = true,
+                kind = "Pod",
+                groupVersion = "v1",
+                shortNames = listOf("po")
+            ),
+            APIResource(
+                name = "deployments",
+                singularName = "deployment",
+                namespaced = true,
+                kind = "Deployment",
+                group = "apps",
+                groupVersion = "apps/v1",
+                shortNames = listOf("deploy")
+            ),
+            APIResource(
+                name = "nodes",
+                singularName = "node",
+                namespaced = false,
+                kind = "Node",
+                groupVersion = "v1",
+                shortNames = listOf("no")
+            ),
         )
         private val flow = MutableStateFlow(resources)
         private val lastRefreshedFlow = MutableStateFlow<Long?>(1700000000000L)
 
-        override fun getAPIResourcesStream(clusterId: String?): Flow<List<APIResource>> = flow.asStateFlow()
+        override fun getAPIResourcesStream(clusterId: String?): Flow<List<APIResource>> =
+            flow.asStateFlow()
 
-        override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = lastRefreshedFlow.asStateFlow()
+        override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> =
+            lastRefreshedFlow.asStateFlow()
 
         override suspend fun fetchAPIResources(clusterId: String?): Result<List<APIResource>> {
             flow.value = resources
@@ -228,16 +293,32 @@ class ExploreViewModelTest {
             groupVersion: String,
         ): ResourceExplain? = null
 
-        override suspend fun explainResource(clusterId: String?, resourceOrKind: String, groupVersion: String): Result<ResourceExplain> {
-            val matchedKind = resources.find { it.name.equals(resourceOrKind, ignoreCase = true) }?.kind ?: resourceOrKind.replaceFirstChar { it.uppercase() }
+        override suspend fun explainResource(
+            clusterId: String?,
+            resourceOrKind: String,
+            groupVersion: String
+        ): Result<ResourceExplain> {
+            val matchedKind =
+                resources.find { it.name.equals(resourceOrKind, ignoreCase = true) }?.kind
+                    ?: resourceOrKind.replaceFirstChar { it.uppercase() }
             return Result.Success(
                 ResourceExplain(
                     kind = matchedKind,
                     groupVersion = groupVersion.ifEmpty { "v1" },
                     description = "Mock explanation for $resourceOrKind",
                     fields = listOf(
-                        ResourceField(name = "metadata", type = "ObjectMeta", description = "Standard metadata", required = false),
-                        ResourceField(name = "spec", type = "object", description = "Specification of behavior", required = true),
+                        ResourceField(
+                            name = "metadata",
+                            type = "ObjectMeta",
+                            description = "Standard metadata",
+                            required = false
+                        ),
+                        ResourceField(
+                            name = "spec",
+                            type = "object",
+                            description = "Specification of behavior",
+                            required = true
+                        ),
                     ),
                 ),
             )

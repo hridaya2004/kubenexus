@@ -185,9 +185,18 @@ class ClusterRepositoryImplTest {
             override fun checkLivez(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
             override fun checkReadyz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
             override fun checkHealthz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
-            override fun serverVersion(rawKubeconfig: String): Result<String> = Result.Success("v1.30.0")
+            override fun serverVersion(rawKubeconfig: String): Result<String> =
+                Result.Success("v1.30.0")
+
             override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
-                Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+                Result.Success(
+                    ClusterHealth(
+                        livez = true,
+                        readyz = true,
+                        serverVersion = "v1.30.0",
+                        statusMessage = "Ready"
+                    )
+                )
         }
 
         fakeTester = object : ClusterConnectionTester(fakeNativeBridge) {

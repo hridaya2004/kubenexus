@@ -6,19 +6,74 @@ object KeyMapper {
     fun map(keyCode: Int, codepoint: Int, metaState: Int): MappedKey? {
         val mods = translateMods(metaState)
         val mapped = when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> MappedKey(key = GhosttyKey.arrowUp, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_DPAD_DOWN -> MappedKey(key = GhosttyKey.arrowDown, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_DPAD_LEFT -> MappedKey(key = GhosttyKey.arrowLeft, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> MappedKey(key = GhosttyKey.arrowRight, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_PAGE_UP -> MappedKey(key = GhosttyKey.pageUp, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_PAGE_DOWN -> MappedKey(key = GhosttyKey.pageDown, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_MOVE_HOME -> MappedKey(key = GhosttyKey.home, codepoint = 0, mods = mods)
+            KeyEvent.KEYCODE_DPAD_UP -> MappedKey(
+                key = GhosttyKey.arrowUp,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_DPAD_DOWN -> MappedKey(
+                key = GhosttyKey.arrowDown,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_DPAD_LEFT -> MappedKey(
+                key = GhosttyKey.arrowLeft,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_DPAD_RIGHT -> MappedKey(
+                key = GhosttyKey.arrowRight,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_PAGE_UP -> MappedKey(
+                key = GhosttyKey.pageUp,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_PAGE_DOWN -> MappedKey(
+                key = GhosttyKey.pageDown,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_MOVE_HOME -> MappedKey(
+                key = GhosttyKey.home,
+                codepoint = 0,
+                mods = mods
+            )
+
             KeyEvent.KEYCODE_MOVE_END -> MappedKey(key = GhosttyKey.end, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_INSERT -> MappedKey(key = GhosttyKey.insert, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_FORWARD_DEL -> MappedKey(key = GhosttyKey.delete, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_DEL -> MappedKey(key = GhosttyKey.backspace, codepoint = 0, mods = mods)
+            KeyEvent.KEYCODE_INSERT -> MappedKey(
+                key = GhosttyKey.insert,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_FORWARD_DEL -> MappedKey(
+                key = GhosttyKey.delete,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_DEL -> MappedKey(
+                key = GhosttyKey.backspace,
+                codepoint = 0,
+                mods = mods
+            )
+
             KeyEvent.KEYCODE_TAB -> MappedKey(key = GhosttyKey.tab, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_ESCAPE -> MappedKey(key = GhosttyKey.escape, codepoint = 0, mods = mods)
+            KeyEvent.KEYCODE_ESCAPE -> MappedKey(
+                key = GhosttyKey.escape,
+                codepoint = 0,
+                mods = mods
+            )
+
             KeyEvent.KEYCODE_ENTER -> MappedKey(key = GhosttyKey.enter, codepoint = 0, mods = mods)
             KeyEvent.KEYCODE_SPACE -> MappedKey(key = GhosttyKey.space, codepoint = 0, mods = mods)
 
@@ -73,16 +128,51 @@ object KeyMapper {
             KeyEvent.KEYCODE_8 -> MappedKey(key = GhosttyKey.digit8, codepoint = 0, mods = mods)
             KeyEvent.KEYCODE_9 -> MappedKey(key = GhosttyKey.digit9, codepoint = 0, mods = mods)
 
-            KeyEvent.KEYCODE_GRAVE -> MappedKey(key = GhosttyKey.backquote, codepoint = 0, mods = mods)
+            KeyEvent.KEYCODE_GRAVE -> MappedKey(
+                key = GhosttyKey.backquote,
+                codepoint = 0,
+                mods = mods
+            )
+
             KeyEvent.KEYCODE_MINUS -> MappedKey(key = GhosttyKey.minus, codepoint = 0, mods = mods)
             KeyEvent.KEYCODE_EQUALS -> MappedKey(key = GhosttyKey.equal, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_LEFT_BRACKET -> MappedKey(key = GhosttyKey.bracketLeft, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_RIGHT_BRACKET -> MappedKey(key = GhosttyKey.bracketRight, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_BACKSLASH -> MappedKey(key = GhosttyKey.backslash, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_SEMICOLON -> MappedKey(key = GhosttyKey.semicolon, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_APOSTROPHE -> MappedKey(key = GhosttyKey.quote, codepoint = 0, mods = mods)
+            KeyEvent.KEYCODE_LEFT_BRACKET -> MappedKey(
+                key = GhosttyKey.bracketLeft,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_RIGHT_BRACKET -> MappedKey(
+                key = GhosttyKey.bracketRight,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_BACKSLASH -> MappedKey(
+                key = GhosttyKey.backslash,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_SEMICOLON -> MappedKey(
+                key = GhosttyKey.semicolon,
+                codepoint = 0,
+                mods = mods
+            )
+
+            KeyEvent.KEYCODE_APOSTROPHE -> MappedKey(
+                key = GhosttyKey.quote,
+                codepoint = 0,
+                mods = mods
+            )
+
             KeyEvent.KEYCODE_COMMA -> MappedKey(key = GhosttyKey.comma, codepoint = 0, mods = mods)
-            KeyEvent.KEYCODE_PERIOD -> MappedKey(key = GhosttyKey.period, codepoint = 0, mods = mods)
+            KeyEvent.KEYCODE_PERIOD -> MappedKey(
+                key = GhosttyKey.period,
+                codepoint = 0,
+                mods = mods
+            )
+
             KeyEvent.KEYCODE_SLASH -> MappedKey(key = GhosttyKey.slash, codepoint = 0, mods = mods)
 
             else -> {

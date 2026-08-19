@@ -8,16 +8,16 @@ import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.LogCallback
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.security.LogSanitizer
-import go.Seq
-import org.json.JSONArray
-import org.json.JSONObject
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import dev.hridaya.kubenexus.domain.model.ResourceField
-import dagger.hilt.android.qualifiers.ApplicationContext
+import go.Seq
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.inject.Inject
 import client.Namespace as NativeNamespace
 import client.Pod as NativePod
@@ -84,7 +84,11 @@ interface KubeNexusNativeBridge {
     /**
      * Retrieves resource explanation details (kubectl explain) from native runtime.
      */
-    fun explainResource(rawKubeconfig: String, resourceOrKind: String, groupVersion: String = ""): Result<ResourceExplain>
+    fun explainResource(
+        rawKubeconfig: String,
+        resourceOrKind: String,
+        groupVersion: String = ""
+    ): Result<ResourceExplain>
 
 
     /**

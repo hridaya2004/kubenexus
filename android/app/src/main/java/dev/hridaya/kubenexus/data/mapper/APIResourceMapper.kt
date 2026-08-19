@@ -17,9 +17,12 @@ fun APIResourceEntity.toDomain(): APIResource {
         group = group,
         version = version,
         groupVersion = groupVersion,
-        verbs = if (verbs.isBlank()) emptyList() else verbs.split(",").map { it.trim() }.filter { it.isNotEmpty() },
-        shortNames = if (shortNames.isBlank()) emptyList() else shortNames.split(",").map { it.trim() }.filter { it.isNotEmpty() },
-        categories = if (categories.isBlank()) emptyList() else categories.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+        verbs = if (verbs.isBlank()) emptyList() else verbs.split(",").map { it.trim() }
+            .filter { it.isNotEmpty() },
+        shortNames = if (shortNames.isBlank()) emptyList() else shortNames.split(",")
+            .map { it.trim() }.filter { it.isNotEmpty() },
+        categories = if (categories.isBlank()) emptyList() else categories.split(",")
+            .map { it.trim() }.filter { it.isNotEmpty() },
     )
 }
 

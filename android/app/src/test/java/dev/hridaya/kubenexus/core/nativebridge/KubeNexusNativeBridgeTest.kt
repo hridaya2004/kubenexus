@@ -67,7 +67,15 @@ class KubeNexusNativeBridgeTest {
             }
 
             override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> {
-                return Result.Success(listOf(APIResource(name = "pods", kind = "Pod", groupVersion = "v1")))
+                return Result.Success(
+                    listOf(
+                        APIResource(
+                            name = "pods",
+                            kind = "Pod",
+                            groupVersion = "v1"
+                        )
+                    )
+                )
             }
 
             override fun explainResource(
@@ -171,7 +179,14 @@ class KubeNexusNativeBridgeTest {
                 Result.Success("v1.30.0")
 
             override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
-                Result.Success(ClusterHealth(livez = true, readyz = true, serverVersion = "v1.30.0", statusMessage = "Ready"))
+                Result.Success(
+                    ClusterHealth(
+                        livez = true,
+                        readyz = true,
+                        serverVersion = "v1.30.0",
+                        statusMessage = "Ready"
+                    )
+                )
         }
 
         assertFalse(fakeBridge.isAvailable())

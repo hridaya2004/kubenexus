@@ -34,8 +34,10 @@ open class ClusterConnectionTester @Inject constructor(
                 Log.d(TAG, "Cluster ping succeeded: $status")
                 status
             }
+
             is Result.Error -> {
-                val errorMsg = LogSanitizer.sanitize(pingResult.error.message).ifBlank { "Connection failed or cluster unreachable" }
+                val errorMsg = LogSanitizer.sanitize(pingResult.error.message)
+                    .ifBlank { "Connection failed or cluster unreachable" }
                 val errorReport = buildString {
                     appendLine("Failed to connect to Kubernetes Cluster: '${parsed.clusterName}'")
                     appendLine("Target Server: ${parsed.serverUrl}")
@@ -45,6 +47,7 @@ open class ClusterConnectionTester @Inject constructor(
                 val cause = (pingResult.error as? AppError.Unknown)?.throwable
                 throw Exception(errorReport, cause)
             }
+
             is Result.Loading -> {
                 throw IllegalStateException("Connection test operation is unexpectedly in Loading state")
             }

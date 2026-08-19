@@ -38,7 +38,8 @@ fun DeleteNamespaceDialog(
             )
         },
         text = {
-            val clusterText = if (!clusterName.isNullOrBlank()) " from cluster '$clusterName'" else ""
+            val clusterText =
+                if (!clusterName.isNullOrBlank()) " from cluster '$clusterName'" else ""
             Text(
                 text = "Are you sure you want to delete namespace '$namespace'$clusterText? All resources in this namespace will be permanently removed.",
                 style = MaterialTheme.typography.bodyMedium,

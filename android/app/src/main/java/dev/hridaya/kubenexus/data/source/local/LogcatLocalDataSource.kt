@@ -1,6 +1,5 @@
 package dev.hridaya.kubenexus.data.source.local
 
-import android.os.Process as AndroidProcess
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
@@ -15,6 +14,7 @@ import java.io.InputStreamReader
 import java.util.concurrent.atomic.AtomicLong
 import java.util.regex.Pattern
 import javax.inject.Inject
+import android.os.Process as AndroidProcess
 
 interface LogcatLocalDataSource {
     fun streamLogs(maxBufferSize: Int): Flow<List<LogcatEntry>>

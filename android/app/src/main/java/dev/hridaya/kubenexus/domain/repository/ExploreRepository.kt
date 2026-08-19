@@ -14,11 +14,13 @@ interface ExploreRepository {
         resourceOrKind: String,
         groupVersion: String = "",
     ): Flow<ResourceExplain?>
+
     suspend fun getCachedExplainedResource(
         clusterId: String?,
         resourceOrKind: String,
         groupVersion: String = "",
     ): ResourceExplain?
+
     suspend fun explainResource(
         clusterId: String?,
         resourceOrKind: String,

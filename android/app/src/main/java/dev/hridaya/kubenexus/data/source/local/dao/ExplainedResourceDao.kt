@@ -11,10 +11,18 @@ import kotlinx.coroutines.flow.Flow
 interface ExplainedResourceDao {
 
     @Query("SELECT * FROM explained_resources WHERE clusterId = :clusterId AND (resourceOrKind = :resourceOrKind OR LOWER(kind) = :resourceOrKind) AND (groupVersion = :groupVersion OR :groupVersion = '' OR groupVersion = '') LIMIT 1")
-    suspend fun getExplainedResource(clusterId: String, resourceOrKind: String, groupVersion: String): ExplainedResourceEntity?
+    suspend fun getExplainedResource(
+        clusterId: String,
+        resourceOrKind: String,
+        groupVersion: String
+    ): ExplainedResourceEntity?
 
     @Query("SELECT * FROM explained_resources WHERE clusterId = :clusterId AND (resourceOrKind = :resourceOrKind OR LOWER(kind) = :resourceOrKind) AND (groupVersion = :groupVersion OR :groupVersion = '' OR groupVersion = '') LIMIT 1")
-    fun getExplainedResourceStream(clusterId: String, resourceOrKind: String, groupVersion: String): Flow<ExplainedResourceEntity?>
+    fun getExplainedResourceStream(
+        clusterId: String,
+        resourceOrKind: String,
+        groupVersion: String
+    ): Flow<ExplainedResourceEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExplainedResource(explained: ExplainedResourceEntity)

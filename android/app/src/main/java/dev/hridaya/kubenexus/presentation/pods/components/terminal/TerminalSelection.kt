@@ -89,7 +89,8 @@ internal fun extractSelectionText(snapshot: TerminalSnapshot, range: IntRange): 
     )
     val startRow = normalizedRange.first / snapshot.cols
     val endRow = normalizedRange.last / snapshot.cols
-    val builder = StringBuilder(normalizedRange.last - normalizedRange.first + 1 + (endRow - startRow))
+    val builder =
+        StringBuilder(normalizedRange.last - normalizedRange.first + 1 + (endRow - startRow))
 
     for (row in startRow..endRow) {
         val rowStart = row * snapshot.cols
@@ -142,11 +143,20 @@ internal fun buildSelectionState(
     val boundsBottom = (endRow + 1) * cellHeight
 
     val screenOffset = snapshot.viewportScrollY * cols
-    val screenStart = (minOf(selection.anchorIndex, selection.focusIndex) + screenOffset).coerceAtLeast(0)
-    val screenEnd = (maxOf(selection.anchorIndex, selection.focusIndex) + screenOffset).coerceAtLeast(screenStart)
+    val screenStart =
+        (minOf(selection.anchorIndex, selection.focusIndex) + screenOffset).coerceAtLeast(0)
+    val screenEnd =
+        (maxOf(selection.anchorIndex, selection.focusIndex) + screenOffset).coerceAtLeast(
+            screenStart
+        )
     val text = if (terminalHandle != 0L && snapshot.cols > 0) {
-        val screenText = ghosttyBridge.nativeFormatSelectionScreenRange(terminalHandle, screenStart, screenEnd)
-        screenText ?: ghosttyBridge.nativeFormatSelectionRange(terminalHandle, visibleRange.first, visibleRange.last)
+        val screenText =
+            ghosttyBridge.nativeFormatSelectionScreenRange(terminalHandle, screenStart, screenEnd)
+        screenText ?: ghosttyBridge.nativeFormatSelectionRange(
+            terminalHandle,
+            visibleRange.first,
+            visibleRange.last
+        )
     } else {
         extractSelectionText(snapshot, visibleRange)
     }

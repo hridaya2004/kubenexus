@@ -68,13 +68,20 @@ class ExploreRepositoryImpl @Inject constructor(
                     )
 
                     val activeIdentifiers = resources.flatMap {
-                        listOf(it.name.lowercase(), it.kind.lowercase(), it.singularName.lowercase())
+                        listOf(
+                            it.name.lowercase(),
+                            it.kind.lowercase(),
+                            it.singularName.lowercase()
+                        )
                     }.filter { it.isNotBlank() }.distinct()
 
                     if (activeIdentifiers.isEmpty()) {
                         explainedResourceDao.deleteExplainedResourcesForCluster(resolvedClusterId)
                     } else {
-                        explainedResourceDao.deleteOrphanedExplainedResources(resolvedClusterId, activeIdentifiers)
+                        explainedResourceDao.deleteOrphanedExplainedResources(
+                            resolvedClusterId,
+                            activeIdentifiers
+                        )
                     }
 
                     Result.Success(resources)
@@ -132,7 +139,8 @@ class ExploreRepositoryImpl @Inject constructor(
         } else ""
 
         try {
-            val nativeResult = nativeBridge.explainResource(decryptedKubeconfig, resourceOrKind, groupVersion)
+            val nativeResult =
+                nativeBridge.explainResource(decryptedKubeconfig, resourceOrKind, groupVersion)
             if (nativeResult.isSuccess) {
                 val explain = nativeResult.getOrNull()
                 if (explain != null) {
@@ -141,7 +149,11 @@ class ExploreRepositoryImpl @Inject constructor(
                     )
                     Result.Success(explain)
                 } else {
-                    val cached = explainedResourceDao.getExplainedResource(resolvedClusterId, normalizedResourceOrKind, groupVersion)
+                    val cached = explainedResourceDao.getExplainedResource(
+                        resolvedClusterId,
+                        normalizedResourceOrKind,
+                        groupVersion
+                    )
                     if (cached != null) {
                         Result.Success(cached.toDomain())
                     } else {

@@ -197,7 +197,7 @@ fun LogcatTopBar(
                 onValueChange = { onAction(LogcatUiAction.UpdateSearchQuery(it)) },
                 placeholder = {
                     Text(
-                        "Filter by tag, message, or keyword...",
+                        "Filter by tag, message, or keyword",
                         fontSize = 13.sp,
                     )
                 },
@@ -224,7 +224,13 @@ fun LogcatTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 4.dp),
-                shape = MaterialTheme.shapes.medium,
+                shape = CircleShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                ),
             )
         }
 
@@ -247,7 +253,7 @@ fun LogcatTopBar(
                         "All (${uiState.logs.size})",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 12.sp,
-                        fontWeight = if (uiState.selectedLogLevel == null) FontWeight.Bold else FontWeight.Normal,
+                        fontWeight = if (uiState.selectedLogLevel == null) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
@@ -280,7 +286,7 @@ fun LogcatTopBar(
                             "${level.code} ($count)",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 12.sp,
-                            fontWeight = if (uiState.selectedLogLevel == level) FontWeight.Bold else FontWeight.Normal,
+                            fontWeight = if (uiState.selectedLogLevel == level) FontWeight.SemiBold else FontWeight.Normal,
                         )
                     },
                     leadingIcon = {

@@ -6,12 +6,14 @@ import android.content.Context
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -46,6 +48,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -96,7 +99,7 @@ private val GhosttyKeyBorder = Color(0xFF2E2E2E)
 private val GhosttyGreen = Color(0xFF3FB950)
 private val GhosttyRed = Color(0xFFF85149)
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GhosttyTerminalView(
     uiState: PodDetailUiState,
@@ -449,7 +452,7 @@ fun GhosttyTerminalView(
                     }
                 }
 
-                androidx.compose.material3.HorizontalDivider(
+                HorizontalDivider(
                     color = GhosttyBorder,
                     thickness = 1.dp,
                 )
@@ -711,7 +714,7 @@ private fun TerminalKeyButton(
         onClick = onClick,
         shape = MaterialTheme.shapes.extraSmall,
         color = if (isActive) Color.White else GhosttyKeyBg,
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
             if (isActive) Color.White else GhosttyKeyBorder
         ),

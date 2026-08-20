@@ -47,6 +47,8 @@ fun DeleteClusterDialog(
                 Text("Cancel")
             }
         },
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier,
     )
 }

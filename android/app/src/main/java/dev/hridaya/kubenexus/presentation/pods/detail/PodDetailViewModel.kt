@@ -24,6 +24,7 @@ import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
 import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTerminalEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -578,7 +579,7 @@ class PodDetailViewModel @AssistedInject constructor(
         return when (sessionResult) {
             is Result.Success -> {
                 // Brief delay to let error callbacks (e.g. "executable not found") fire
-                kotlinx.coroutines.delay(500)
+                delay(500)
                 if (!hadFatalError) {
                     activeTerminalSession = sessionResult.data
                     terminalEngine.attachSession(sessionResult.data)

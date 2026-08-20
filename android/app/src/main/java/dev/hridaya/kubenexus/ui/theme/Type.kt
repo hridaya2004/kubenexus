@@ -1,6 +1,12 @@
 package dev.hridaya.kubenexus.ui.theme
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.DeviceFontFamilyName
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -205,4 +211,34 @@ val Typography = Typography(
         fontWeight = FontWeight.Medium,
     ),
 )
+
+/**
+ * Material Design 3 Expressive Emphasized Typography Scale.
+ * Reference: https://m3.material.io/styles/typography/overview
+ */
+@Immutable
+data class ExpressiveTypography(
+    val displayLargeEmphasized: TextStyle = Typography.displayLarge.copy(fontWeight = FontWeight.Bold),
+    val displayMediumEmphasized: TextStyle = Typography.displayMedium.copy(fontWeight = FontWeight.Bold),
+    val displaySmallEmphasized: TextStyle = Typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+    val headlineLargeEmphasized: TextStyle = Typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+    val headlineMediumEmphasized: TextStyle = Typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+    val headlineSmallEmphasized: TextStyle = Typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+    val titleLargeEmphasized: TextStyle = Typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+    val titleMediumEmphasized: TextStyle = Typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+    val titleSmallEmphasized: TextStyle = Typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+    val bodyLargeEmphasized: TextStyle = Typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+    val bodyMediumEmphasized: TextStyle = Typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+    val bodySmallEmphasized: TextStyle = Typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+    val labelLargeEmphasized: TextStyle = Typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+    val labelMediumEmphasized: TextStyle = Typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+    val labelSmallEmphasized: TextStyle = Typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+)
+
+val LocalExpressiveTypography = staticCompositionLocalOf { ExpressiveTypography() }
+
+val MaterialTheme.expressiveTypography: ExpressiveTypography
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalExpressiveTypography.current
 

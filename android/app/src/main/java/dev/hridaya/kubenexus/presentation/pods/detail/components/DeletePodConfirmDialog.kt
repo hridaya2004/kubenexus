@@ -59,6 +59,8 @@ fun DeletePodConfirmDialog(
                 Text("Cancel")
             }
         },
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     )
 }
 

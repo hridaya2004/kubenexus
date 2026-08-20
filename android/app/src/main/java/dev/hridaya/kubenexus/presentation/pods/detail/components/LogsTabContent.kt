@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.presentation.pods.components.GhosttyTerminalLogViewer
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiAction
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiState
@@ -77,7 +78,7 @@ fun LogsTabContent(
         }
 
         val isConnected =
-            uiState.isOnline && uiState.clusterConnectionStatus == dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus.CONNECTED
+            uiState.isOnline && uiState.clusterConnectionStatus == ClusterConnectionStatus.CONNECTED
 
         Row(
             modifier = Modifier

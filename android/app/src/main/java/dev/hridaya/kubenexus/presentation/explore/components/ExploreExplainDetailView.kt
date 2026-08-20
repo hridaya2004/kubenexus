@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
@@ -292,7 +293,7 @@ fun ExploreExplainDetailView(
                                     onValueChange = { onAction(ExploreUiAction.UpdateFieldSearchQuery(it)) },
                                     placeholder = {
                                         Text(
-                                            text = "Filter fields...",
+                                            text = "Filter fields",
                                             style = MaterialTheme.typography.bodySmall,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
@@ -319,10 +320,12 @@ fun ExploreExplainDetailView(
                                     },
                                     singleLine = true,
                                     maxLines = 1,
-                                    shape = MaterialTheme.shapes.small,
+                                    shape = CircleShape,
                                     colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                                     ),
                                     modifier = Modifier.fillMaxWidth(),
                                 )

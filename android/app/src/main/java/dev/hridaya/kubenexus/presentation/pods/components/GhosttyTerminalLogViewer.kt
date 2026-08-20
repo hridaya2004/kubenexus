@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -13,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -239,7 +241,7 @@ fun GhosttyTerminalLogViewer(
                     onValueChange = { searchQuery = it },
                     placeholder = {
                         Text(
-                            "Filter logs...",
+                            "Filter logs",
                             color = TerminalGutter,
                             fontSize = 12.sp,
                         )
@@ -325,32 +327,44 @@ fun GhosttyTerminalLogViewer(
                 }
 
                 // Down arrow button to jump straight to latest log line
-                androidx.compose.animation.AnimatedVisibility(
+                ScrollToBottomFab(
                     visible = !isAtBottom && filteredLogs.isNotEmpty(),
-                    enter = fadeIn() + scaleIn(),
-                    exit = fadeOut() + scaleOut(),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp),
-                ) {
-                    SmallFloatingActionButton(
-                        onClick = {
-                            scope.launch {
-                                listState.animateScrollToItem(filteredLogs.size - 1)
-                            }
-                        },
-                        containerColor = TerminalFabBg,
-                        contentColor = TerminalText,
-                        shape = CircleShape,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowDownward,
-                            contentDescription = "Go to latest log",
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
+                    onClick = {
+                        scope.launch {
+                            listState.animateScrollToItem(filteredLogs.size - 1)
+                        }
+                    },
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.ScrollToBottomFab(
+    visible: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + scaleIn(),
+        exit = fadeOut() + scaleOut(),
+        modifier = modifier
+            .align(Alignment.BottomEnd)
+            .padding(12.dp),
+    ) {
+        SmallFloatingActionButton(
+            onClick = onClick,
+            containerColor = TerminalFabBg,
+            contentColor = TerminalText,
+            shape = CircleShape,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ArrowDownward,
+                contentDescription = "Go to latest log",
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

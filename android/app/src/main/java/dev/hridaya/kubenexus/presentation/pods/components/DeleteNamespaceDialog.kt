@@ -59,6 +59,8 @@ fun DeleteNamespaceDialog(
                 Text("Cancel")
             }
         },
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier,
     )
 }

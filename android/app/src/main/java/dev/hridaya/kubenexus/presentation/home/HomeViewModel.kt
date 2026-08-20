@@ -24,6 +24,7 @@ import dev.hridaya.kubenexus.domain.usecase.TestClusterConnectionUseCase
 import dev.hridaya.kubenexus.domain.usecase.UpdateClusterNameUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -510,7 +511,7 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                     _effects.send(HomeUiEffect.ShowToast("Connection successful: ${result.data}"))
-                    kotlinx.coroutines.delay(2500)
+                    delay(2500)
                     _uiState.update {
                         it.copy(
                             clusterTestStatuses = it.clusterTestStatuses - clusterId,
@@ -531,7 +532,7 @@ class HomeViewModel @Inject constructor(
                             ),
                         )
                     }
-                    kotlinx.coroutines.delay(2500)
+                    delay(2500)
                     _uiState.update {
                         it.copy(
                             clusterTestStatuses = it.clusterTestStatuses - clusterId,

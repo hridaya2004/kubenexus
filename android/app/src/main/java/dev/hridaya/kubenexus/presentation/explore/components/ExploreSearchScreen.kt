@@ -83,7 +83,7 @@ fun ExploreSearchScreen(
                         onValueChange = { onAction(ExploreUiAction.UpdateSearchQuery(it)) },
                         placeholder = {
                             Text(
-                                text = "Search resources (e.g. pods, svc, deploy)...",
+                                text = "Search resources (e.g. pods, svc, deploy)",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         },

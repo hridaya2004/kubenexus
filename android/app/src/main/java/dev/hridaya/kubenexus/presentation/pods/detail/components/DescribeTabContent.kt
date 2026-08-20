@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
 import dev.hridaya.kubenexus.domain.model.PodDetails
@@ -194,7 +195,7 @@ fun DescribeTabContent(
             }
 
             val isConnected =
-                uiState.isOnline && uiState.clusterConnectionStatus == dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus.CONNECTED
+                uiState.isOnline && uiState.clusterConnectionStatus == ClusterConnectionStatus.CONNECTED
 
             items(details.initContainers) { container ->
                 ContainerCard(
@@ -217,7 +218,7 @@ fun DescribeTabContent(
         }
 
         val isConnected =
-            uiState.isOnline && uiState.clusterConnectionStatus == dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus.CONNECTED
+            uiState.isOnline && uiState.clusterConnectionStatus == ClusterConnectionStatus.CONNECTED
 
         items(details.containers) { container ->
             ContainerCard(

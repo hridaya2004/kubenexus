@@ -10,6 +10,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
@@ -25,7 +26,7 @@ fun AppNavigationBar(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 3.dp,
+        tonalElevation = 0.dp,
     ) {
         destinations.forEach { destination ->
             val isSelected = currentDestination == destination
@@ -53,6 +54,7 @@ fun AppNavigationBar(
                     Text(
                         text = destination.title,
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                     )
                 },
                 alwaysShowLabel = true,

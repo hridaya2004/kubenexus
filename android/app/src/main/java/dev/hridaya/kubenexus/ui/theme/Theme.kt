@@ -89,7 +89,16 @@ fun KubeNexusTheme(
         }
     }
 
-    CompositionLocalProvider(LocalStatusColors provides statusColors) {
+    val expressiveShapes = remember { ExpressiveShapes() }
+    val spacing = remember { Spacing() }
+    val expressiveTypography = remember { ExpressiveTypography() }
+
+    CompositionLocalProvider(
+        LocalStatusColors provides statusColors,
+        LocalExpressiveShapes provides expressiveShapes,
+        LocalSpacing provides spacing,
+        LocalExpressiveTypography provides expressiveTypography,
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

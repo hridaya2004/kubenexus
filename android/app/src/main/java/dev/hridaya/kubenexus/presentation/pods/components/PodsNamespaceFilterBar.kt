@@ -88,7 +88,10 @@ fun PodsNamespaceFilterBar(
                     selected = isSelected,
                     onClick = { onSelectNamespace(ns) },
                     label = { Text(ns) },
+                    shape = MaterialTheme.shapes.small,
                     colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     ),

@@ -131,6 +131,8 @@ fun ErrorDialog(
                 Text("Close")
             }
         },
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     )
 }
 

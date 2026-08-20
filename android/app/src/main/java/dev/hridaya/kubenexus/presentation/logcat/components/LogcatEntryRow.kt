@@ -21,6 +21,9 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -42,6 +45,13 @@ fun LogcatEntryRow(
     val highlightBg = MaterialTheme.colorScheme.primaryContainer
     val highlightColor = MaterialTheme.colorScheme.onPrimaryContainer
 
+    val monoStyle = TextStyle(
+        fontFamily = FontFamily.Monospace,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+    )
+
     val rowModifier = if (wrapLines) {
         modifier.fillMaxWidth()
     } else {
@@ -56,21 +66,28 @@ fun LogcatEntryRow(
     ) {
         Text(
             text = index.toString().padStart(4, ' '),
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier.width(32.dp),
+            style = monoStyle.copy(
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                textAlign = TextAlign.End,
+            ),
+            modifier = Modifier
+                .width(32.dp)
+                .alignByBaseline(),
         )
 
         Spacer(modifier = Modifier.width(4.dp))
 
         Text(
             text = if (entry.timestamp.isNotBlank()) entry.timestamp.takeLast(12) else "",
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            style = monoStyle.copy(
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            ),
             maxLines = 1,
-            modifier = Modifier.width(76.dp),
+            modifier = Modifier
+                .width(76.dp)
+                .alignByBaseline(),
         )
 
         Spacer(modifier = Modifier.width(4.dp))
@@ -85,10 +102,12 @@ fun LogcatEntryRow(
         ) {
             Text(
                 text = entry.level.code,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = levelColor,
+                style = monoStyle.copy(
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = levelColor,
+                    textAlign = TextAlign.Center,
+                ),
             )
         }
 
@@ -96,13 +115,15 @@ fun LogcatEntryRow(
 
         Text(
             text = entry.tag,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+            style = monoStyle.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(125.dp),
+            modifier = Modifier
+                .width(125.dp)
+                .alignByBaseline(),
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -119,12 +140,11 @@ fun LogcatEntryRow(
 
         Text(
             text = annotatedMessage,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 15.sp,
+            style = monoStyle.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
             softWrap = wrapLines,
-            modifier = textModifier,
+            modifier = textModifier.alignByBaseline(),
         )
     }
 }

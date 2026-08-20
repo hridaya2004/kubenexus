@@ -27,7 +27,7 @@ class DefaultLogcatLocalDataSource @Inject constructor(private val dispatcherPro
 
     private val entryIdSequence = AtomicLong(1L)
     private val threadTimePattern = Pattern.compile(
-        """^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEFA])\s+([^:]+):\s*(.*)$""",
+        """^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEFA])\s+(.+?)(?::\s*|\s+:\s*)(.*)$""",
     )
 
     override fun streamLogs(maxBufferSize: Int): Flow<List<LogcatEntry>> = callbackFlow {
@@ -186,7 +186,7 @@ class DefaultLogcatLocalDataSource @Inject constructor(private val dispatcherPro
                 pid = "",
                 tid = "",
                 level = LogLevel.UNKNOWN,
-                tag = "System",
+                tag = "",
                 message = line,
                 raw = line,
             )

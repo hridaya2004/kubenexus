@@ -89,7 +89,7 @@ fun ExploreListView(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
+            isRefreshing = false,
             onRefresh = { onAction(ExploreUiAction.Refresh) },
             modifier = Modifier
                 .fillMaxSize()
@@ -162,15 +162,11 @@ fun ExploreListView(
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(modifier = Modifier.size(36.dp))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "Discovering API resources...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            Text(
+                                text = "Discovering API resources...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
 

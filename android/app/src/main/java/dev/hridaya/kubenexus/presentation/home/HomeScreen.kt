@@ -132,7 +132,7 @@ fun HomeScreen(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
+            isRefreshing = false,
             onRefresh = { onAction(HomeUiAction.RefreshWorkloads) },
             modifier = Modifier
                 .fillMaxSize()

@@ -111,7 +111,7 @@ fun ExploreExplainDetailView(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = uiState.isLoadingExplain,
+            isRefreshing = false,
             onRefresh = { onAction(ExploreUiAction.RetryExplain(resource)) },
             modifier = Modifier
                 .fillMaxSize()
@@ -136,15 +136,11 @@ fun ExploreExplainDetailView(
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(modifier = Modifier.size(36.dp))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "Loading schema explanation for ${resource.kind}...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            Text(
+                                text = "Loading schema explanation for ${resource.kind}...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
 

@@ -137,7 +137,7 @@ fun ExploreExplainDetailView(
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = "Loading schema explanation for ${resource.kind}...",
+                                text = "Loading schema explanation for ${resource.kind}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

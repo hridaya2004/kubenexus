@@ -140,7 +140,7 @@ fun HomeScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    LoadingContent(message = "Connecting to cluster...")
+                    LoadingContent(message = "Connecting to cluster")
                 }
 
                 uiState.clusters.isEmpty() -> {

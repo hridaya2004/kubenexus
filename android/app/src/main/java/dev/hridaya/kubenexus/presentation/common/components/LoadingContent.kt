@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
-fun LoadingContent(modifier: Modifier = Modifier, message: String = "Loading...") {
+fun LoadingContent(modifier: Modifier = Modifier, message: String = "Loading") {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -46,6 +46,6 @@ fun LoadingContent(modifier: Modifier = Modifier, message: String = "Loading..."
 @Composable
 private fun LoadingContentPreview() {
     KubeNexusTheme {
-        LoadingContent(message = "Fetching cluster pods...")
+        LoadingContent(message = "Fetching cluster pods")
     }
 }

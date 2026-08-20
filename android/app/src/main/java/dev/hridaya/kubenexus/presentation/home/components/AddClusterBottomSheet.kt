@@ -191,7 +191,7 @@ fun AddClusterBottomSheet(
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("Validating & Connecting...")
+                    Text("Validating & Connecting")
                 } else {
                     Row(
                         horizontalArrangement = Arrangement.Center,

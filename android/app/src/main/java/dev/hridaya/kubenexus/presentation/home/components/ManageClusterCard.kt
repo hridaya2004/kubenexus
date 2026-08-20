@@ -158,7 +158,7 @@ fun ManageClusterCard(
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Testing...", style = MaterialTheme.typography.labelMedium)
+                                Text("Testing", style = MaterialTheme.typography.labelMedium)
                             }
                         }
 

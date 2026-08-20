@@ -48,7 +48,7 @@ fun PodsEmptyState(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = if (isRefreshing) "Fetching Pods..." else "0 Pods Found",
+                text = if (isRefreshing) "Fetching Pods" else "0 Pods Found",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )

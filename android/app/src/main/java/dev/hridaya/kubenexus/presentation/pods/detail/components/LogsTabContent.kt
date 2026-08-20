@@ -97,7 +97,7 @@ fun LogsTabContent(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Fetching...", style = MaterialTheme.typography.labelLarge)
+                    Text("Fetching", style = MaterialTheme.typography.labelLarge)
                 } else {
                     Icon(
                         imageVector = Icons.Outlined.Description,

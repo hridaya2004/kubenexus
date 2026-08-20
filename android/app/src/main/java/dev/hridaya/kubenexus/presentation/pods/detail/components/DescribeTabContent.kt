@@ -68,7 +68,7 @@ fun DescribeTabContent(
                 .verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.Center,
         ) {
-            LoadingContent(message = "Executing describe pod...")
+            LoadingContent(message = "Executing describe pod")
         }
         return
     }

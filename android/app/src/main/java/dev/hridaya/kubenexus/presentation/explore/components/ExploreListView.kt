@@ -163,7 +163,7 @@ fun ExploreListView(
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = "Discovering API resources...",
+                                text = "Discovering API resources",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

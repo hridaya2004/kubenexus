@@ -272,7 +272,7 @@ fun GhosttyTerminalLogViewer(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = if (isStreaming) "Waiting for container logs..." else "No log output available",
+                            text = if (isStreaming) "Waiting for container logs" else "No log output available",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
                             color = TerminalGutter,

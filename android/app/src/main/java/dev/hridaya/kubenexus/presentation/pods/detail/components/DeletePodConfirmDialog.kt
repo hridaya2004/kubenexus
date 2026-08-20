@@ -48,7 +48,7 @@ fun DeletePodConfirmDialog(
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Text(if (isDeletingPod) "Deleting..." else "Delete")
+                Text(if (isDeletingPod) "Deleting" else "Delete")
             }
         },
         dismissButton = {

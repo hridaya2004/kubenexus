@@ -76,3 +76,101 @@ jobs:
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 1
           if-no-files-found: error
+
+      - name: Send APKs to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set. Skipping Telegram notification."
+            exit 0
+          fi
+
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          EXTRA_ARGS=()
+          if [ -n "$TELEGRAM_TOPIC_ID" ]; then
+            EXTRA_ARGS+=("-F" "message_thread_id=$TELEGRAM_TOPIC_ID")
+          fi
+
+          for apk in $(find android/app/build/outputs/apk -name "*.apk" -type f | sort); do
+            APK_NAME=$(basename "$apk")
+            FILE_SIZE=$(stat -c%s "$apk" 2>/dev/null || wc -c < "$apk")
+            FILE_SIZE_MB=$(( FILE_SIZE / 1024 / 1024 ))
+
+            echo "Processing $APK_NAME ($FILE_SIZE_MB MB)..."
+
+            TARGET_FILE="$(realpath "$apk")"
+            DISPLAY_NAME="$APK_NAME"
+
+            # Telegram Bot API sendDocument limit is 50MB (52,428,800 bytes)
+            if [ "$FILE_SIZE" -gt 50000000 ]; then
+              echo "$APK_NAME ($FILE_SIZE_MB MB) exceeds Telegram 50MB limit. Compressing to zip..."
+              ZIP_NAME="${APK_NAME}.zip"
+              (cd "$(dirname "$apk")" && zip -9 "$ZIP_NAME" "$APK_NAME")
+              ZIP_PATH="$(dirname "$apk")/$ZIP_NAME"
+              if [ -f "$ZIP_PATH" ]; then
+                ZIP_ABS_PATH="$(realpath "$ZIP_PATH")"
+                ZIP_SIZE=$(stat -c%s "$ZIP_ABS_PATH" 2>/dev/null || wc -c < "$ZIP_ABS_PATH")
+                ZIP_SIZE_MB=$(( ZIP_SIZE / 1024 / 1024 ))
+
+                if [ "$ZIP_SIZE" -le 50000000 ]; then
+                  TARGET_FILE="$ZIP_ABS_PATH"
+                  DISPLAY_NAME="$ZIP_NAME"
+                  FILE_SIZE_MB="$ZIP_SIZE_MB"
+                  echo "Successfully compressed to $DISPLAY_NAME ($ZIP_SIZE_MB MB)"
+                fi
+              fi
+            fi
+
+            if [ ! -f "$TARGET_FILE" ]; then
+              echo "::error::Target file $TARGET_FILE does not exist. Skipping."
+              continue
+            fi
+
+            FINAL_SIZE=$(stat -c%s "$TARGET_FILE" 2>/dev/null || wc -c < "$TARGET_FILE")
+            if [ "$FINAL_SIZE" -gt 50000000 ]; then
+              echo "::warning::$DISPLAY_NAME ($FILE_SIZE_MB MB) still exceeds Telegram's 50MB bot upload limit. Sending notification link instead."
+
+              TEXT="<b>${APK_NAME}</b> (${FILE_SIZE_MB}MB) exceeds Telegram 50MB limit"$'\n'
+              TEXT+="Branch: <code>${{ github.ref_name }}</code> | Commit: <code>${COMMIT_SHA}</code>"$'\n'
+              TEXT+="${COMMIT_MSG}"$'\n'
+              TEXT+="<a href='${RUN_URL}'>Download from GitHub</a>"
+
+              CURL_MSG_ARGS=(
+                -s -S -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+                -F "chat_id=${TELEGRAM_CHAT_ID}"
+                -F "text=${TEXT}"
+                -F "parse_mode=HTML"
+              )
+              if [ -n "$TELEGRAM_TOPIC_ID" ]; then
+                CURL_MSG_ARGS+=(-F "message_thread_id=${TELEGRAM_TOPIC_ID}")
+              fi
+              curl "${CURL_MSG_ARGS[@]}"
+              echo ""
+            else
+              echo "Sending $DISPLAY_NAME ($TARGET_FILE) to Telegram..."
+
+              CAPTION="<b>${DISPLAY_NAME}</b> (${FILE_SIZE_MB}MB)"$'\n'
+              CAPTION+="Branch: <code>${{ github.ref_name }}</code> | Commit: <code>${COMMIT_SHA}</code>"$'\n'
+              CAPTION+="${COMMIT_MSG}"$'\n'
+              CAPTION+="<a href='${RUN_URL}'>GitHub Run #${{ github.run_number }}</a>"
+
+              CURL_DOC_ARGS=(
+                -s -S -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+                -F "chat_id=${TELEGRAM_CHAT_ID}"
+                -F "document=@${TARGET_FILE};filename=${DISPLAY_NAME}"
+                -F "caption=${CAPTION}"
+                -F "parse_mode=HTML"
+              )
+              if [ -n "$TELEGRAM_TOPIC_ID" ]; then
+                CURL_DOC_ARGS+=(-F "message_thread_id=${TELEGRAM_TOPIC_ID}")
+              fi
+              curl "${CURL_DOC_ARGS[@]}"
+              echo ""
+            fi
+          done

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,81 +36,105 @@ fun LogcatEntryRow(
     searchQuery: String,
     onCopy: () -> Unit,
     modifier: Modifier = Modifier,
+    wrapLines: Boolean = true,
 ) {
     val levelColor = getLogLevelColor(entry.level)
+    val highlightBg = MaterialTheme.colorScheme.primaryContainer
+    val highlightColor = MaterialTheme.colorScheme.onPrimaryContainer
+
+    val rowModifier = if (wrapLines) {
+        modifier.fillMaxWidth()
+    } else {
+        modifier.wrapContentWidth(align = Alignment.Start, unbounded = true)
+    }
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
+        modifier = rowModifier
             .clickable(onClick = onCopy)
-            .padding(vertical = 1.dp),
+            .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Text(
             text = index.toString().padStart(4, ' '),
             fontFamily = FontFamily.Monospace,
             fontSize = 10.sp,
-            color = GhosttyGutter,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.width(32.dp),
         )
 
-        if (entry.timestamp.isNotBlank()) {
-            Text(
-                text = entry.timestamp.takeLast(12),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                color = GhosttyGutter,
-                maxLines = 1,
-                modifier = Modifier.padding(end = 4.dp),
-            )
-        }
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Text(
+            text = if (entry.timestamp.isNotBlank()) entry.timestamp.takeLast(12) else "",
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            maxLines = 1,
+            modifier = Modifier.width(76.dp),
+        )
+
+        Spacer(modifier = Modifier.width(4.dp))
 
         Box(
             modifier = Modifier
+                .width(18.dp)
                 .clip(MaterialTheme.shapes.extraSmall)
                 .background(levelColor.copy(alpha = 0.2f))
-                .padding(horizontal = 3.dp, vertical = 0.5.dp),
+                .padding(vertical = 1.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = entry.level.code,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 color = levelColor,
             )
         }
 
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
-        if (entry.tag.isNotBlank()) {
-            Text(
-                text = "${entry.tag}:",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = LogTagColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(end = 4.dp),
-            )
+        Text(
+            text = entry.tag,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.width(125.dp),
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        val annotatedMessage = remember(entry.message, searchQuery, highlightBg, highlightColor) {
+            buildAnnotatedMessage(entry.message, searchQuery, highlightBg, highlightColor)
         }
 
-        val annotatedMessage = remember(entry.message, searchQuery) {
-            buildAnnotatedMessage(entry.message, searchQuery)
+        val textModifier = if (wrapLines) {
+            Modifier.weight(1f, fill = false)
+        } else {
+            Modifier
         }
 
         Text(
             text = annotatedMessage,
             fontFamily = FontFamily.Monospace,
             fontSize = 11.sp,
-            color = GhosttyText,
+            color = MaterialTheme.colorScheme.onSurface,
             lineHeight = 15.sp,
-            modifier = Modifier.weight(1f, fill = false),
+            softWrap = wrapLines,
+            modifier = textModifier,
         )
     }
 }
 
-private fun buildAnnotatedMessage(message: String, query: String): AnnotatedString {
+private fun buildAnnotatedMessage(
+    message: String,
+    query: String,
+    highlightBg: Color,
+    highlightColor: Color,
+): AnnotatedString {
     if (query.isBlank()) return AnnotatedString(message)
     val builder = AnnotatedString.Builder()
     var lastIndex = 0
@@ -118,8 +143,8 @@ private fun buildAnnotatedMessage(message: String, query: String): AnnotatedStri
         builder.append(message.substring(lastIndex, index))
         builder.pushStyle(
             SpanStyle(
-                background = GhosttyYellow.copy(alpha = 0.35f),
-                color = Color.White,
+                background = highlightBg,
+                color = highlightColor,
                 fontWeight = FontWeight.Bold,
             ),
         )
@@ -138,24 +163,20 @@ private fun buildAnnotatedMessage(message: String, query: String): AnnotatedStri
 @Composable
 private fun LogcatEntryRowPreview() {
     KubeNexusTheme {
-        Box(modifier = Modifier
-            .background(GhosttyBg)
-            .padding(8.dp)) {
-            LogcatEntryRow(
-                index = 1,
-                entry = LogcatEntry(
-                    id = 1L,
-                    timestamp = "16:42:05.123",
-                    pid = "1234",
-                    tid = "5678",
-                    level = LogLevel.INFO,
-                    tag = "KubeNexusNative",
-                    message = "Connected to Kubernetes API",
-                    raw = "08-19 16:42:05.123  1234  5678 I KubeNexusNative: Connected to Kubernetes API",
-                ),
-                searchQuery = "Kubernetes",
-                onCopy = {},
-            )
-        }
+        LogcatEntryRow(
+            index = 1,
+            entry = LogcatEntry(
+                id = 1L,
+                timestamp = "16:42:05.123",
+                pid = "1234",
+                tid = "5678",
+                level = LogLevel.INFO,
+                tag = "KubeNexusNative",
+                message = "Connected to Kubernetes API",
+                raw = "08-19 16:42:05.123  1234  5678 I KubeNexusNative: Connected to Kubernetes API",
+            ),
+            searchQuery = "Kubernetes",
+            onCopy = {},
+        )
     }
 }

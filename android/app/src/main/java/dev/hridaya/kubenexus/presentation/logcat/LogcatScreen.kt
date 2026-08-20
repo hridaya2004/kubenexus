@@ -4,25 +4,41 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,10 +56,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
-import dev.hridaya.kubenexus.presentation.logcat.components.GhosttyBg
-import dev.hridaya.kubenexus.presentation.logcat.components.GhosttyCyan
-import dev.hridaya.kubenexus.presentation.logcat.components.GhosttyGutter
-import dev.hridaya.kubenexus.presentation.logcat.components.LogcatBottomBar
 import dev.hridaya.kubenexus.presentation.logcat.components.LogcatEntryRow
 import dev.hridaya.kubenexus.presentation.logcat.components.LogcatTopBar
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
@@ -105,17 +117,41 @@ fun LogcatScreen(
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    var wrapLines by remember { mutableStateOf(true) }
+    var wrapLines by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.filteredLogs.size, uiState.autoScroll) {
-        if (uiState.autoScroll && uiState.filteredLogs.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.filteredLogs.size - 1)
+    // Scroll-aware bottom detection
+    val isAtBottom by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty()) {
+                true
+            } else {
+                val lastVisibleItem = visibleItems.last()
+                lastVisibleItem.index >= layoutInfo.totalItemsCount - 1
+            }
+        }
+    }
+
+    var autoScrollEnabled by remember { mutableStateOf(true) }
+
+    // Update autoScrollEnabled when user scrolls manually
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            autoScrollEnabled = isAtBottom
+        }
+    }
+
+    // Auto-scroll when new logs arrive ONLY if auto-scroll is currently active
+    LaunchedEffect(uiState.filteredLogs.size) {
+        if (autoScrollEnabled && uiState.filteredLogs.isNotEmpty()) {
+            listState.scrollToItem(uiState.filteredLogs.size - 1)
         }
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GhosttyBg,
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             LogcatTopBar(
@@ -126,88 +162,117 @@ fun LogcatScreen(
                 onNavigateBack = onNavigateBack,
             )
         },
-        bottomBar = {
-            LogcatBottomBar(
-                autoScroll = uiState.autoScroll,
-                onAction = onAction,
-                onScrollToTop = {
-                    scope.launch {
-                        if (uiState.filteredLogs.isNotEmpty()) {
-                            listState.animateScrollToItem(0)
-                        }
-                    }
-                },
-                onScrollToBottom = {
-                    scope.launch {
-                        if (uiState.filteredLogs.isNotEmpty()) {
-                            listState.animateScrollToItem(uiState.filteredLogs.size - 1)
-                        }
-                    }
-                },
-            )
-        },
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .background(GhosttyBg),
+                .padding(innerPadding),
         ) {
-            if (uiState.isLoading && uiState.logs.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = GhosttyCyan)
-                }
-            } else if (uiState.filteredLogs.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (uiState.searchQuery.isNotEmpty() || uiState.selectedLogLevel != null) {
-                            "No logs match your filter"
-                        } else {
-                            "No logcat entries available"
-                        },
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = GhosttyGutter,
-                    )
-                }
-            } else {
-                val horizontalScrollState = rememberScrollState()
-                val listModifier = if (wrapLines) {
-                    Modifier.fillMaxSize()
-                } else {
-                    Modifier
-                        .fillMaxSize()
-                        .horizontalScroll(horizontalScrollState)
-                }
-
-                SelectionContainer(modifier = listModifier) {
-                    LazyColumn(
-                        state = listState,
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+            ) {
+                if (uiState.isLoading && uiState.logs.isEmpty()) {
+                    Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        itemsIndexed(
-                            items = uiState.filteredLogs,
-                            key = { _, item -> item.id },
-                        ) { index, entry ->
-                            LogcatEntryRow(
-                                index = index + 1,
-                                entry = entry,
-                                searchQuery = uiState.searchQuery,
-                                onCopy = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onAction(LogcatUiAction.CopyLogEntry(entry))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                } else if (uiState.filteredLogs.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (uiState.searchQuery.isNotEmpty() || uiState.selectedLogLevel != null) {
+                                "No logs match your filter"
+                            } else {
+                                "No logcat entries available"
+                            },
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    val horizontalScrollState = rememberScrollState()
+
+                    SelectionContainer(modifier = Modifier.fillMaxSize()) {
+                        val scrollBoxModifier = if (wrapLines) {
+                            Modifier.fillMaxSize()
+                        } else {
+                            Modifier
+                                .fillMaxSize()
+                                .horizontalScroll(horizontalScrollState)
+                        }
+
+                        Box(modifier = scrollBoxModifier) {
+                            LazyColumn(
+                                state = listState,
+                                modifier = if (wrapLines) {
+                                    Modifier.fillMaxSize()
+                                } else {
+                                    Modifier
+                                        .fillMaxHeight()
+                                        .wrapContentWidth(align = Alignment.Start, unbounded = true)
                                 },
-                            )
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                itemsIndexed(
+                                    items = uiState.filteredLogs,
+                                    key = { _, item -> item.id },
+                                ) { index, entry ->
+                                    LogcatEntryRow(
+                                        index = index + 1,
+                                        entry = entry,
+                                        searchQuery = uiState.searchQuery,
+                                        wrapLines = wrapLines,
+                                        onCopy = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            onAction(LogcatUiAction.CopyLogEntry(entry))
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            // Floating Down Arrow Button to scroll to latest logs
+            AnimatedVisibility(
+                visible = !isAtBottom && uiState.filteredLogs.isNotEmpty(),
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 18.dp),
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        autoScrollEnabled = true
+                        scope.launch {
+                            if (uiState.filteredLogs.isNotEmpty()) {
+                                listState.animateScrollToItem(uiState.filteredLogs.size - 1)
+                            }
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = CircleShape,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowDownward,
+                        contentDescription = "Scroll to latest log",
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
             }
         }

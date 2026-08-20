@@ -14,13 +14,12 @@ val GhosttyCyan = Color(0xFF58A6FF)
 val GhosttyPurple = Color(0xFFBC8CFF)
 val GhosttyBorderHighlight = Color(0xFF222222)
 
-val LogVerboseColor = Color(0xFF888888)
-val LogDebugColor = Color(0xFF58A6FF)
-val LogInfoColor = Color(0xFF3FB950)
-val LogWarnColor = Color(0xFFD29922)
-val LogErrorColor = Color(0xFFF85149)
-val LogFatalColor = Color(0xFFBC8CFF)
-val LogTagColor = Color(0xFFE0E0E0)
+val LogVerboseColor = Color(0xFF9E9E9E)
+val LogDebugColor = Color(0xFF29B6F6)
+val LogInfoColor = Color(0xFF66BB6A)
+val LogWarnColor = Color(0xFFFFA726)
+val LogErrorColor = Color(0xFFEF5350)
+val LogFatalColor = Color(0xFFAB47BC)
 
 fun getLogLevelColor(level: LogLevel): Color = when (level) {
     LogLevel.VERBOSE -> LogVerboseColor

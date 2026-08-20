@@ -52,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -83,43 +84,21 @@ fun LogcatTopBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(GhosttySurface),
+            .background(MaterialTheme.colorScheme.surface),
     ) {
         TopAppBar(
             title = {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(
-                                    if (uiState.isPaused) GhosttyYellow else GhosttyGreen,
-                                    CircleShape,
-                                ),
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (uiState.isPaused) "ghostty (logcat paused)" else "ghostty (logcat stream)",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GhosttyText,
-                        )
-                    }
-                    Text(
-                        text = "dev.hridaya.kubenexus • ${uiState.filteredLogs.size} lines",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = GhosttyGutter,
-                    )
-                }
+                Text(
+                    text = "Logcat",
+                    style = MaterialTheme.typography.titleLarge,
+                )
             },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "Back",
-                        tint = GhosttyText,
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             },
@@ -128,14 +107,14 @@ fun LogcatTopBar(
                     Icon(
                         imageVector = if (uiState.isSearchExpanded) Icons.Outlined.Close else Icons.Outlined.Search,
                         contentDescription = "Search",
-                        tint = if (uiState.isSearchExpanded) GhosttyCyan else GhosttyText,
+                        tint = if (uiState.isSearchExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     )
                 }
                 IconButton(onClick = onToggleWrapLines) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.WrapText,
                         contentDescription = "Wrap lines",
-                        tint = if (wrapLines) GhosttyGreen else GhosttyGutter,
+                        tint = if (wrapLines) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = {
@@ -145,7 +124,7 @@ fun LogcatTopBar(
                     Icon(
                         imageVector = if (uiState.isPaused) Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
                         contentDescription = if (uiState.isPaused) "Resume" else "Pause",
-                        tint = if (uiState.isPaused) GhosttyYellow else GhosttyGreen,
+                        tint = if (uiState.isPaused) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     )
                 }
                 IconButton(onClick = {
@@ -155,7 +134,7 @@ fun LogcatTopBar(
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,
                         contentDescription = "Clear Logs",
-                        tint = GhosttyText,
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
                 Box {
@@ -163,7 +142,7 @@ fun LogcatTopBar(
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
                             contentDescription = "More Options",
-                            tint = GhosttyText,
+                            tint = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                     DropdownMenu(
@@ -204,7 +183,7 @@ fun LogcatTopBar(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = GhosttySurface,
+                containerColor = Color.Transparent,
             ),
         )
 
@@ -219,14 +198,16 @@ fun LogcatTopBar(
                 placeholder = {
                     Text(
                         "Filter by tag, message, or keyword...",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = GhosttyGutter,
+                        fontSize = 13.sp,
                     )
                 },
                 singleLine = true,
                 leadingIcon = {
-                    Icon(Icons.Outlined.Search, contentDescription = null, tint = GhosttyCyan)
+                    Icon(
+                        Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                 },
                 trailingIcon = {
                     if (uiState.searchQuery.isNotEmpty()) {
@@ -234,7 +215,6 @@ fun LogcatTopBar(
                             Icon(
                                 Icons.Outlined.Clear,
                                 contentDescription = "Clear query",
-                                tint = GhosttyText
                             )
                         }
                     }
@@ -244,15 +224,7 @@ fun LogcatTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 4.dp),
-                shape = MaterialTheme.shapes.small,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = GhosttyText,
-                    unfocusedTextColor = GhosttyText,
-                    focusedBorderColor = GhosttyCyan,
-                    unfocusedBorderColor = GhosttyGutter,
-                    focusedContainerColor = GhosttyBg,
-                    unfocusedContainerColor = GhosttyBg,
-                ),
+                shape = MaterialTheme.shapes.medium,
             )
         }
 
@@ -274,12 +246,15 @@ fun LogcatTopBar(
                     Text(
                         "All (${uiState.logs.size})",
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
+                        fontWeight = if (uiState.selectedLogLevel == null) FontWeight.Bold else FontWeight.Normal,
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = GhosttyBorderHighlight,
-                    selectedLabelColor = GhosttyText,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
 
@@ -304,24 +279,27 @@ fun LogcatTopBar(
                         Text(
                             "${level.code} ($count)",
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
+                            fontWeight = if (uiState.selectedLogLevel == level) FontWeight.Bold else FontWeight.Normal,
                         )
                     },
                     leadingIcon = {
                         Box(
                             modifier = Modifier
-                                .size(7.dp)
+                                .size(8.dp)
                                 .background(getLogLevelColor(level), CircleShape),
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = GhosttyBorderHighlight,
-                        selectedLabelColor = GhosttyText,
+                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
                     ),
                 )
             }
         }
-        HorizontalDivider(color = GhosttySurface)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     }
 }
 

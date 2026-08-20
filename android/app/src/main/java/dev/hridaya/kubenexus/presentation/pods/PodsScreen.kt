@@ -78,7 +78,7 @@ fun PodsScreen(
                     Column {
                         Text(
                             text = "Pods",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                         )
                         uiState.activeCluster?.let { cluster ->
                             Text(

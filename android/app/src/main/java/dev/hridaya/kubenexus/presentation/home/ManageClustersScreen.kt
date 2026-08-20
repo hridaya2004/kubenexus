@@ -48,7 +48,7 @@ fun ManageClustersScreen(
                 title = {
                     Text(
                         text = "Manage Clusters",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                     )
                 },
                 navigationIcon = {

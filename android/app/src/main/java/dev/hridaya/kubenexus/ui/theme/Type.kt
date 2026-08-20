@@ -41,63 +41,64 @@ private fun createDeviceFontFamily(vararg primaryNames: String): FontFamily {
     return FontFamily(fontList)
 }
 
-val DisplayLargeEmphasized = createDeviceFontFamily(
-    "variable-display-large-emphasized",
-    "variable-display-large",
-    "google-sans",
-    "google-sans-flex",
-)
-val DisplayMediumEmphasized = createDeviceFontFamily(
-    "variable-display-medium-emphasized",
-    "variable-display-medium",
-    "google-sans",
-    "google-sans-flex",
-)
-val DisplaySmallEmphasized = createDeviceFontFamily(
-    "variable-display-small-emphasized",
-    "variable-display-small",
-    "google-sans",
-    "google-sans-flex",
-)
-
-val HeadlineLargeEmphasized = createDeviceFontFamily(
-    "variable-headline-large-emphasized",
-    "variable-headline-large",
-    "google-sans",
-    "google-sans-flex",
-)
-val HeadlineMediumEmphasized = createDeviceFontFamily(
-    "variable-headline-medium-emphasized",
-    "variable-headline-medium",
-    "google-sans",
-    "google-sans-flex",
-)
-val HeadlineSmallEmphasized = createDeviceFontFamily(
-    "variable-headline-small-emphasized",
-    "variable-headline-small",
-    "google-sans",
-    "google-sans-flex",
-)
-
 val TitleLargeEmphasized = createDeviceFontFamily(
     "variable-title-large-emphasized",
     "variable-title-large",
     "google-sans",
     "google-sans-flex",
 )
-val TitleMediumEmphasized = createDeviceFontFamily(
-    "variable-title-medium-emphasized",
+
+val DisplayLargeFamily = createDeviceFontFamily(
+    "variable-display-large",
+    "google-sans",
+    "roboto",
+    "sans-serif",
+)
+val DisplayMediumFamily = createDeviceFontFamily(
+    "variable-display-medium",
+    "google-sans",
+    "roboto",
+    "sans-serif",
+)
+val DisplaySmallFamily = createDeviceFontFamily(
+    "variable-display-small",
+    "google-sans",
+    "roboto",
+    "sans-serif",
+)
+
+val HeadlineLargeFamily = createDeviceFontFamily(
+    "variable-headline-large",
+    "google-sans",
+    "roboto",
+    "sans-serif",
+)
+val HeadlineMediumFamily = createDeviceFontFamily(
+    "variable-headline-medium",
+    "google-sans",
+    "roboto",
+    "sans-serif",
+)
+val HeadlineSmallFamily = createDeviceFontFamily(
+    "variable-headline-small",
+    "google-sans",
+    "roboto",
+    "sans-serif",
+)
+
+val TitleMediumFamily = createDeviceFontFamily(
     "variable-title-medium",
     "google-sans-text",
-    "google-sans-flex",
     "google-sans",
+    "roboto",
+    "sans-serif",
 )
-val TitleSmallEmphasized = createDeviceFontFamily(
-    "variable-title-small-emphasized",
+val TitleSmallFamily = createDeviceFontFamily(
     "variable-title-small",
     "google-sans-text",
-    "google-sans-flex",
     "google-sans",
+    "roboto",
+    "sans-serif",
 )
 
 val BodyLargeFamily = createDeviceFontFamily(
@@ -138,70 +139,70 @@ val LabelSmallFamily = createDeviceFontFamily(
     "google-sans",
 )
 
-val GoogleSansFlex = HeadlineLargeEmphasized
+val GoogleSansFlex = TitleLargeEmphasized
 
 private val defaultTypography = Typography()
 
 val Typography = Typography(
     displayLarge = defaultTypography.displayLarge.copy(
-        fontFamily = DisplayLargeEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = DisplayLargeFamily,
+        fontWeight = FontWeight.Normal,
     ),
     displayMedium = defaultTypography.displayMedium.copy(
-        fontFamily = DisplayMediumEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = DisplayMediumFamily,
+        fontWeight = FontWeight.Normal,
     ),
     displaySmall = defaultTypography.displaySmall.copy(
-        fontFamily = DisplaySmallEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = DisplaySmallFamily,
+        fontWeight = FontWeight.Normal,
     ),
     headlineLarge = defaultTypography.headlineLarge.copy(
-        fontFamily = HeadlineLargeEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = HeadlineLargeFamily,
+        fontWeight = FontWeight.Normal,
     ),
     headlineMedium = defaultTypography.headlineMedium.copy(
-        fontFamily = HeadlineMediumEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = HeadlineMediumFamily,
+        fontWeight = FontWeight.Normal,
     ),
     headlineSmall = defaultTypography.headlineSmall.copy(
-        fontFamily = HeadlineSmallEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = HeadlineSmallFamily,
+        fontWeight = FontWeight.Normal,
     ),
     titleLarge = defaultTypography.titleLarge.copy(
         fontFamily = TitleLargeEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontWeight = FontWeight.SemiBold,
     ),
     titleMedium = defaultTypography.titleMedium.copy(
-        fontFamily = TitleMediumEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = TitleMediumFamily,
+        fontWeight = FontWeight.Medium,
     ),
     titleSmall = defaultTypography.titleSmall.copy(
-        fontFamily = TitleSmallEmphasized,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = TitleSmallFamily,
+        fontWeight = FontWeight.Medium,
     ),
     bodyLarge = defaultTypography.bodyLarge.copy(
         fontFamily = BodyLargeFamily,
-        fontWeight = FontWeight.Normal
+        fontWeight = FontWeight.Normal,
     ),
     bodyMedium = defaultTypography.bodyMedium.copy(
         fontFamily = BodyMediumFamily,
-        fontWeight = FontWeight.Normal
+        fontWeight = FontWeight.Normal,
     ),
     bodySmall = defaultTypography.bodySmall.copy(
         fontFamily = BodySmallFamily,
-        fontWeight = FontWeight.Normal
+        fontWeight = FontWeight.Normal,
     ),
     labelLarge = defaultTypography.labelLarge.copy(
         fontFamily = LabelLargeFamily,
-        fontWeight = FontWeight.Medium
+        fontWeight = FontWeight.Medium,
     ),
     labelMedium = defaultTypography.labelMedium.copy(
         fontFamily = LabelMediumFamily,
-        fontWeight = FontWeight.Medium
+        fontWeight = FontWeight.Medium,
     ),
     labelSmall = defaultTypography.labelSmall.copy(
         fontFamily = LabelSmallFamily,
-        fontWeight = FontWeight.Medium
+        fontWeight = FontWeight.Medium,
     ),
 )
 

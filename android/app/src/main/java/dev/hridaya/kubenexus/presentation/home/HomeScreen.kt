@@ -101,7 +101,7 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = "KubeNexus",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         ClusterPill(

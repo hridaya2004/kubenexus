@@ -66,7 +66,7 @@ fun ExploreListView(
                     Column {
                         Text(
                             text = "API Resources",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                         )
                         val clusterText = uiState.activeCluster?.let { "Cluster: ${it.name}" } ?: "Offline Schema"
                         Text(

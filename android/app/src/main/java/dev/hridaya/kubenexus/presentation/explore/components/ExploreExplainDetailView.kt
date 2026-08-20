@@ -83,7 +83,7 @@ fun ExploreExplainDetailView(
                     Column {
                         Text(
                             text = resource.kind,
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                         )
                         Text(
                             text = resource.name,

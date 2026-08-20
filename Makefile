@@ -16,9 +16,12 @@ export KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA ?= $(shell git log -n 1 --format=%h -
 export KUBENEXUS_GO_CORE_COMMIT_SHA ?= $(shell git log -n 1 --format=%h -- $(CORE_DIR) 2>/dev/null || echo unknown)
 export KUBENEXUS_CLIENT_GO_COMMIT_SHA ?= 44a8af2
 
+AAR_TARGET := $(ANDROID_DIR)/app/libs/kubenexus.aar
+GHOSTTY_SO_TARGET := $(ANDROID_DIR)/app/src/main/jniLibs/arm64-v8a/libghostty_jni.so
+
 .DEFAULT_GOAL := help
 
-.PHONY: help go-core ghostty debug release build bundle lint fmt test clean install-debug go-clean go-test go-lint go-fmt ghostty-fmt
+.PHONY: help jni go-core ghostty debug release build bundle lint fmt test clean clean-jni install install-debug install-release go-clean go-test go-lint go-fmt ghostty-fmt
 
 help: ## Display this help message
 	@echo "KubeNexus Build & Development Commands"
@@ -29,8 +32,19 @@ help: ## Display this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
+$(AAR_TARGET):
+	@echo "kubenexus.aar not found. Building Go core native bridge..."
+	$(MAKE) go-core
+
+$(GHOSTTY_SO_TARGET):
+	@echo "libghostty_jni.so not found. Building Ghostty JNI library with Zig..."
+	$(MAKE) ghostty
+
+jni: $(AAR_TARGET) $(GHOSTTY_SO_TARGET) ## Ensure native JNI libraries (Go core and Ghostty) are built
+
 go-core: ## Build kubenexus.aar from core Go source and copy to android libs
-	cd $(CORE_DIR) && $(MAKE) build-android
+	$(MAKE) -C $(CORE_DIR) build-android
+	mkdir -p $(ANDROID_DIR)/app/libs
 	cp $(CORE_DIR)/kubenexus.aar $(ANDROID_DIR)/app/libs/kubenexus.aar
 	@echo "Updated $(ANDROID_DIR)/app/libs/kubenexus.aar"
 
@@ -42,27 +56,27 @@ ghostty-fmt: ## Format terminal native Zig source code
 	cd $(TERMINAL_DIR) && zig fmt build.zig src/
 
 go-clean: ## Clean core Go build artifacts and gomobile cache
-	cd $(CORE_DIR) && $(MAKE) clean
+	$(MAKE) -C $(CORE_DIR) clean
 
 go-test: ## Run core Go unit tests
-	cd $(CORE_DIR) && $(MAKE) test
+	$(MAKE) -C $(CORE_DIR) test
 
 go-lint: ## Run golangci-lint on core Go source
-	cd $(CORE_DIR) && $(MAKE) lint
+	$(MAKE) -C $(CORE_DIR) lint
 
 go-fmt: ## Format core Go source code
-	cd $(CORE_DIR) && $(MAKE) fmt
+	$(MAKE) -C $(CORE_DIR) fmt
 
-debug: ## Build debug APK
+debug: jni ## Build debug APK
 	cd $(ANDROID_DIR) && $(GRADLEW) assembleDebug
 
-release: ## Build release APK
+release: jni ## Build release APK
 	cd $(ANDROID_DIR) && $(GRADLEW) assembleRelease
 
-build: ## Build both debug and release APKs
+build: jni ## Build both debug and release APKs
 	cd $(ANDROID_DIR) && $(GRADLEW) assembleDebug assembleRelease
 
-bundle: ## Build release Android App Bundle (AAB)
+bundle: jni ## Build release Android App Bundle (AAB)
 	cd $(ANDROID_DIR) && $(GRADLEW) bundleRelease
 
 lint: ## Run Android Lint checks
@@ -71,11 +85,21 @@ lint: ## Run Android Lint checks
 fmt: go-fmt ghostty-fmt ## Apply formatting across Go, Zig, and Android
 	cd $(ANDROID_DIR) && $(GRADLEW) lintFix
 
-test: ## Run unit tests
+test: jni ## Run unit tests
 	cd $(ANDROID_DIR) && $(GRADLEW) test
 
-clean: go-clean ## Clean build cache and generated artifacts
-	cd $(ANDROID_DIR) && $(GRADLEW) clean
+install: install-debug ## Install debug APK on connected device (alias)
 
-install-debug: ## Install debug APK on connected Android device/emulator
+install-debug: jni ## Install debug APK on connected Android device/emulator
 	cd $(ANDROID_DIR) && $(GRADLEW) installDebug
+
+install-release: jni ## Install release APK on connected Android device/emulator
+	cd $(ANDROID_DIR) && $(GRADLEW) installRelease
+
+clean-jni: ## Remove compiled native JNI libraries and Zig artifacts
+	rm -rf $(ANDROID_DIR)/app/src/main/jniLibs
+	rm -f $(ANDROID_DIR)/app/libs/kubenexus.aar
+	rm -rf $(TERMINAL_DIR)/.zig-cache $(TERMINAL_DIR)/zig-out
+
+clean: go-clean clean-jni ## Clean build cache, generated artifacts, and JNI libraries
+	cd $(ANDROID_DIR) && $(GRADLEW) clean

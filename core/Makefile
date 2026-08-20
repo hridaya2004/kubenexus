@@ -1,7 +1,5 @@
 .PHONY: build-android clean test lint fmt
 
-ANDROID_HOME ?= $(HOME)/Android/Sdk
-ANDROID_NDK_HOME ?= $(ANDROID_HOME)/ndk/27.0.12077973
 ANDROID_API ?= 35
 LIB_NAME ?= kubenexus_client
 

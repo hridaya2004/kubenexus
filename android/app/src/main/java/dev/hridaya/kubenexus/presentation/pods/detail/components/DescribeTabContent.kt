@@ -193,11 +193,14 @@ fun DescribeTabContent(
                 )
             }
 
+            val isConnected =
+                uiState.isOnline && uiState.clusterConnectionStatus == dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus.CONNECTED
+
             items(details.initContainers) { container ->
                 ContainerCard(
                     container = container,
                     isInitContainer = true,
-                    isOnline = uiState.isOnline,
+                    isOnline = isConnected,
                     onViewLogsClick = { onNavigateToLogs(container.name) },
                     onOpenTerminalClick = { onNavigateToTerminal(container.name) },
                 )
@@ -213,11 +216,14 @@ fun DescribeTabContent(
             )
         }
 
+        val isConnected =
+            uiState.isOnline && uiState.clusterConnectionStatus == dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus.CONNECTED
+
         items(details.containers) { container ->
             ContainerCard(
                 container = container,
                 isInitContainer = false,
-                isOnline = uiState.isOnline,
+                isOnline = isConnected,
                 onViewLogsClick = { onNavigateToLogs(container.name) },
                 onOpenTerminalClick = { onNavigateToTerminal(container.name) },
             )

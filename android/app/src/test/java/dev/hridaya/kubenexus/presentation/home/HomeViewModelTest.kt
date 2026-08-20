@@ -93,6 +93,10 @@ class HomeViewModelTest {
                 fakeClusterRepository,
                 testDispatcherProvider,
             ),
+            checkClusterHealthUseCase = dev.hridaya.kubenexus.domain.usecase.CheckClusterHealthUseCase(
+                fakeClusterRepository,
+                testDispatcherProvider,
+            ),
             networkMonitor = fakeNetworkMonitor,
             dispatcherProvider = testDispatcherProvider,
         )
@@ -312,6 +316,52 @@ class HomeViewModelTest {
 
             assertEquals(null, viewModel.uiState.value.namespaceToDelete)
             assertEquals("All Namespaces", viewModel.uiState.value.selectedNamespace)
+        }
+
+    @Test
+    fun `test cluster connection sets testingClusterId during execution and clears upon completion`() =
+        runTest(testDispatcher) {
+            val validYaml = """
+                apiVersion: v1
+                kind: Config
+                clusters:
+                - cluster:
+                    server: https://127.0.0.1:6443
+                  name: test-cluster
+            """.trimIndent()
+
+            viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+            viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+            advanceUntilIdle()
+
+            val clusterId = viewModel.uiState.value.activeCluster?.id ?: ""
+            viewModel.onAction(HomeUiAction.TestClusterConnectionClicked(clusterId))
+
+            // After execution and delay
+            advanceUntilIdle()
+
+            assertEquals(null, viewModel.uiState.value.testingClusterId)
+            assertEquals(null, viewModel.uiState.value.clusterTestStatuses[clusterId])
+            assertEquals(ClusterConnectionStatus.CONNECTED, viewModel.uiState.value.clusterConnectionStatus)
+        }
+
+    @Test
+    fun `observing active cluster triggers health check and updates status`() =
+        runTest(testDispatcher) {
+            val validYaml = """
+                apiVersion: v1
+                kind: Config
+                clusters:
+                - cluster:
+                    server: https://127.0.0.1:6443
+                  name: test-cluster
+            """.trimIndent()
+
+            viewModel.onAction(HomeUiAction.KubeconfigInputChanged(validYaml))
+            viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
+            advanceUntilIdle()
+
+            assertEquals(ClusterConnectionStatus.CONNECTED, viewModel.uiState.value.clusterConnectionStatus)
         }
 
     private class FakeClusterRepository : ClusterRepository {

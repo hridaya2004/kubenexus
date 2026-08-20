@@ -4,6 +4,13 @@ import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.Pod
 
+enum class ClusterTestStatus {
+    IDLE,
+    TESTING,
+    HEALTHY,
+    UNHEALTHY,
+}
+
 data class ErrorDialogData(val title: String, val errorMessage: String, val rawErrorTrace: String)
 
 data class HomeUiState(
@@ -37,6 +44,8 @@ data class HomeUiState(
     val kubeconfigError: String? = null,
     val errorDialogData: ErrorDialogData? = null,
     val isOnline: Boolean = true,
+    val testingClusterId: String? = null,
+    val clusterTestStatuses: Map<String, ClusterTestStatus> = emptyMap(),
 )
 
 sealed interface HomeUiAction {

@@ -6,6 +6,7 @@ import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
@@ -80,6 +81,10 @@ class PodDetailViewModelTest {
             execPodCommandUseCase = ExecPodCommandUseCase(fakePodRepository),
             startPodTerminalUseCase = StartPodTerminalUseCase(fakePodRepository),
             startExecSessionUseCase = StartExecSessionUseCase(fakePodRepository),
+            checkClusterHealthUseCase = dev.hridaya.kubenexus.domain.usecase.CheckClusterHealthUseCase(
+                fakeClusterRepository,
+                testDispatcherProvider,
+            ),
             networkMonitor = fakeNetworkMonitor,
             dispatcherProvider = testDispatcherProvider,
         )
@@ -246,7 +251,36 @@ class PodDetailViewModelTest {
             assertEquals("Connection refused: cannot reach cluster", state.errorMessage)
         }
 
+    @Test
+    fun `unhealthy cluster health check disables container attachability`() =
+        runTest(testDispatcher) {
+            fakeClusterRepository.healthResult = Result.Success(
+                ClusterHealth(
+                    livez = false,
+                    readyz = false,
+                    serverVersion = "",
+                    statusMessage = "Not Ready"
+                )
+            )
+
+            viewModel.onAction(PodDetailUiAction.RefreshDescribe)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertEquals(ClusterConnectionStatus.DISCONNECTED, state.clusterConnectionStatus)
+            assertFalse(state.isContainerAttachable)
+        }
+
     private class FakeClusterRepository : ClusterRepository {
+        var healthResult: Result<ClusterHealth> = Result.Success(
+            ClusterHealth(
+                livez = true,
+                readyz = true,
+                serverVersion = "v1.30.0",
+                statusMessage = "Ready"
+            )
+        )
+
         private val activeCluster = Cluster(
             id = "c-1",
             name = "prod-cluster",
@@ -274,25 +308,10 @@ class PodDetailViewModelTest {
             Result.Success("OK")
 
         override suspend fun testClusterById(id: String): Result<String> = Result.Success("OK")
-        override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
-            Result.Success(
-                ClusterHealth(
-                    livez = true,
-                    readyz = true,
-                    serverVersion = "v1.30.0",
-                    statusMessage = "Ready"
-                )
-            )
+        override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> = healthResult
 
         override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
-            Result.Success(
-                ClusterHealth(
-                    livez = true,
-                    readyz = true,
-                    serverVersion = "v1.30.0",
-                    statusMessage = "Ready"
-                )
-            )
+            healthResult
 
         override suspend fun updateClusterStatus(
             id: String,

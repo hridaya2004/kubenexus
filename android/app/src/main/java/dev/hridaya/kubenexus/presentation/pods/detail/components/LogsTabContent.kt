@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -40,12 +41,12 @@ fun LogsTabContent(
     modifier: Modifier = Modifier,
 ) {
     val containers =
-        (uiState.podDetails?.initContainers.orEmpty() + uiState.podDetails?.containers.orEmpty()).distinctBy { it.name }
+        uiState.podDetails?.containers.orEmpty() + uiState.podDetails?.initContainers.orEmpty()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         if (containers.size > 1) {
             Row(
@@ -75,6 +76,9 @@ fun LogsTabContent(
             }
         }
 
+        val isConnected =
+            uiState.isOnline && uiState.clusterConnectionStatus == dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus.CONNECTED
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -83,16 +87,26 @@ fun LogsTabContent(
         ) {
             OutlinedButton(
                 onClick = { onAction(PodDetailUiAction.FetchLogs) },
-                enabled = uiState.isOnline && !uiState.isLoadingLogs,
+                enabled = isConnected && !uiState.isLoadingLogs && !uiState.isStreamingLogs,
                 modifier = Modifier.weight(1f),
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Description,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(if (uiState.isOnline) "Fetch Logs" else "Offline")
+                if (uiState.isLoadingLogs) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Fetching...", style = MaterialTheme.typography.labelLarge)
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Description,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isConnected) "Fetch Logs" else "Offline", style = MaterialTheme.typography.labelLarge)
+                }
             }
 
             if (uiState.isStreamingLogs) {
@@ -104,24 +118,24 @@ fun LogsTabContent(
                     Icon(
                         imageVector = Icons.Outlined.Stop,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(18.dp),
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Stop Stream")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Stop Stream", style = MaterialTheme.typography.labelLarge)
                 }
             } else {
                 Button(
                     onClick = { onAction(PodDetailUiAction.StartStreamingLogs) },
-                    enabled = uiState.isOnline,
+                    enabled = isConnected && !uiState.isLoadingLogs,
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.PlayArrow,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(18.dp),
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (uiState.isOnline) "Stream Logs" else "Offline")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isConnected) "Stream Logs" else "Offline", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }

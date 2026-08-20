@@ -15,9 +15,12 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,10 +31,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.presentation.home.ClusterTestStatus
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
@@ -42,6 +47,7 @@ fun ManageClusterCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    testStatus: ClusterTestStatus = ClusterTestStatus.IDLE,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -108,21 +114,13 @@ fun ManageClusterCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = "Context: ${cluster.contextName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Namespace: ${cluster.namespace}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = "Context: ${cluster.contextName}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -146,18 +144,81 @@ fun ManageClusterCard(
                         Text("Set Active", style = MaterialTheme.typography.labelMedium)
                     }
                 } else {
-                    OutlinedButton(
-                        onClick = onTestConnection,
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Refresh,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Test Connection", style = MaterialTheme.typography.labelMedium)
+                    when (testStatus) {
+                        ClusterTestStatus.TESTING -> {
+                            OutlinedButton(
+                                onClick = {},
+                                enabled = false,
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Testing...", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+
+                        ClusterTestStatus.HEALTHY -> {
+                            FilledTonalButton(
+                                onClick = {},
+                                shape = MaterialTheme.shapes.small,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = Color(0xFF238636).copy(alpha = 0.2f),
+                                    contentColor = Color(0xFF3FB950),
+                                ),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color(0xFF3FB950),
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Healthy", style = MaterialTheme.typography.labelMedium, color = Color(0xFF3FB950))
+                            }
+                        }
+
+                        ClusterTestStatus.UNHEALTHY -> {
+                            FilledTonalButton(
+                                onClick = {},
+                                shape = MaterialTheme.shapes.small,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                ),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ErrorOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Unhealthy", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+
+                        ClusterTestStatus.IDLE -> {
+                            OutlinedButton(
+                                onClick = onTestConnection,
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Test Connection", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
                     }
                 }
 

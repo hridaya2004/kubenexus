@@ -218,6 +218,9 @@ fun TerminalCanvas(
                 }
             },
     ) {
+        // Fill canvas area with black scoped to this canvas only
+        drawRect(Color.Black)
+
         val snap = currentSnapshot ?: return@Canvas
         val totalCells = snap.cols * snap.rows
         if (totalCells <= 0 || snap.codepoints.size < totalCells) return@Canvas
@@ -228,9 +231,6 @@ fun TerminalCanvas(
 
         drawIntoCanvas { canvas ->
             val native = canvas.nativeCanvas
-
-            // Fill default pure pitch black background
-            native.drawColor(0xFF000000.toInt())
 
             for (row in 0 until snap.rows) {
                 val rowY = row * cellHeight

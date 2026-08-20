@@ -48,10 +48,13 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -75,6 +78,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -198,7 +202,7 @@ fun GhosttyTerminalView(
                 } else {
                     Text(
                         text = uiState.selectedContainer ?: "default",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelMedium,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
@@ -261,10 +265,14 @@ fun GhosttyTerminalView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(36.dp)
                         .background(GhosttySurface)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 8.dp),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false),
+                    ) {
                         val dotColor = when {
                             !uiState.isOnline -> GhosttyRed
                             uiState.isTerminalActive -> GhosttyGreen
@@ -293,6 +301,7 @@ fun GhosttyTerminalView(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (uiState.isTerminalActive) GhosttyGreen else if (!uiState.isOnline) GhosttyRed else GhosttyGutter,
+                            maxLines = 1,
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
@@ -300,138 +309,150 @@ fun GhosttyTerminalView(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
                             color = GhosttyGutter,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Toggle Keyboard button
-                        IconButton(
-                            onClick = {
-                                if (isImeVisible) {
-                                    focusManager.clearFocus(force = true)
-                                    keyboardController?.hide()
-                                } else {
-                                    focusRequester.requestFocus()
-                                    keyboardController?.show()
-                                }
-                            },
-                            modifier = Modifier.size(26.dp),
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Keyboard,
-                                contentDescription = "Toggle Keyboard",
-                                tint = if (isImeVisible) GhosttyGreen else GhosttyText,
-                                modifier = Modifier.size(15.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(2.dp))
-
-                        // Select All button
-                        IconButton(
-                            onClick = {
-                                val snap = snapshot
-                                if (snap != null && snap.cols > 0 && snap.rows > 0) {
-                                    terminalSelection =
-                                        TerminalSelection(0, (snap.cols * snap.rows) - 1)
-                                }
-                            },
-                            modifier = Modifier.size(26.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.SelectAll,
-                                contentDescription = "Select All",
-                                tint = GhosttyText,
-                                modifier = Modifier.size(15.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(2.dp))
-
-                        // Copy button
-                        IconButton(
-                            onClick = {
-                                val snap = snapshot
-                                if (snap != null) {
-                                    val sel = terminalSelection?.normalized(snap.cols * snap.rows)
-                                    val text = if (sel != null) {
-                                        extractSelectionText(snap, sel)
+                            // Toggle Keyboard button
+                            IconButton(
+                                onClick = {
+                                    if (isImeVisible) {
+                                        focusManager.clearFocus(force = true)
+                                        keyboardController?.hide()
                                     } else {
-                                        extractSelectionText(snap, 0 until (snap.cols * snap.rows))
+                                        focusRequester.requestFocus()
+                                        keyboardController?.show()
                                     }
-                                    if (!text.isNullOrBlank()) {
-                                        val clipboard =
-                                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(
-                                            ClipData.newPlainText(
-                                                "Terminal Output",
-                                                text
-                                            )
-                                        )
-                                        Toast.makeText(
-                                            context,
-                                            "Terminal output copied",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(26.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = GhosttyText,
-                                modifier = Modifier.size(15.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(2.dp))
+                                },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Keyboard,
+                                    contentDescription = "Toggle Keyboard",
+                                    tint = if (isImeVisible) GhosttyGreen else GhosttyText,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                            }
 
-                        // Paste button
-                        IconButton(
-                            onClick = {
-                                val clipboard =
-                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = clipboard.primaryClip
-                                if (clip != null && clip.itemCount > 0) {
-                                    val pasteText = clip.getItemAt(0).text?.toString().orEmpty()
-                                    if (pasteText.isNotEmpty()) {
-                                        if (uiState.isTerminalActive) {
-                                            localInput += pasteText
-                                            focusRequester.requestFocus()
+                            // Select All button
+                            IconButton(
+                                onClick = {
+                                    val snap = snapshot
+                                    if (snap != null && snap.cols > 0 && snap.rows > 0) {
+                                        terminalSelection =
+                                            TerminalSelection(0, (snap.cols * snap.rows) - 1)
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.SelectAll,
+                                    contentDescription = "Select All",
+                                    tint = GhosttyText,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                            }
+
+                            // Copy button
+                            IconButton(
+                                onClick = {
+                                    val snap = snapshot
+                                    if (snap != null) {
+                                        val sel =
+                                            terminalSelection?.normalized(snap.cols * snap.rows)
+                                        val text = if (sel != null) {
+                                            extractSelectionText(snap, sel)
                                         } else {
-                                            engine.sendPaste(pasteText)
+                                            extractSelectionText(
+                                                snap,
+                                                0 until (snap.cols * snap.rows)
+                                            )
+                                        }
+                                        if (!text.isNullOrBlank()) {
+                                            val clipboard =
+                                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            clipboard.setPrimaryClip(
+                                                ClipData.newPlainText(
+                                                    "Terminal Output",
+                                                    text
+                                                )
+                                            )
+                                            Toast.makeText(
+                                                context,
+                                                "Terminal output copied",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     }
-                                }
-                            },
-                            modifier = Modifier.size(26.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ContentPaste,
-                                contentDescription = "Paste",
-                                tint = GhosttyText,
-                                modifier = Modifier.size(15.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(2.dp))
+                                },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ContentCopy,
+                                    contentDescription = "Copy",
+                                    tint = GhosttyText,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                            }
 
-                        // Clear button
-                        IconButton(
-                            onClick = {
-                                onAction(PodDetailUiAction.ClearTerminal)
-                                engine.initialize()
-                                terminalSelection = null
-                            },
-                            modifier = Modifier.size(26.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Clear,
-                                contentDescription = "Clear",
-                                tint = GhosttyText,
-                                modifier = Modifier.size(15.dp),
-                            )
+                            // Paste button
+                            IconButton(
+                                onClick = {
+                                    val clipboard =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = clipboard.primaryClip
+                                    if (clip != null && clip.itemCount > 0) {
+                                        val pasteText = clip.getItemAt(0).text?.toString().orEmpty()
+                                        if (pasteText.isNotEmpty()) {
+                                            if (uiState.isTerminalActive) {
+                                                localInput += pasteText
+                                                focusRequester.requestFocus()
+                                            } else {
+                                                engine.sendPaste(pasteText)
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ContentPaste,
+                                    contentDescription = "Paste",
+                                    tint = GhosttyText,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                            }
+
+                            // Clear button
+                            IconButton(
+                                onClick = {
+                                    onAction(PodDetailUiAction.ClearTerminal)
+                                    engine.initialize()
+                                    terminalSelection = null
+                                },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Clear,
+                                    contentDescription = "Clear",
+                                    tint = GhosttyText,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                            }
                         }
                     }
                 }
+
+                androidx.compose.material3.HorizontalDivider(
+                    color = GhosttyBorder,
+                    thickness = 1.dp,
+                )
 
                 // Render TerminalCanvas & selection controls
                 Box(
@@ -504,115 +525,6 @@ fun GhosttyTerminalView(
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
-
-                        // Floating Selection Action Bar
-                        if (terminalSelection != null) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(8.dp),
-                            ) {
-                                Surface(
-                                    color = GhosttyKeyBg,
-                                    shape = MaterialTheme.shapes.small,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        Color.White
-                                    ),
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(
-                                            horizontal = 10.dp,
-                                            vertical = 4.dp
-                                        ),
-                                    ) {
-                                        Text(
-                                            text = "Text Selected",
-                                            fontFamily = FontFamily.Monospace,
-                                            fontSize = 11.sp,
-                                            color = Color.White,
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        IconButton(
-                                            onClick = {
-                                                val snap = snapshot
-                                                if (snap != null) {
-                                                    val sel =
-                                                        terminalSelection?.normalized(snap.cols * snap.rows)
-                                                    if (sel != null) {
-                                                        val text = extractSelectionText(snap, sel)
-                                                        if (!text.isNullOrBlank()) {
-                                                            val clipboard =
-                                                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                            clipboard.setPrimaryClip(
-                                                                ClipData.newPlainText(
-                                                                    "Terminal Selection",
-                                                                    text
-                                                                )
-                                                            )
-                                                            Toast.makeText(
-                                                                context,
-                                                                "Selection copied",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
-                                                    }
-                                                }
-                                                terminalSelection = null
-                                            },
-                                            modifier = Modifier.size(24.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.ContentCopy,
-                                                contentDescription = "Copy Selection",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp),
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        IconButton(
-                                            onClick = { terminalSelection = null },
-                                            modifier = Modifier.size(24.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Close,
-                                                contentDescription = "Close",
-                                                tint = GhosttyGutter,
-                                                modifier = Modifier.size(14.dp),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (!uiState.isTerminalActive) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.85f),
-                                shape = MaterialTheme.shapes.small,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center,
-                                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp),
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(GhosttyGutter, CircleShape),
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Terminal detached. Tap Attach to reconnect.",
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp,
-                                        color = GhosttyGutter,
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
             }

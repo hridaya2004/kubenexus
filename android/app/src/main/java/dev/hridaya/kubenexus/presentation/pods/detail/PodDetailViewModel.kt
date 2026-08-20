@@ -10,7 +10,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.TerminalSession
+import dev.hridaya.kubenexus.domain.usecase.CheckClusterHealthUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeletePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
@@ -43,6 +45,7 @@ class PodDetailViewModel @AssistedInject constructor(
     private val execPodCommandUseCase: ExecPodCommandUseCase,
     private val startPodTerminalUseCase: StartPodTerminalUseCase,
     private val startExecSessionUseCase: StartExecSessionUseCase,
+    private val checkClusterHealthUseCase: CheckClusterHealthUseCase,
     private val networkMonitor: NetworkMonitor,
     private val dispatcherProvider: DispatcherProvider,
 ) : ViewModel() {
@@ -123,16 +126,40 @@ class PodDetailViewModel @AssistedInject constructor(
                 activeClusterId = cluster?.id
                 _uiState.update { it.copy(clusterId = cluster?.id) }
                 if (cluster != null) {
+                    checkClusterHealth(cluster.id)
                     fetchDescribe()
                 } else {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            clusterConnectionStatus = ClusterConnectionStatus.OFFLINE,
                             errorMessage = "No active Kubernetes cluster configured.",
                         )
                     }
                 }
             }
+        }
+    }
+
+    private fun checkClusterHealth(clusterId: String) {
+        if (!_uiState.value.isOnline) {
+            _uiState.update { it.copy(clusterConnectionStatus = ClusterConnectionStatus.DISCONNECTED) }
+            return
+        }
+        viewModelScope.launch(dispatcherProvider.io) {
+            val result = checkClusterHealthUseCase.checkHealth(clusterId)
+            val status = when (result) {
+                is Result.Success -> {
+                    if (result.data.livez && result.data.readyz) {
+                        ClusterConnectionStatus.CONNECTED
+                    } else {
+                        ClusterConnectionStatus.DISCONNECTED
+                    }
+                }
+                is Result.Error -> ClusterConnectionStatus.DISCONNECTED
+                is Result.Loading -> ClusterConnectionStatus.CONNECTING
+            }
+            _uiState.update { it.copy(clusterConnectionStatus = status) }
         }
     }
 

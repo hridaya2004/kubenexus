@@ -10,6 +10,7 @@ import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.CheckClusterHealthUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteNamespaceUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
@@ -49,6 +50,7 @@ class HomeViewModel @Inject constructor(
     private val deleteNamespaceUseCase: DeleteNamespaceUseCase,
     private val updateClusterNameUseCase: UpdateClusterNameUseCase,
     private val testClusterConnectionUseCase: TestClusterConnectionUseCase,
+    private val checkClusterHealthUseCase: CheckClusterHealthUseCase,
     private val networkMonitor: NetworkMonitor,
     private val dispatcherProvider: DispatcherProvider,
 ) : ViewModel() {
@@ -151,6 +153,7 @@ class HomeViewModel @Inject constructor(
 
                 if (data.activeCluster != null && lastSyncedClusterId != data.activeCluster.id) {
                     lastSyncedClusterId = data.activeCluster.id
+                    checkActiveClusterHealth(data.activeCluster.id)
                     if (data.pods.isEmpty()) {
                         performRefresh(
                             data.activeCluster.id,
@@ -159,6 +162,30 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    private fun checkActiveClusterHealth(clusterId: String) {
+        if (!_uiState.value.isOnline) {
+            _uiState.update { it.copy(clusterConnectionStatus = ClusterConnectionStatus.DISCONNECTED) }
+            return
+        }
+        viewModelScope.launch(dispatcherProvider.io) {
+            val result = checkClusterHealthUseCase.checkHealth(clusterId)
+            when (result) {
+                is Result.Success -> {
+                    val status = if (result.data.livez && result.data.readyz) {
+                        ClusterConnectionStatus.CONNECTED
+                    } else {
+                        ClusterConnectionStatus.DISCONNECTED
+                    }
+                    _uiState.update { it.copy(clusterConnectionStatus = status) }
+                }
+                is Result.Error -> {
+                    _uiState.update { it.copy(clusterConnectionStatus = ClusterConnectionStatus.DISCONNECTED) }
+                }
+                is Result.Loading -> Unit
             }
         }
     }
@@ -467,8 +494,8 @@ class HomeViewModel @Inject constructor(
     private fun testClusterConnection(clusterId: String) {
         _uiState.update {
             it.copy(
-                isConnecting = true,
-                clusterConnectionStatus = ClusterConnectionStatus.CONNECTING,
+                testingClusterId = clusterId,
+                clusterTestStatuses = it.clusterTestStatuses + (clusterId to ClusterTestStatus.TESTING),
             )
         }
 
@@ -477,23 +504,37 @@ class HomeViewModel @Inject constructor(
                 is Result.Success -> {
                     _uiState.update {
                         it.copy(
-                            isConnecting = false,
-                            clusterConnectionStatus = ClusterConnectionStatus.CONNECTED,
+                            testingClusterId = null,
+                            clusterTestStatuses = it.clusterTestStatuses + (clusterId to ClusterTestStatus.HEALTHY),
+                            clusterConnectionStatus = if (it.activeCluster?.id == clusterId) ClusterConnectionStatus.CONNECTED else it.clusterConnectionStatus,
                         )
                     }
                     _effects.send(HomeUiEffect.ShowToast("Connection successful: ${result.data}"))
+                    kotlinx.coroutines.delay(2500)
+                    _uiState.update {
+                        it.copy(
+                            clusterTestStatuses = it.clusterTestStatuses - clusterId,
+                        )
+                    }
                 }
 
                 is Result.Error -> {
                     _uiState.update {
                         it.copy(
-                            isConnecting = false,
-                            clusterConnectionStatus = ClusterConnectionStatus.DISCONNECTED,
+                            testingClusterId = null,
+                            clusterTestStatuses = it.clusterTestStatuses + (clusterId to ClusterTestStatus.UNHEALTHY),
+                            clusterConnectionStatus = if (it.activeCluster?.id == clusterId) ClusterConnectionStatus.DISCONNECTED else it.clusterConnectionStatus,
                             errorDialogData = ErrorDialogData(
                                 title = "Connection Check Failed",
                                 errorMessage = "Failed to connect to cluster.",
                                 rawErrorTrace = result.error.message,
                             ),
+                        )
+                    }
+                    kotlinx.coroutines.delay(2500)
+                    _uiState.update {
+                        it.copy(
+                            clusterTestStatuses = it.clusterTestStatuses - clusterId,
                         )
                     }
                 }

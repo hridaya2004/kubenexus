@@ -95,6 +95,8 @@ fun ManageClustersScreen(
                 items(uiState.clusters, key = { it.id }) { cluster ->
                     ManageClusterCard(
                         cluster = cluster,
+                        testStatus = uiState.clusterTestStatuses[cluster.id]
+                            ?: ClusterTestStatus.IDLE,
                         onSelectActive = { onAction(HomeUiAction.SelectClusterClicked(cluster.id)) },
                         onTestConnection = {
                             onAction(

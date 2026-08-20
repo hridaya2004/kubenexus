@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.presentation.pods.detail
 
+import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.PodDetails
 
 enum class PodDetailTab(val title: String) {
@@ -44,10 +45,11 @@ data class PodDetailUiState(
     val showDeleteConfirmDialog: Boolean = false,
     val isDeletingPod: Boolean = false,
     val isOnline: Boolean = true,
+    val clusterConnectionStatus: ClusterConnectionStatus = ClusterConnectionStatus.CONNECTED,
 ) {
     val isContainerAttachable: Boolean
         get() {
-            if (!isOnline) return false
+            if (!isOnline || clusterConnectionStatus != ClusterConnectionStatus.CONNECTED) return false
             val currentContainer =
                 (podDetails?.containers.orEmpty() + podDetails?.initContainers.orEmpty())
                     .find { it.name == selectedContainer }

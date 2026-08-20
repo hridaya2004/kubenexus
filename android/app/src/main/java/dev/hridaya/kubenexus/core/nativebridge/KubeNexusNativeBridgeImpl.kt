@@ -158,8 +158,8 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
         nativeCatching("Failed to listAPIResources from native client") {
             val client = Client.newClient(rawKubeconfig)
-            val jsonStr = client.listAPIResourcesJSON()
-            jsonParser.parseAPIResources(jsonStr)
+            val apiResourceList = client.listAPIResourcesJSON()
+            jsonParser.parseAPIResources(apiResourceList)
         }
 
     override fun explainResource(
@@ -169,9 +169,9 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     ): Result<ResourceExplain> =
         nativeCatching("Failed to explainResource '$resourceOrKind' from native client") {
             val client = Client.newClient(rawKubeconfig)
-            val jsonStr = client.explainResourceJSON(resourceOrKind, groupVersion)
+            val resourceExplain = client.explainResourceJSON(resourceOrKind, groupVersion)
             jsonParser.parseResourceExplain(
-                jsonStr = jsonStr,
+                resourceExplain = resourceExplain,
                 fallbackKind = resourceOrKind,
                 fallbackGroupVersion = groupVersion,
             )
@@ -292,8 +292,8 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
         nativeCatching("Failed to check cluster health") {
             val client = Client.newClient(rawKubeconfig)
-            val jsonStr = client.checkHealthJSON()
-            jsonParser.parseClusterHealth(jsonStr)
+            val clusterHealth = client.checkHealthJSON()
+            jsonParser.parseClusterHealth(clusterHealth)
         }
 
     private fun normalizeNamespace(namespace: String?): String {

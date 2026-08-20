@@ -18,43 +18,43 @@ class NativeBridgeJsonParser @Inject constructor() {
     /**
      * Parses the JSON payload returned by `Client.listAPIResourcesJSON()` into a list of [APIResource].
      */
-    fun parseAPIResources(jsonStr: String): List<APIResource> {
-        if (jsonStr.isBlank()) return emptyList()
-        val jsonArray = JSONArray(jsonStr)
-        val list = ArrayList<APIResource>(jsonArray.length())
-        for (i in 0 until jsonArray.length()) {
-            val obj = jsonArray.getJSONObject(i)
-            val verbs = obj.optJSONArray("verbs")?.toStringList() ?: emptyList()
-            val shortNames = obj.optJSONArray("shortNames")?.toStringList() ?: emptyList()
-            val categories = obj.optJSONArray("categories")?.toStringList() ?: emptyList()
+    fun parseAPIResources(apiResourceList: String): List<APIResource> {
+        if (apiResourceList.isBlank()) return emptyList()
+        val resourcesArray = JSONArray(apiResourceList)
+        val resourceList = ArrayList<APIResource>(resourcesArray.length())
+        for (index in 0 until resourcesArray.length()) {
+            val resourceObject = resourcesArray.getJSONObject(index)
+            val verbs = resourceObject.optJSONArray("verbs")?.toStringList() ?: emptyList()
+            val shortNames = resourceObject.optJSONArray("shortNames")?.toStringList() ?: emptyList()
+            val categories = resourceObject.optJSONArray("categories")?.toStringList() ?: emptyList()
 
-            list.add(
+            resourceList.add(
                 APIResource(
-                    name = obj.optString("name", ""),
-                    singularName = obj.optString("singularName", ""),
-                    namespaced = obj.optBoolean("namespaced", true),
-                    kind = obj.optString("kind", ""),
-                    group = obj.optString("group", ""),
-                    version = obj.optString("version", ""),
-                    groupVersion = obj.optString("groupVersion", ""),
+                    name = resourceObject.optString("name", ""),
+                    singularName = resourceObject.optString("singularName", ""),
+                    namespaced = resourceObject.optBoolean("namespaced", true),
+                    kind = resourceObject.optString("kind", ""),
+                    group = resourceObject.optString("group", ""),
+                    version = resourceObject.optString("version", ""),
+                    groupVersion = resourceObject.optString("groupVersion", ""),
                     verbs = verbs,
                     shortNames = shortNames,
                     categories = categories,
                 )
             )
         }
-        return list
+        return resourceList
     }
 
     /**
      * Parses the JSON payload returned by `Client.explainResourceJSON()` into a [ResourceExplain] model.
      */
     fun parseResourceExplain(
-        jsonStr: String,
+        resourceExplain: String,
         fallbackKind: String = "",
         fallbackGroupVersion: String = "",
     ): ResourceExplain {
-        if (jsonStr.isBlank()) {
+        if (resourceExplain.isBlank()) {
             return ResourceExplain(
                 kind = fallbackKind,
                 groupVersion = fallbackGroupVersion,
@@ -63,32 +63,32 @@ class NativeBridgeJsonParser @Inject constructor() {
             )
         }
 
-        val obj = JSONObject(jsonStr)
-        val fieldsArray = obj.optJSONArray("fields")
+        val explainObject = JSONObject(resourceExplain)
+        val fieldsArray = explainObject.optJSONArray("fields")
         val fieldsList = if (fieldsArray != null) {
-            val fields = ArrayList<ResourceField>(fieldsArray.length())
-            for (i in 0 until fieldsArray.length()) {
-                val fObj = fieldsArray.getJSONObject(i)
-                fields.add(
+            val resourceFields = ArrayList<ResourceField>(fieldsArray.length())
+            for (index in 0 until fieldsArray.length()) {
+                val fieldObject = fieldsArray.getJSONObject(index)
+                resourceFields.add(
                     ResourceField(
-                        name = fObj.optString("name", ""),
-                        type = fObj.optString("type", ""),
-                        description = fObj.optString("description", ""),
-                        required = fObj.optBoolean("required", false),
+                        name = fieldObject.optString("name", ""),
+                        type = fieldObject.optString("type", ""),
+                        description = fieldObject.optString("description", ""),
+                        required = fieldObject.optBoolean("required", false),
                     )
                 )
             }
-            fields
+            resourceFields
         } else {
             emptyList()
         }
 
         return ResourceExplain(
-            kind = obj.optString("kind", fallbackKind),
-            group = obj.optString("group", ""),
-            version = obj.optString("version", ""),
-            groupVersion = obj.optString("groupVersion", fallbackGroupVersion),
-            description = obj.optString("description", ""),
+            kind = explainObject.optString("kind", fallbackKind),
+            group = explainObject.optString("group", ""),
+            version = explainObject.optString("version", ""),
+            groupVersion = explainObject.optString("groupVersion", fallbackGroupVersion),
+            description = explainObject.optString("description", ""),
             fields = fieldsList,
         )
     }
@@ -96,23 +96,23 @@ class NativeBridgeJsonParser @Inject constructor() {
     /**
      * Parses the JSON payload returned by `Client.checkHealthJSON()` into a [ClusterHealth] model.
      */
-    fun parseClusterHealth(jsonStr: String): ClusterHealth {
-        if (jsonStr.isBlank()) return ClusterHealth()
-        val obj = JSONObject(jsonStr)
+    fun parseClusterHealth(clusterHealth: String): ClusterHealth {
+        if (clusterHealth.isBlank()) return ClusterHealth()
+        val healthObject = JSONObject(clusterHealth)
         return ClusterHealth(
-            livez = obj.optBoolean("livez", false),
-            readyz = obj.optBoolean("readyz", false),
-            healthz = obj.optBoolean("healthz", false),
-            serverVersion = obj.optString("serverVersion", ""),
-            statusMessage = obj.optString("statusMessage", ""),
+            livez = healthObject.optBoolean("livez", false),
+            readyz = healthObject.optBoolean("readyz", false),
+            healthz = healthObject.optBoolean("healthz", false),
+            serverVersion = healthObject.optString("serverVersion", ""),
+            statusMessage = healthObject.optString("statusMessage", ""),
         )
     }
 
     private fun JSONArray.toStringList(): List<String> {
-        val result = ArrayList<String>(length())
-        for (i in 0 until length()) {
-            result.add(getString(i))
+        val stringList = ArrayList<String>(length())
+        for (index in 0 until length()) {
+            stringList.add(getString(index))
         }
-        return result
+        return stringList
     }
 }

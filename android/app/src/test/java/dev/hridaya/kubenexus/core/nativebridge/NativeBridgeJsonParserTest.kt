@@ -23,7 +23,7 @@ class NativeBridgeJsonParserTest {
 
     @Test
     fun `parseAPIResources correctly parses json array`() {
-        val json = """
+        val apiResourceList = """
             [
                 {
                     "name": "pods",
@@ -52,7 +52,7 @@ class NativeBridgeJsonParserTest {
             ]
         """.trimIndent()
 
-        val resources = parser.parseAPIResources(json)
+        val resources = parser.parseAPIResources(apiResourceList)
         assertEquals(2, resources.size)
 
         val pod = resources[0]
@@ -81,7 +81,7 @@ class NativeBridgeJsonParserTest {
 
     @Test
     fun `parseResourceExplain correctly parses full explain json`() {
-        val json = """
+        val resourceExplain = """
             {
                 "kind": "Pod",
                 "group": "",
@@ -105,7 +105,7 @@ class NativeBridgeJsonParserTest {
             }
         """.trimIndent()
 
-        val explain = parser.parseResourceExplain(json, "Pod", "v1")
+        val explain = parser.parseResourceExplain(resourceExplain, "Pod", "v1")
         assertEquals("Pod", explain.kind)
         assertEquals("v1", explain.groupVersion)
         assertEquals("Pod is a collection of containers that can run on a host.", explain.description)
@@ -133,7 +133,7 @@ class NativeBridgeJsonParserTest {
 
     @Test
     fun `parseClusterHealth parses health json correctly`() {
-        val json = """
+        val clusterHealth = """
             {
                 "livez": true,
                 "readyz": true,
@@ -143,7 +143,7 @@ class NativeBridgeJsonParserTest {
             }
         """.trimIndent()
 
-        val health = parser.parseClusterHealth(json)
+        val health = parser.parseClusterHealth(clusterHealth)
         assertTrue(health.livez)
         assertTrue(health.readyz)
         assertTrue(health.healthz)

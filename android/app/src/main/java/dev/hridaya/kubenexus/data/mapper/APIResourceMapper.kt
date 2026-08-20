@@ -72,35 +72,35 @@ fun ResourceExplain.toEntity(clusterId: String, resourceOrKind: String): Explain
 }
 
 private fun serializeFields(fields: List<ResourceField>): String {
-    val array = JSONArray()
+    val fieldsJsonArray = JSONArray()
     for (field in fields) {
-        val obj = JSONObject()
-        obj.put("name", field.name)
-        obj.put("type", field.type)
-        obj.put("description", field.description)
-        obj.put("required", field.required)
-        array.put(obj)
+        val fieldJsonObject = JSONObject()
+        fieldJsonObject.put("name", field.name)
+        fieldJsonObject.put("type", field.type)
+        fieldJsonObject.put("description", field.description)
+        fieldJsonObject.put("required", field.required)
+        fieldsJsonArray.put(fieldJsonObject)
     }
-    return array.toString()
+    return fieldsJsonArray.toString()
 }
 
 private fun deserializeFields(json: String): List<ResourceField> {
     if (json.isBlank()) return emptyList()
     return try {
-        val array = JSONArray(json)
-        val list = ArrayList<ResourceField>(array.length())
-        for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
-            list.add(
+        val fieldsJsonArray = JSONArray(json)
+        val fieldList = ArrayList<ResourceField>(fieldsJsonArray.length())
+        for (index in 0 until fieldsJsonArray.length()) {
+            val fieldJsonObject = fieldsJsonArray.getJSONObject(index)
+            fieldList.add(
                 ResourceField(
-                    name = obj.optString("name", ""),
-                    type = obj.optString("type", ""),
-                    description = obj.optString("description", ""),
-                    required = obj.optBoolean("required", false),
+                    name = fieldJsonObject.optString("name", ""),
+                    type = fieldJsonObject.optString("type", ""),
+                    description = fieldJsonObject.optString("description", ""),
+                    required = fieldJsonObject.optBoolean("required", false),
                 ),
             )
         }
-        list
+        fieldList
     } catch (_: Exception) {
         emptyList()
     }

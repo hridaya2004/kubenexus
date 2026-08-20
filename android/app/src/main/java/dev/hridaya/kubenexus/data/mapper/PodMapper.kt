@@ -128,11 +128,11 @@ fun NativePodDetails.toDomain(): PodDetails {
     val labelsMap = mutableMapOf<String, String>()
     if (!labelsJSON.isNullOrBlank()) {
         try {
-            val json = JSONObject(labelsJSON)
-            val keys = json.keys()
-            while (keys.hasNext()) {
-                val k = keys.next()
-                labelsMap[k] = json.optString(k)
+            val labelsObject = JSONObject(labelsJSON)
+            val labelKeys = labelsObject.keys()
+            while (labelKeys.hasNext()) {
+                val labelKey = labelKeys.next()
+                labelsMap[labelKey] = labelsObject.optString(labelKey)
             }
         } catch (_: Exception) {
         }

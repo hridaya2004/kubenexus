@@ -146,9 +146,9 @@ func TestPodList(t *testing.T) {
 
 func TestPod_JSON(t *testing.T) {
 	p := &Pod{Name: "nginx", Namespace: "default", Status: "Running"}
-	jsonStr := p.JSON()
-	if !strings.Contains(jsonStr, `"name":"nginx"`) {
-		t.Errorf("JSON() = %s, want name:nginx", jsonStr)
+	podJSON := p.JSON()
+	if !strings.Contains(podJSON, `"name":"nginx"`) {
+		t.Errorf("JSON() = %s, want name:nginx", podJSON)
 	}
 
 	var nilPod *Pod
@@ -242,9 +242,9 @@ func TestPodDetails(t *testing.T) {
 		t.Errorf("Volumes() mismatch: %+v", details.Volumes())
 	}
 
-	jsonStr := details.JSON()
-	if !strings.Contains(jsonStr, `"name":"pod-1"`) || !strings.Contains(jsonStr, `"status":"Running"`) {
-		t.Errorf("JSON() = %s", jsonStr)
+	podDetailsJSON := details.JSON()
+	if !strings.Contains(podDetailsJSON, `"name":"pod-1"`) || !strings.Contains(podDetailsJSON, `"status":"Running"`) {
+		t.Errorf("JSON() = %s", podDetailsJSON)
 	}
 
 	var nilDetails *PodDetails

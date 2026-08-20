@@ -52,13 +52,13 @@ func TestBuiltinExplain(t *testing.T) {
 
 func TestExplainResourceJSON_Fallback(t *testing.T) {
 	c := &Client{timeout: defaultTimeout}
-	jsonStr, err := c.ExplainResourceJSON("pod", "")
+	resourceExplainJSON, err := c.ExplainResourceJSON("pod", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	var explain ResourceExplain
-	if err := json.Unmarshal([]byte(jsonStr), &explain); err != nil {
+	if err := json.Unmarshal([]byte(resourceExplainJSON), &explain); err != nil {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 
@@ -72,13 +72,13 @@ func TestExplainResourceJSON_Fallback(t *testing.T) {
 
 func TestExplainResourceJSON_UnknownResource(t *testing.T) {
 	c := &Client{timeout: defaultTimeout}
-	jsonStr, err := c.ExplainResourceJSON("mycustomresource", "custom.io/v1alpha1")
+	resourceExplainJSON, err := c.ExplainResourceJSON("mycustomresource", "custom.io/v1alpha1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	var explain ResourceExplain
-	if err := json.Unmarshal([]byte(jsonStr), &explain); err != nil {
+	if err := json.Unmarshal([]byte(resourceExplainJSON), &explain); err != nil {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 

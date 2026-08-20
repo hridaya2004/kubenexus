@@ -38,6 +38,8 @@ class ExploreViewModel @Inject constructor(
     private var streamJob: Job? = null
     private var lastRefreshedJob: Job? = null
     private var explainJob: Job? = null
+    private var lastObservedClusterId: String? = null
+    private var hasCheckedEmptyForCluster = false
 
     init {
         observeActiveCluster()
@@ -49,13 +51,16 @@ class ExploreViewModel @Inject constructor(
                 _uiState.update { it.copy(activeCluster = cluster) }
                 subscribeToResources(cluster?.id)
                 subscribeToLastRefreshed(cluster?.id)
-                refreshResources(cluster?.id)
             }
         }
     }
 
     private fun subscribeToResources(clusterId: String?) {
         streamJob?.cancel()
+        if (lastObservedClusterId != clusterId) {
+            lastObservedClusterId = clusterId
+            hasCheckedEmptyForCluster = false
+        }
         streamJob = viewModelScope.launch(dispatcherProvider.main) {
             getAPIResourcesUseCase.getStream(clusterId).collectLatest { list ->
                 _uiState.update { state ->
@@ -64,6 +69,14 @@ class ExploreViewModel @Inject constructor(
                         resources = list,
                         filteredResources = filtered,
                     )
+                }
+
+                // only fetch from remote/native if local cache is empty
+                if (!hasCheckedEmptyForCluster) {
+                    hasCheckedEmptyForCluster = true
+                    if (list.isEmpty()) {
+                        refreshResources(clusterId)
+                    }
                 }
             }
         }
@@ -150,7 +163,7 @@ class ExploreViewModel @Inject constructor(
             }
 
             is ExploreUiAction.RetryExplain -> {
-                loadExplain(action.resource)
+                loadExplain(action.resource, forceRefresh = true)
             }
 
             is ExploreUiAction.CopyText -> {
@@ -205,36 +218,37 @@ class ExploreViewModel @Inject constructor(
         }
     }
 
-    private fun loadExplain(resource: APIResource) {
+    private fun loadExplain(resource: APIResource, forceRefresh: Boolean = false) {
         explainJob?.cancel()
         val clusterId = _uiState.value.activeCluster?.id
 
         explainJob = viewModelScope.launch(dispatcherProvider.main) {
-            // Immediately display cached schema from Room database if available
+            // Check cached schema from Room database
             val cached =
                 explainResourceUseCase.getCached(clusterId, resource.name, resource.groupVersion)
-            if (cached != null) {
+            if (cached != null && !forceRefresh) {
                 _uiState.update { state ->
                     state.copy(
                         selectedResource = resource,
                         explainDetails = cached,
-                        filteredFields = cached.fields,
+                        filteredFields = filterFields(cached.fields, state.fieldSearchQuery),
                         isLoadingExplain = false,
                         explainError = null,
                         fieldSearchQuery = "",
                     )
                 }
-            } else {
-                _uiState.update { state ->
-                    state.copy(
-                        selectedResource = resource,
-                        explainDetails = null,
-                        isLoadingExplain = true,
-                        explainError = null,
-                        fieldSearchQuery = "",
-                        filteredFields = emptyList(),
-                    )
-                }
+                return@launch
+            }
+
+            _uiState.update { state ->
+                state.copy(
+                    selectedResource = resource,
+                    explainDetails = cached,
+                    isLoadingExplain = true,
+                    explainError = null,
+                    fieldSearchQuery = "",
+                    filteredFields = cached?.fields ?: emptyList(),
+                )
             }
 
             // Fetch fresh from native / cluster and sync to Room database

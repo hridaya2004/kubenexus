@@ -166,6 +166,97 @@ class ExploreViewModelTest {
             assertEquals(0, state.filteredFields.size)
         }
 
+    @Test
+    fun `does not fetch API resources if local cache is not empty`() =
+        runTest(testDispatcher) {
+            val testCluster = Cluster(
+                id = "c1",
+                name = "prod-cluster",
+                serverUrl = "https://127.0.0.1:6443",
+                contextName = "prod",
+                namespace = "default",
+                rawKubeconfig = "yaml",
+                isActive = true,
+                status = ClusterStatus.CONNECTED,
+            )
+            fakeClusterRepository.setClusters(listOf(testCluster))
+            advanceUntilIdle()
+
+            // Since FakeExploreRepository has 3 resources in initial stream, fetchAPIResources should not be called
+            assertEquals(0, fakeExploreRepository.fetchCount)
+            assertEquals(3, viewModel.uiState.value.resources.size)
+        }
+
+    @Test
+    fun `fetches API resources when local cache is initially empty`() =
+        runTest(testDispatcher) {
+            fakeExploreRepository.setResources(emptyList())
+            val testCluster = Cluster(
+                id = "c1",
+                name = "prod-cluster",
+                serverUrl = "https://127.0.0.1:6443",
+                contextName = "prod",
+                namespace = "default",
+                rawKubeconfig = "yaml",
+                isActive = true,
+                status = ClusterStatus.CONNECTED,
+            )
+            fakeClusterRepository.setClusters(listOf(testCluster))
+            advanceUntilIdle()
+
+            // Because initial stream was empty, it triggers fetchAPIResources once
+            assertEquals(1, fakeExploreRepository.fetchCount)
+        }
+
+    @Test
+    fun `user refresh explicitly triggers fetch`() =
+        runTest(testDispatcher) {
+            val testCluster = Cluster(
+                id = "c1",
+                name = "prod-cluster",
+                serverUrl = "https://127.0.0.1:6443",
+                contextName = "prod",
+                namespace = "default",
+                rawKubeconfig = "yaml",
+                isActive = true,
+                status = ClusterStatus.CONNECTED,
+            )
+            fakeClusterRepository.setClusters(listOf(testCluster))
+            advanceUntilIdle()
+
+            assertEquals(0, fakeExploreRepository.fetchCount)
+
+            viewModel.onAction(ExploreUiAction.Refresh)
+            advanceUntilIdle()
+
+            assertEquals(1, fakeExploreRepository.fetchCount)
+        }
+
+    @Test
+    fun `select resource uses cached explain without remote call`() =
+        runTest(testDispatcher) {
+            val cachedExplain = ResourceExplain(
+                kind = "Pod",
+                groupVersion = "v1",
+                description = "Cached pod explain",
+                fields = listOf(ResourceField("metadata", "ObjectMeta", "desc", false))
+            )
+            fakeExploreRepository.cachedExplain = cachedExplain
+
+            val podResource = APIResource(name = "pods", kind = "Pod", groupVersion = "v1")
+            viewModel.onAction(ExploreUiAction.SelectResource(podResource))
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertEquals("Cached pod explain", state.explainDetails?.description)
+            assertEquals(0, fakeExploreRepository.explainCount)
+
+            // When user triggers retry / force refresh, explainResource is called
+            viewModel.onAction(ExploreUiAction.RetryExplain(podResource))
+            advanceUntilIdle()
+            assertEquals(1, fakeExploreRepository.explainCount)
+        }
+
     private class FakeClusterRepository : ClusterRepository {
         private val clustersFlow = MutableStateFlow<List<Cluster>>(emptyList())
 
@@ -239,7 +330,11 @@ class ExploreViewModelTest {
     }
 
     private class FakeExploreRepository : ExploreRepository {
-        private val resources = listOf(
+        var fetchCount = 0
+        var explainCount = 0
+        var cachedExplain: ResourceExplain? = null
+
+        private val defaultResources = listOf(
             APIResource(
                 name = "pods",
                 singularName = "pod",
@@ -266,8 +361,12 @@ class ExploreViewModelTest {
                 shortNames = listOf("no")
             ),
         )
-        private val flow = MutableStateFlow(resources)
+        private val flow = MutableStateFlow(defaultResources)
         private val lastRefreshedFlow = MutableStateFlow<Long?>(1700000000000L)
+
+        fun setResources(list: List<APIResource>) {
+            flow.value = list
+        }
 
         override fun getAPIResourcesStream(clusterId: String?): Flow<List<APIResource>> =
             flow.asStateFlow()
@@ -276,9 +375,10 @@ class ExploreViewModelTest {
             lastRefreshedFlow.asStateFlow()
 
         override suspend fun fetchAPIResources(clusterId: String?): Result<List<APIResource>> {
-            flow.value = resources
+            fetchCount++
+            flow.value = defaultResources
             lastRefreshedFlow.value = System.currentTimeMillis()
-            return Result.Success(resources)
+            return Result.Success(defaultResources)
         }
 
         override fun getExplainedResourceStream(
@@ -291,15 +391,16 @@ class ExploreViewModelTest {
             clusterId: String?,
             resourceOrKind: String,
             groupVersion: String,
-        ): ResourceExplain? = null
+        ): ResourceExplain? = cachedExplain
 
         override suspend fun explainResource(
             clusterId: String?,
             resourceOrKind: String,
             groupVersion: String
         ): Result<ResourceExplain> {
+            explainCount++
             val matchedKind =
-                resources.find { it.name.equals(resourceOrKind, ignoreCase = true) }?.kind
+                defaultResources.find { it.name.equals(resourceOrKind, ignoreCase = true) }?.kind
                     ?: resourceOrKind.replaceFirstChar { it.uppercase() }
             return Result.Success(
                 ResourceExplain(

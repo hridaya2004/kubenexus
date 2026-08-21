@@ -155,13 +155,11 @@ class HomeViewModel @Inject constructor(
                 if (data.activeCluster != null && lastSyncedClusterId != data.activeCluster.id) {
                     lastSyncedClusterId = data.activeCluster.id
                     checkActiveClusterHealth(data.activeCluster.id)
-                    if (data.pods.isEmpty()) {
-                        performRefresh(
-                            data.activeCluster.id,
-                            data.selectedNamespace,
-                            showLoading = true,
-                        )
-                    }
+                    performRefresh(
+                        data.activeCluster.id,
+                        data.selectedNamespace,
+                        showLoading = data.pods.isEmpty(),
+                    )
                 }
             }
         }

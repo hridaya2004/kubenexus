@@ -48,6 +48,10 @@ import dev.hridaya.kubenexus.presentation.explore.ExploreUiAction
 import dev.hridaya.kubenexus.presentation.explore.ExploreUiState
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreListView(
@@ -56,6 +60,22 @@ fun ExploreListView(
     onAction: (ExploreUiAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+
+    val shouldLoadMore = remember(uiState.pagedResources.size, uiState.hasMorePages) {
+        derivedStateOf {
+            val totalItems = uiState.pagedResources.size
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            uiState.hasMorePages && totalItems > 0 && lastVisibleItem >= totalItems - 4
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value) {
+            onAction(ExploreUiAction.LoadNextPage)
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Transparent,
@@ -113,7 +133,11 @@ fun ExploreListView(
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                 ) {
                     Text(
-                        text = "Categories",
+                        text = if (uiState.filteredResources.isNotEmpty()) {
+                            "Categories (${uiState.filteredResources.size})"
+                        } else {
+                            "Categories"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -205,6 +229,7 @@ fun ExploreListView(
 
                     else -> {
                         LazyColumn(
+                            state = listState,
                             contentPadding = PaddingValues(
                                 start = 16.dp,
                                 end = 16.dp,
@@ -214,11 +239,28 @@ fun ExploreListView(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
-                            items(uiState.filteredResources, key = { "${it.groupVersion}/${it.name}" }) { resource ->
+                            items(uiState.pagedResources, key = { "${it.groupVersion}/${it.name}" }) { resource ->
                                 APIResourceCard(
                                     resource = resource,
                                     onClick = { onAction(ExploreUiAction.SelectResource(resource)) },
                                 )
+                            }
+
+                            if (uiState.hasMorePages) {
+                                item(key = "loading_more_indicator") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -231,6 +273,15 @@ fun ExploreListView(
 @Preview(showBackground = true)
 @Composable
 private fun ExploreListViewPreview() {
+    val sampleResource = APIResource(
+        name = "pods",
+        singularName = "pod",
+        namespaced = true,
+        kind = "Pod",
+        verbs = listOf("get", "list"),
+        group = "",
+        version = "v1",
+    )
     KubeNexusTheme {
         ExploreListView(
             uiState = ExploreUiState(
@@ -243,28 +294,9 @@ private fun ExploreListViewPreview() {
                     namespace = "default",
                     rawKubeconfig = "",
                 ),
-                resources = listOf(
-                    APIResource(
-                        name = "pods",
-                        singularName = "pod",
-                        namespaced = true,
-                        kind = "Pod",
-                        verbs = listOf("get", "list"),
-                        group = "",
-                        version = "v1",
-                    )
-                ),
-                filteredResources = listOf(
-                    APIResource(
-                        name = "pods",
-                        singularName = "pod",
-                        namespaced = true,
-                        kind = "Pod",
-                        verbs = listOf("get", "list"),
-                        group = "",
-                        version = "v1",
-                    )
-                ),
+                resources = listOf(sampleResource),
+                filteredResources = listOf(sampleResource),
+                pagedResources = listOf(sampleResource),
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},

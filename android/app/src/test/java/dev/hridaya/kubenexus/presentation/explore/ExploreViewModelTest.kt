@@ -167,7 +167,7 @@ class ExploreViewModelTest {
         }
 
     @Test
-    fun `does not fetch API resources if local cache is not empty`() =
+    fun `observing active cluster always fetches API resources from remote true source`() =
         runTest(testDispatcher) {
             val testCluster = Cluster(
                 id = "c1",
@@ -182,30 +182,9 @@ class ExploreViewModelTest {
             fakeClusterRepository.setClusters(listOf(testCluster))
             advanceUntilIdle()
 
-            // Since FakeExploreRepository has 3 resources in initial stream, fetchAPIResources should not be called
-            assertEquals(0, fakeExploreRepository.fetchCount)
-            assertEquals(3, viewModel.uiState.value.resources.size)
-        }
-
-    @Test
-    fun `fetches API resources when local cache is initially empty`() =
-        runTest(testDispatcher) {
-            fakeExploreRepository.setResources(emptyList())
-            val testCluster = Cluster(
-                id = "c1",
-                name = "prod-cluster",
-                serverUrl = "https://127.0.0.1:6443",
-                contextName = "prod",
-                namespace = "default",
-                rawKubeconfig = "yaml",
-                isActive = true,
-                status = ClusterStatus.CONNECTED,
-            )
-            fakeClusterRepository.setClusters(listOf(testCluster))
-            advanceUntilIdle()
-
-            // Because initial stream was empty, it triggers fetchAPIResources once
+            // Always syncs with remote true source on active cluster
             assertEquals(1, fakeExploreRepository.fetchCount)
+            assertEquals(3, viewModel.uiState.value.resources.size)
         }
 
     @Test
@@ -224,12 +203,12 @@ class ExploreViewModelTest {
             fakeClusterRepository.setClusters(listOf(testCluster))
             advanceUntilIdle()
 
-            assertEquals(0, fakeExploreRepository.fetchCount)
+            assertEquals(1, fakeExploreRepository.fetchCount)
 
             viewModel.onAction(ExploreUiAction.Refresh)
             advanceUntilIdle()
 
-            assertEquals(1, fakeExploreRepository.fetchCount)
+            assertEquals(2, fakeExploreRepository.fetchCount)
         }
 
     @Test
@@ -255,6 +234,63 @@ class ExploreViewModelTest {
             viewModel.onAction(ExploreUiAction.RetryExplain(podResource))
             advanceUntilIdle()
             assertEquals(1, fakeExploreRepository.explainCount)
+        }
+
+    @Test
+    fun `paged resources chunks items and loads next page on action`() =
+        runTest(testDispatcher) {
+            val manyResources = (1..65).map { i ->
+                APIResource(
+                    name = "resource-$i",
+                    singularName = "resource-$i",
+                    namespaced = true,
+                    kind = "Resource$i",
+                    groupVersion = "v1",
+                )
+            }
+            fakeExploreRepository.setResources(manyResources)
+            val testCluster = Cluster(
+                id = "c1",
+                name = "prod-cluster",
+                serverUrl = "https://127.0.0.1:6443",
+                contextName = "prod",
+                namespace = "default",
+                rawKubeconfig = "yaml",
+                isActive = true,
+                status = ClusterStatus.CONNECTED,
+            )
+            fakeClusterRepository.setClusters(listOf(testCluster))
+            advanceUntilIdle()
+
+            val state1 = viewModel.uiState.value
+            assertEquals(65, state1.resources.size)
+            assertEquals(65, state1.filteredResources.size)
+            // Page size is 30 by default
+            assertEquals(30, state1.pagedResources.size)
+            assertEquals(1, state1.currentPage)
+            assertTrue(state1.hasMorePages)
+
+            // Load next page
+            viewModel.onAction(ExploreUiAction.LoadNextPage)
+            val state2 = viewModel.uiState.value
+            assertEquals(60, state2.pagedResources.size)
+            assertEquals(2, state2.currentPage)
+            assertTrue(state2.hasMorePages)
+
+            // Load third page
+            viewModel.onAction(ExploreUiAction.LoadNextPage)
+            val state3 = viewModel.uiState.value
+            assertEquals(65, state3.pagedResources.size)
+            assertEquals(3, state3.currentPage)
+            assertFalse(state3.hasMorePages)
+
+            // Filtering resets page back to 1
+            viewModel.onAction(ExploreUiAction.UpdateSearchQuery("resource-1"))
+            val state4 = viewModel.uiState.value
+            assertEquals(1, state4.currentPage)
+            assertEquals(11, state4.filteredResources.size) // resource-1, resource-10..resource-19
+            assertEquals(11, state4.pagedResources.size)
+            assertFalse(state4.hasMorePages)
         }
 
     private class FakeClusterRepository : ClusterRepository {
@@ -361,10 +397,12 @@ class ExploreViewModelTest {
                 shortNames = listOf("no")
             ),
         )
+        private var currentResources: List<APIResource> = defaultResources
         private val flow = MutableStateFlow(defaultResources)
         private val lastRefreshedFlow = MutableStateFlow<Long?>(1700000000000L)
 
         fun setResources(list: List<APIResource>) {
+            currentResources = list
             flow.value = list
         }
 
@@ -376,9 +414,9 @@ class ExploreViewModelTest {
 
         override suspend fun fetchAPIResources(clusterId: String?): Result<List<APIResource>> {
             fetchCount++
-            flow.value = defaultResources
+            flow.value = currentResources
             lastRefreshedFlow.value = System.currentTimeMillis()
-            return Result.Success(defaultResources)
+            return Result.Success(currentResources)
         }
 
         override fun getExplainedResourceStream(

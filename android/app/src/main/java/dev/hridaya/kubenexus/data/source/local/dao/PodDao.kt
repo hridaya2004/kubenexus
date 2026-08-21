@@ -18,6 +18,12 @@ interface PodDao {
     @Query("SELECT * FROM pods WHERE clusterId = :clusterId AND namespace = :namespace ORDER BY name ASC")
     fun getPodsByNamespaceStream(clusterId: String, namespace: String): Flow<List<PodEntity>>
 
+    @Query("SELECT id FROM pods WHERE clusterId = :clusterId")
+    suspend fun getPodIdsForCluster(clusterId: String): List<String>
+
+    @Query("SELECT id FROM pods WHERE clusterId = :clusterId AND namespace = :namespace")
+    suspend fun getPodIdsForNamespace(clusterId: String, namespace: String): List<String>
+
     @Query("SELECT * FROM pods WHERE clusterId = :clusterId")
     suspend fun getPodsList(clusterId: String): List<PodEntity>
 
@@ -33,27 +39,45 @@ interface PodDao {
     @Query("DELETE FROM pods WHERE id = :podId")
     suspend fun deletePod(podId: String)
 
+    @Query("DELETE FROM pods WHERE id IN (:ids)")
+    suspend fun deletePodsByIds(ids: List<String>)
+
     @Transaction
     suspend fun syncPods(
         clusterId: String,
         namespace: String?,
         pods: List<PodEntity>,
-        timestamp: Long
+        timestamp: Long,
+        chunkSize: Int = 250,
     ) {
-        if (namespace.isNullOrBlank() ||
-            namespace == "All Namespaces" ||
-            namespace.equals(
-                "all",
-                ignoreCase = true,
-            )
-        ) {
-            deletePodsForCluster(clusterId)
+        val isAll = namespace.isNullOrBlank() ||
+                namespace == "All Namespaces" ||
+                namespace.equals("all", ignoreCase = true)
+
+        val existingIds = if (isAll) {
+            getPodIdsForCluster(clusterId)
         } else {
-            deletePodsForNamespace(clusterId, namespace)
+            getPodIdsForNamespace(clusterId, namespace!!)
         }
+
+        val incomingIds = pods.map { it.id }.toSet()
+        val idsToDelete = existingIds.filter { it !in incomingIds }
+
+        // Delete removed pods in chunks
+        if (idsToDelete.isNotEmpty()) {
+            idsToDelete.chunked(chunkSize).forEach { chunk ->
+                deletePodsByIds(chunk)
+            }
+        }
+
+        // Upsert new or updated pods in chunks
         if (pods.isNotEmpty()) {
-            insertPods(pods)
+            pods.chunked(chunkSize).forEach { chunk ->
+                insertPods(chunk)
+            }
         }
+
+        // Record sync metadata timestamp
         insertSyncMetadata(
             SyncMetadataEntity(
                 key = "${clusterId}_pods",

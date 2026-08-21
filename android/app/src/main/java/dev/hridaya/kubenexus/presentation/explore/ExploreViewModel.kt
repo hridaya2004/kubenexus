@@ -64,19 +64,26 @@ class ExploreViewModel @Inject constructor(
         streamJob = viewModelScope.launch(dispatcherProvider.main) {
             getAPIResourcesUseCase.getStream(clusterId).collectLatest { list ->
                 _uiState.update { state ->
-                    val filtered = applyFilter(list, state.searchQuery, state.selectedCategory)
+                    val (filtered, paged, hasMore) = updateFilterAndPaging(
+                        resources = list,
+                        query = state.searchQuery,
+                        category = state.selectedCategory,
+                        page = 1,
+                        pageSize = state.pageSize,
+                    )
                     state.copy(
                         resources = list,
                         filteredResources = filtered,
+                        pagedResources = paged,
+                        currentPage = 1,
+                        hasMorePages = hasMore,
                     )
                 }
 
-                // only fetch from remote/native if local cache is empty
+                // Always take cluster as true source: sync fresh discovery from remote cluster
                 if (!hasCheckedEmptyForCluster) {
                     hasCheckedEmptyForCluster = true
-                    if (list.isEmpty()) {
-                        refreshResources(clusterId)
-                    }
+                    refreshResources(clusterId)
                 }
             }
         }
@@ -99,33 +106,71 @@ class ExploreViewModel @Inject constructor(
 
             is ExploreUiAction.CloseSearch -> {
                 _uiState.update { state ->
-                    val filtered = applyFilter(state.resources, "", state.selectedCategory)
+                    val (filtered, paged, hasMore) = updateFilterAndPaging(
+                        resources = state.resources,
+                        query = "",
+                        category = state.selectedCategory,
+                        page = 1,
+                        pageSize = state.pageSize,
+                    )
                     state.copy(
                         isSearchActive = false,
                         searchQuery = "",
                         filteredResources = filtered,
+                        pagedResources = paged,
+                        currentPage = 1,
+                        hasMorePages = hasMore,
                     )
                 }
             }
 
             is ExploreUiAction.UpdateSearchQuery -> {
                 _uiState.update { state ->
-                    val filtered =
-                        applyFilter(state.resources, action.query, state.selectedCategory)
+                    val (filtered, paged, hasMore) = updateFilterAndPaging(
+                        resources = state.resources,
+                        query = action.query,
+                        category = state.selectedCategory,
+                        page = 1,
+                        pageSize = state.pageSize,
+                    )
                     state.copy(
                         searchQuery = action.query,
                         filteredResources = filtered,
+                        pagedResources = paged,
+                        currentPage = 1,
+                        hasMorePages = hasMore,
                     )
                 }
             }
 
-
             is ExploreUiAction.SelectCategory -> {
                 _uiState.update { state ->
-                    val filtered = applyFilter(state.resources, state.searchQuery, action.category)
+                    val (filtered, paged, hasMore) = updateFilterAndPaging(
+                        resources = state.resources,
+                        query = state.searchQuery,
+                        category = action.category,
+                        page = 1,
+                        pageSize = state.pageSize,
+                    )
                     state.copy(
                         selectedCategory = action.category,
                         filteredResources = filtered,
+                        pagedResources = paged,
+                        currentPage = 1,
+                        hasMorePages = hasMore,
+                    )
+                }
+            }
+
+            is ExploreUiAction.LoadNextPage -> {
+                _uiState.update { state ->
+                    if (!state.hasMorePages) return@update state
+                    val nextPage = state.currentPage + 1
+                    val paged = state.filteredResources.take(nextPage * state.pageSize)
+                    state.copy(
+                        currentPage = nextPage,
+                        pagedResources = paged,
+                        hasMorePages = paged.size < state.filteredResources.size,
                     )
                 }
             }
@@ -187,11 +232,19 @@ class ExploreViewModel @Inject constructor(
             when (val result = getAPIResourcesUseCase.refresh(clusterId)) {
                 is Result.Success -> {
                     _uiState.update { state ->
-                        val filtered =
-                            applyFilter(result.data, state.searchQuery, state.selectedCategory)
+                        val (filtered, paged, hasMore) = updateFilterAndPaging(
+                            resources = result.data,
+                            query = state.searchQuery,
+                            category = state.selectedCategory,
+                            page = 1,
+                            pageSize = state.pageSize,
+                        )
                         state.copy(
                             resources = result.data,
                             filteredResources = filtered,
+                            pagedResources = paged,
+                            currentPage = 1,
+                            hasMorePages = hasMore,
                             isRefreshing = false,
                             isLoading = false,
                         )
@@ -216,6 +269,19 @@ class ExploreViewModel @Inject constructor(
                 is Result.Loading -> Unit
             }
         }
+    }
+
+    private fun updateFilterAndPaging(
+        resources: List<APIResource>,
+        query: String,
+        category: String,
+        page: Int = 1,
+        pageSize: Int = 30,
+    ): Triple<List<APIResource>, List<APIResource>, Boolean> {
+        val filtered = applyFilter(resources, query, category)
+        val paged = filtered.take(page * pageSize)
+        val hasMore = paged.size < filtered.size
+        return Triple(filtered, paged, hasMore)
     }
 
     private fun loadExplain(resource: APIResource, forceRefresh: Boolean = false) {

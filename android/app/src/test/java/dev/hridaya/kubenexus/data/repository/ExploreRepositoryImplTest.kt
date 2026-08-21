@@ -251,6 +251,10 @@ class ExploreRepositoryImplTest {
             return resourcesMap[clusterId] ?: emptyList()
         }
 
+        override suspend fun getResourceIdsForCluster(clusterId: String): List<String> {
+            return resourcesMap[clusterId]?.map { it.id } ?: emptyList()
+        }
+
         override suspend fun insertAPIResources(resources: List<APIResourceEntity>) {
             val clusterId = resources.firstOrNull()?.clusterId ?: return
             val existing = resourcesMap[clusterId]?.toMutableList() ?: mutableListOf()
@@ -264,10 +268,20 @@ class ExploreRepositoryImplTest {
             resourcesFlow.value = resourcesMap.toMap()
         }
 
+        override suspend fun deleteAPIResourcesByIds(ids: List<String>) {
+            val idSet = ids.toSet()
+            resourcesMap.keys.forEach { clusterId ->
+                val list = resourcesMap[clusterId]?.filter { it.id !in idSet } ?: emptyList()
+                resourcesMap[clusterId] = list
+            }
+            resourcesFlow.value = resourcesMap.toMap()
+        }
+
         override suspend fun syncAPIResources(
             clusterId: String,
             resources: List<APIResourceEntity>,
             timestamp: Long,
+            chunkSize: Int,
         ) {
             resourcesMap[clusterId] = resources
             resourcesFlow.value = resourcesMap.toMap()

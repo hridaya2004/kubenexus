@@ -19,6 +19,10 @@ data class ExploreUiState(
         "Batch",
         "Networking",
     ),
+    val pagedResources: List<APIResource> = emptyList(),
+    val currentPage: Int = 1,
+    val pageSize: Int = 30,
+    val hasMorePages: Boolean = false,
     val isSearchActive: Boolean = false,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -38,6 +42,7 @@ sealed interface ExploreUiAction {
     data object CloseSearch : ExploreUiAction
     data class UpdateSearchQuery(val query: String) : ExploreUiAction
     data class SelectCategory(val category: String) : ExploreUiAction
+    data object LoadNextPage : ExploreUiAction
     data object Refresh : ExploreUiAction
     data class SelectResource(val resource: APIResource) : ExploreUiAction
     data object DismissExplain : ExploreUiAction

@@ -45,9 +45,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.core.common.util.TimeFormatter
+import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.presentation.explore.ExploreUiAction
 import dev.hridaya.kubenexus.presentation.explore.ExploreUiState
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.material3.CircularProgressIndicator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +63,21 @@ fun ExploreSearchScreen(
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState()
+
+    val shouldLoadMore = remember(uiState.pagedResources.size, uiState.hasMorePages) {
+        derivedStateOf {
+            val totalItems = uiState.pagedResources.size
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            uiState.hasMorePages && totalItems > 0 && lastVisibleItem >= totalItems - 4
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value) {
+            onAction(ExploreUiAction.LoadNextPage)
+        }
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -128,7 +148,11 @@ fun ExploreSearchScreen(
                     .padding(horizontal = 16.dp, vertical = 4.dp),
             ) {
                 Text(
-                    text = "Categories",
+                    text = if (uiState.filteredResources.isNotEmpty()) {
+                        "Categories (${uiState.filteredResources.size})"
+                    } else {
+                        "Categories"
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -209,6 +233,7 @@ fun ExploreSearchScreen(
 
                 else -> {
                     LazyColumn(
+                        state = listState,
                         contentPadding = PaddingValues(
                             start = 16.dp,
                             end = 16.dp,
@@ -218,11 +243,28 @@ fun ExploreSearchScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        items(uiState.filteredResources, key = { "${it.groupVersion}/${it.name}" }) { resource ->
+                        items(uiState.pagedResources, key = { "${it.groupVersion}/${it.name}" }) { resource ->
                             APIResourceCard(
                                 resource = resource,
                                 onClick = { onAction(ExploreUiAction.SelectResource(resource)) },
                             )
+                        }
+
+                        if (uiState.hasMorePages) {
+                            item(key = "loading_more_search_indicator") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -234,11 +276,15 @@ fun ExploreSearchScreen(
 @Preview(showBackground = true)
 @Composable
 private fun ExploreSearchScreenPreview() {
+    val sampleResource = APIResource(name = "pods", kind = "Pod", groupVersion = "v1")
     KubeNexusTheme {
         ExploreSearchScreen(
             uiState = ExploreUiState(
                 isSearchActive = true,
                 searchQuery = "pod",
+                resources = listOf(sampleResource),
+                filteredResources = listOf(sampleResource),
+                pagedResources = listOf(sampleResource),
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},

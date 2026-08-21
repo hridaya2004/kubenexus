@@ -62,6 +62,7 @@ jobs:
         run: make build
 
       - name: Upload Debug APK
+        id: upload-debug-apk
         uses: actions/upload-artifact@v7
         with:
           name: kubenexus-debug-apk
@@ -70,9 +71,74 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Release APK
+        id: upload-release-apk
         uses: actions/upload-artifact@v7
         with:
           name: kubenexus-release-apk
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 1
           if-no-files-found: error
+
+      - name: Get Artifact URLs
+        id: get-artifact-urls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+
+          ARTIFACTS_JSON=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/artifacts")
+
+          BASE_URL="${{ github.server_url }}/${REPO}/actions/runs/${RUN_ID}/artifacts"
+          DEBUG_URL=$(echo "$ARTIFACTS_JSON" | jq -r '.artifacts[] | select(.name=="kubenexus-debug-apk") | .id' | sed "s|^|${BASE_URL}/|")
+          RELEASE_URL=$(echo "$ARTIFACTS_JSON" | jq -r '.artifacts[] | select(.name=="kubenexus-release-apk") | .id' | sed "s|^|${BASE_URL}/|")
+
+          echo "debug_url=${DEBUG_URL}" >> "$GITHUB_OUTPUT"
+          echo "release_url=${RELEASE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Send Artifact Links to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+          DEBUG_ARTIFACT_URL: ${{ steps.get-artifact-urls.outputs.debug_url }}
+          RELEASE_ARTIFACT_URL: ${{ steps.get-artifact-urls.outputs.release_url }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set. Skipping Telegram notification."
+            exit 0
+          fi
+
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
+          COMMIT_MSG_ESCAPED=$(echo "$COMMIT_MSG" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          DEBUG_URL="${DEBUG_ARTIFACT_URL:-$RUN_URL}"
+          RELEASE_URL="${RELEASE_ARTIFACT_URL:-$RUN_URL}"
+
+          TEXT="<b>KubeNexus Build Completed</b>"$'\n\n'
+          TEXT+="<b>Artifacts:</b>"$'\n'
+          TEXT+="- <a href=\"${DEBUG_URL}\">kubenexus-debug-apk</a>"$'\n'
+          TEXT+="- <a href=\"${RELEASE_URL}\">kubenexus-release-apk</a>"$'\n\n'
+          TEXT+="<b>Build Details:</b>"$'\n'
+          TEXT+="- <b>Branch:</b> <code>${{ github.ref_name }}</code>"$'\n'
+          TEXT+="- <b>Commit:</b> <code>${COMMIT_SHA}</code> - ${COMMIT_MSG_ESCAPED}"$'\n'
+          TEXT+="- <b>Workflow Run:</b> <a href=\"${RUN_URL}\">#${{ github.run_number }}</a>"
+
+          echo "Sending artifact links to Telegram..."
+
+          CURL_MSG_ARGS=(
+            -s -S -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+            --retry 3
+            -F "chat_id=${TELEGRAM_CHAT_ID}"
+            --form-string "text=${TEXT}"
+            -F "parse_mode=HTML"
+            -F "disable_web_page_preview=true"
+          )
+          if [ -n "$TELEGRAM_TOPIC_ID" ]; then
+            CURL_MSG_ARGS+=(-F "message_thread_id=${TELEGRAM_TOPIC_ID}")
+          fi
+
+          RESPONSE=$(curl "${CURL_MSG_ARGS[@]}")
+          echo "Telegram response: $RESPONSE"

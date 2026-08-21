@@ -9,8 +9,9 @@ class StreamPodLogsUseCase @Inject constructor(private val podRepository: PodRep
         clusterId: String?,
         namespace: String,
         podName: String,
-        containerName: String? = null
+        containerName: String? = null,
+        tailLines: Long? = null,
     ): Flow<String> {
-        return podRepository.streamPodLogs(clusterId, namespace, podName, containerName)
+        return podRepository.streamPodLogs(clusterId, namespace, podName, containerName, tailLines)
     }
 }

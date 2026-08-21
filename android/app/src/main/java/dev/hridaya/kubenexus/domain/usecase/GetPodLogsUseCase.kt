@@ -9,8 +9,9 @@ class GetPodLogsUseCase @Inject constructor(private val podRepository: PodReposi
         clusterId: String?,
         namespace: String,
         podName: String,
-        containerName: String? = null
+        containerName: String? = null,
+        tailLines: Long? = null,
     ): Result<String> {
-        return podRepository.getPodLogs(clusterId, namespace, podName, containerName)
+        return podRepository.getPodLogs(clusterId, namespace, podName, containerName, tailLines)
     }
 }

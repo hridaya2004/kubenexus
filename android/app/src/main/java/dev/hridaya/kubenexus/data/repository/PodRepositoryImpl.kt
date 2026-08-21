@@ -259,7 +259,8 @@ class PodRepositoryImpl @Inject constructor(
         clusterId: String?,
         namespace: String,
         podName: String,
-        containerName: String?
+        containerName: String?,
+        tailLines: Long?,
     ): Result<String> = withContext(dispatcherProvider.io) {
         if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
         val cluster = clusterDao.getClusterById(clusterId)
@@ -269,7 +270,7 @@ class PodRepositoryImpl @Inject constructor(
 
         try {
             val nativeResult =
-                nativeBridge.getPodLogs(decryptedKubeconfig, namespace, podName, containerName)
+                nativeBridge.getPodLogs(decryptedKubeconfig, namespace, podName, containerName, tailLines)
             if (nativeResult.isSuccess) {
                 Result.Success(nativeResult.getOrThrow())
             } else {
@@ -288,7 +289,8 @@ class PodRepositoryImpl @Inject constructor(
         clusterId: String?,
         namespace: String,
         podName: String,
-        containerName: String?
+        containerName: String?,
+        tailLines: Long?,
     ): Flow<String> = callbackFlow {
         if (clusterId == null) {
             trySend("Error: No active cluster selected")
@@ -331,6 +333,7 @@ class PodRepositoryImpl @Inject constructor(
             namespace = namespace,
             podName = podName,
             container = containerName,
+            tailLines = tailLines,
             callback = logCallback,
         )
 

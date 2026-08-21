@@ -76,7 +76,8 @@ class ClusterConnectionTesterTest {
             rawKubeconfig: String,
             namespace: String,
             podName: String,
-            container: String?
+            container: String?,
+            tailLines: Long?,
         ): Result<String> = Result.Success("")
 
         override fun streamPodLogs(
@@ -84,6 +85,7 @@ class ClusterConnectionTesterTest {
             namespace: String,
             podName: String,
             container: String?,
+            tailLines: Long?,
             callback: client.LogCallback
         ): Result<Unit> = Result.Success(Unit)
 

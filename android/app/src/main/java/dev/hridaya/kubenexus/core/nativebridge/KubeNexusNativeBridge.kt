@@ -95,23 +95,25 @@ interface KubeNexusNativeBridge {
     fun deletePod(rawKubeconfig: String, namespace: String, podName: String): Result<Unit>
 
     /**
-     * Fetches historical logs for a pod container.
+     * Fetches historical logs for a pod container with optional tail line limit.
      */
     fun getPodLogs(
         rawKubeconfig: String,
         namespace: String,
         podName: String,
-        container: String? = null
+        container: String? = null,
+        tailLines: Long? = null,
     ): Result<String>
 
     /**
-     * Streams live logs for a pod container via callback.
+     * Streams live logs for a pod container via callback with optional tail line limit.
      */
     fun streamPodLogs(
         rawKubeconfig: String,
         namespace: String,
         podName: String,
         container: String? = null,
+        tailLines: Long? = null,
         callback: LogCallback,
     ): Result<Unit>
 

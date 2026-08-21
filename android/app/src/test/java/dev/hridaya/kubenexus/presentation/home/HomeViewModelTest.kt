@@ -529,7 +529,8 @@ class HomeViewModelTest {
             clusterId: String?,
             namespace: String,
             podName: String,
-            containerName: String?
+            containerName: String?,
+            tailLines: Long?,
         ): Result<String> {
             return Result.Success("Fake logs output")
         }
@@ -538,7 +539,8 @@ class HomeViewModelTest {
             clusterId: String?,
             namespace: String,
             podName: String,
-            containerName: String?
+            containerName: String?,
+            tailLines: Long?,
         ): Flow<String> {
             return flowOf("Fake streamed log line")
         }

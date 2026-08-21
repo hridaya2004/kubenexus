@@ -37,6 +37,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -189,6 +190,65 @@ class PodDetailViewModelTest {
 
             viewModel.onAction(PodDetailUiAction.StopStreamingLogs)
             assertFalse(viewModel.uiState.value.isStreamingLogs)
+        }
+
+    @Test
+    fun `setting tail lines updates state and refetches logs with the specified tail count`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            viewModel.onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
+            advanceUntilIdle()
+            assertEquals(250L, fakePodRepository.lastGetPodLogsTail)
+
+            viewModel.onAction(PodDetailUiAction.SetTailLines(500L))
+            advanceUntilIdle()
+            assertEquals(500L, viewModel.uiState.value.tailLines)
+            assertEquals(500L, fakePodRepository.lastGetPodLogsTail)
+
+            viewModel.onAction(PodDetailUiAction.SetTailLines(null))
+            advanceUntilIdle()
+            assertNull(viewModel.uiState.value.tailLines)
+            assertNull(fakePodRepository.lastGetPodLogsTail)
+        }
+
+    @Test
+    fun `setting tail lines while streaming restarts stream with new tail limit`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            viewModel.onAction(PodDetailUiAction.StartStreamingLogs)
+            advanceUntilIdle()
+            assertEquals(250L, fakePodRepository.lastStreamPodLogsTail)
+
+            viewModel.onAction(PodDetailUiAction.SetTailLines(500L))
+            advanceUntilIdle()
+            assertEquals(500L, viewModel.uiState.value.tailLines)
+            assertEquals(500L, fakePodRepository.lastStreamPodLogsTail)
+            assertTrue(viewModel.uiState.value.isStreamingLogs)
+
+            viewModel.onAction(PodDetailUiAction.StopStreamingLogs)
+        }
+
+    @Test
+    fun `fetching all logs clears existing logs and requests un-tailed logs from repository`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            // Switch to logs tab and set tail lines
+            viewModel.onAction(PodDetailUiAction.SelectTab(PodDetailTab.LOGS))
+            viewModel.onAction(PodDetailUiAction.SetTailLines(50L))
+            advanceUntilIdle()
+            assertEquals(50L, fakePodRepository.lastGetPodLogsTail)
+
+            // Trigger FetchAllLogs (long-press action)
+            viewModel.onAction(PodDetailUiAction.FetchAllLogs)
+            advanceUntilIdle()
+
+            // Verifies un-tailed request was dispatched to repository
+            assertNull(fakePodRepository.lastGetPodLogsTail)
+            assertTrue(viewModel.uiState.value.logs.isNotEmpty())
+            assertFalse(viewModel.uiState.value.isLoadingLogs)
         }
 
     @Test
@@ -394,12 +454,17 @@ class PodDetailViewModelTest {
         }
 
 
+        var lastGetPodLogsTail: Long? = null
+        var lastStreamPodLogsTail: Long? = null
+
         override suspend fun getPodLogs(
             clusterId: String?,
             namespace: String,
             podName: String,
-            containerName: String?
+            containerName: String?,
+            tailLines: Long?,
         ): Result<String> {
+            lastGetPodLogsTail = tailLines
             return Result.Success("Starting service...\nListening on port 8080\nReady to accept connections.")
         }
 
@@ -407,8 +472,10 @@ class PodDetailViewModelTest {
             clusterId: String?,
             namespace: String,
             podName: String,
-            containerName: String?
+            containerName: String?,
+            tailLines: Long?,
         ): Flow<String> {
+            lastStreamPodLogsTail = tailLines
             return flowOf("Log line 1", "Log line 2", "Log line 3")
         }
 

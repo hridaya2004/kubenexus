@@ -471,12 +471,21 @@ func (c *Client) DeletePod(namespace, name string) error {
 
 // Logs returns the full log output for a container.
 func (c *Client) Logs(namespace, podName, container string) (string, error) {
+	return c.LogsWithTail(namespace, podName, container, 0)
+}
+
+// LogsWithTail returns the log output for a container with tail lines option.
+// If tailLines is > 0, it limits the output to the specified number of lines from the end of the logs.
+func (c *Client) LogsWithTail(namespace, podName, container string, tailLines int64) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
 	opts := &corev1.PodLogOptions{}
 	if container != "" {
 		opts.Container = container
+	}
+	if tailLines > 0 {
+		opts.TailLines = &tailLines
 	}
 
 	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)
@@ -495,6 +504,12 @@ func (c *Client) Logs(namespace, podName, container string) (string, error) {
 
 // StreamLogs follows pod logs and sends each line to callback until completed or cancelled.
 func (c *Client) StreamLogs(namespace, podName, container string, callback LogCallback) {
+	c.StreamLogsWithTail(namespace, podName, container, 0, callback)
+}
+
+// StreamLogsWithTail follows pod logs with tail lines option and sends each line to callback until completed or cancelled.
+// If tailLines is > 0, it starts streaming from the specified number of lines from the end of the logs.
+func (c *Client) StreamLogsWithTail(namespace, podName, container string, tailLines int64, callback LogCallback) {
 	if callback == nil {
 		return
 	}
@@ -507,6 +522,9 @@ func (c *Client) StreamLogs(namespace, podName, container string, callback LogCa
 	}
 	if container != "" {
 		opts.Container = container
+	}
+	if tailLines > 0 {
+		opts.TailLines = &tailLines
 	}
 
 	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, opts)

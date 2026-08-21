@@ -36,6 +36,7 @@ data class PodDetailUiState(
     val logs: List<String> = emptyList(),
     val isStreamingLogs: Boolean = false,
     val isLoadingLogs: Boolean = false,
+    val tailLines: Long? = 250L,
     val errorMessage: String? = null,
     val terminalLines: List<TerminalLine> = emptyList(),
     val isTerminalActive: Boolean = false,
@@ -66,7 +67,9 @@ sealed interface PodDetailUiAction {
     data object RefreshDescribe : PodDetailUiAction
     data class SelectTab(val tab: PodDetailTab) : PodDetailUiAction
     data class SelectContainer(val containerName: String) : PodDetailUiAction
+    data class SetTailLines(val tailLines: Long?) : PodDetailUiAction
     data object FetchLogs : PodDetailUiAction
+    data object FetchAllLogs : PodDetailUiAction
     data object StartStreamingLogs : PodDetailUiAction
     data object StopStreamingLogs : PodDetailUiAction
     data object ClearLogs : PodDetailUiAction

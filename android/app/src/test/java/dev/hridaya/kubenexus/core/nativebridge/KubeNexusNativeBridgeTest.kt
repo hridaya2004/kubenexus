@@ -113,7 +113,8 @@ class KubeNexusNativeBridgeTest {
                 rawKubeconfig: String,
                 namespace: String,
                 podName: String,
-                container: String?
+                container: String?,
+                tailLines: Long?,
             ): Result<String> {
                 return Result.Success("log data")
             }
@@ -123,6 +124,7 @@ class KubeNexusNativeBridgeTest {
                 namespace: String,
                 podName: String,
                 container: String?,
+                tailLines: Long?,
                 callback: LogCallback,
             ): Result<Unit> {
                 callback.onLogLine("streaming line")

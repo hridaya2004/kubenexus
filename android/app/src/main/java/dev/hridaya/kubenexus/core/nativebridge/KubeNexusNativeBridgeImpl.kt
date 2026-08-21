@@ -201,11 +201,17 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         rawKubeconfig: String,
         namespace: String,
         podName: String,
-        container: String?
+        container: String?,
+        tailLines: Long?,
     ): Result<String> =
         nativeCatching("Failed to getPodLogs for '$podName' from native client") {
             val client = Client.newClient(rawKubeconfig)
-            client.logs(namespace, podName, container.orEmpty())
+            val tail = tailLines ?: 0L
+            if (tail > 0L) {
+                client.logsWithTail(namespace, podName, container.orEmpty(), tail)
+            } else {
+                client.logs(namespace, podName, container.orEmpty())
+            }
         }
 
     override fun streamPodLogs(
@@ -213,11 +219,17 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         namespace: String,
         podName: String,
         container: String?,
+        tailLines: Long?,
         callback: LogCallback,
     ): Result<Unit> =
         nativeCatching("Failed to streamPodLogs for '$podName' from native client") {
             val client = Client.newClient(rawKubeconfig)
-            client.streamLogs(namespace, podName, container.orEmpty(), callback)
+            val tail = tailLines ?: 0L
+            if (tail > 0L) {
+                client.streamLogsWithTail(namespace, podName, container.orEmpty(), tail, callback)
+            } else {
+                client.streamLogs(namespace, podName, container.orEmpty(), callback)
+            }
         }
 
     override fun exec(

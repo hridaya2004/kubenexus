@@ -190,9 +190,24 @@ class PodDetailViewModel @AssistedInject constructor(
                 }
             }
 
+            is PodDetailUiAction.SetTailLines -> {
+                _uiState.update { it.copy(tailLines = action.tailLines) }
+                if (_uiState.value.isStreamingLogs) {
+                    startStreaming()
+                } else if (_uiState.value.selectedTab == PodDetailTab.LOGS) {
+                    fetchLogs()
+                }
+            }
+
             is PodDetailUiAction.FetchLogs -> {
                 stopStreaming()
                 fetchLogs()
+            }
+
+            is PodDetailUiAction.FetchAllLogs -> {
+                stopStreaming()
+                _uiState.update { it.copy(logs = emptyList()) }
+                fetchLogs(overrideTail = null)
             }
 
             is PodDetailUiAction.StartStreamingLogs -> {
@@ -299,13 +314,13 @@ class PodDetailViewModel @AssistedInject constructor(
         }
     }
 
-    private fun fetchLogs() {
+    private fun fetchLogs(overrideTail: Long? = _uiState.value.tailLines) {
         val cid = activeClusterId ?: return
         val container = _uiState.value.selectedContainer
         _uiState.update { it.copy(isLoadingLogs = true) }
 
         viewModelScope.launch(dispatcherProvider.main) {
-            when (val result = getPodLogsUseCase(cid, namespace, podName, container)) {
+            when (val result = getPodLogsUseCase(cid, namespace, podName, container, overrideTail)) {
                 is Result.Success -> {
                     val lines = result.data.lines()
                     _uiState.update {
@@ -334,6 +349,7 @@ class PodDetailViewModel @AssistedInject constructor(
         stopStreaming()
         val cid = activeClusterId ?: return
         val container = _uiState.value.selectedContainer
+        val tail = _uiState.value.tailLines
 
         _uiState.update {
             it.copy(
@@ -344,9 +360,10 @@ class PodDetailViewModel @AssistedInject constructor(
         }
 
         streamJob = viewModelScope.launch(dispatcherProvider.main) {
-            streamPodLogsUseCase(cid, namespace, podName, container)
+            streamPodLogsUseCase(cid, namespace, podName, container, tail)
                 .onStart {
-                    _uiState.update { it.copy(logs = listOf("[Streaming logs initiated for container '${container ?: "default"}']...")) }
+                    val tailDesc = if (tail != null && tail > 0) " (tail $tail lines)" else ""
+                    _uiState.update { it.copy(logs = listOf("[Streaming logs initiated for container '${container ?: "default"}'$tailDesc]...")) }
                 }
                 .catch { t ->
                     _uiState.update {

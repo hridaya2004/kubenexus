@@ -24,14 +24,16 @@ interface PodRepository {
         clusterId: String?,
         namespace: String,
         podName: String,
-        containerName: String? = null
+        containerName: String? = null,
+        tailLines: Long? = null,
     ): Result<String>
 
     fun streamPodLogs(
         clusterId: String?,
         namespace: String,
         podName: String,
-        containerName: String? = null
+        containerName: String? = null,
+        tailLines: Long? = null,
     ): Flow<String>
 
     suspend fun execCommand(

@@ -11,6 +11,7 @@ import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ExplainedResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
+import dev.hridaya.kubenexus.data.source.local.dao.OpenApiSchemaDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
 import javax.inject.Singleton
 
@@ -48,4 +49,9 @@ object DatabaseModule {
     fun provideExplainedResourceDao(
         database: KubeNexusDatabase
     ): ExplainedResourceDao = database.explainedResourceDao()
+
+    @Provides
+    fun provideOpenApiSchemaDao(
+        database: KubeNexusDatabase
+    ): OpenApiSchemaDao = database.openApiSchemaDao()
 }

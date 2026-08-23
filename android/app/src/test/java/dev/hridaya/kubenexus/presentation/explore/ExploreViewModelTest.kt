@@ -434,7 +434,8 @@ class ExploreViewModelTest {
         override suspend fun explainResource(
             clusterId: String?,
             resourceOrKind: String,
-            groupVersion: String
+            groupVersion: String,
+            forceRefresh: Boolean,
         ): Result<ResourceExplain> {
             explainCount++
             val matchedKind =

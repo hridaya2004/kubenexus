@@ -1,0 +1,32 @@
+{
+  "definitions": {
+    "io.k8s.api.core.v1.PodSpec": {"description": "Spec details."},
+    "io.k8s.api.core.v1.Pod": {
+      "x-kubernetes-group-version-kind": [
+        {"group": "", "version": "v1", "kind": "Pod"}
+      ],
+      "description": "Pod is a collection of containers",
+      "required": ["spec"],
+      "properties": {
+        "spec": {
+          "$ref": "#/definitions/io.k8s.api.core.v1.PodSpec",
+          "description": "Specification"
+        }
+      }
+    },
+    "io.k8s.api.core.v1.Service": {
+      "x-kubernetes-group-version-kind": [
+        {"group": "", "version": "v1", "kind": "Service"}
+      ],
+      "description": "Service",
+      "properties": {}
+    },
+    "io.k8s.api.apps.v1.Deployment": {
+      "x-kubernetes-group-version-kind": [
+        {"group": "apps", "version": "v1", "kind": "Deployment"}
+      ],
+      "description": "Deployment",
+      "properties": {}
+    }
+  }
+}

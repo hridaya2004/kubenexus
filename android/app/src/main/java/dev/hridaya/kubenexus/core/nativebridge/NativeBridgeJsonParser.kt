@@ -61,11 +61,15 @@ class NativeBridgeJsonParser @Inject constructor() {
      * unavailable or nothing matches.
      */
     fun resolveResourceExplain(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain {
-        findDefinition(schemaJson, resourceOrKind, groupVersion)?.let { return it }
-        return fallbackExplain(resourceOrKind, groupVersion)
+        return findDefinition(schemaJson, resourceOrKind, groupVersion)
+            ?: buildFallbackExplain(resourceOrKind, groupVersion)
     }
 
-    private fun findDefinition(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain? {
+    /**
+     * Returns null when the schema has no definition matching the resource or
+     * kind, so callers can decide whether a fallback is worth persisting.
+     */
+    fun findDefinition(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain? {
         if (schemaJson.isBlank()) return null
         val definitions = JSONObject(schemaJson).optJSONObject("definitions") ?: return null
         val target = resourceOrKind.lowercase()
@@ -124,7 +128,7 @@ class NativeBridgeJsonParser @Inject constructor() {
         return null
     }
 
-    private fun fallbackExplain(resourceOrKind: String, groupVersion: String): ResourceExplain {
+    fun buildFallbackExplain(resourceOrKind: String, groupVersion: String): ResourceExplain {
         val kind = if (groupVersion.isBlank() && resourceOrKind.isNotEmpty()) {
             resourceOrKind.replaceFirstChar { it.uppercase() }
         } else {

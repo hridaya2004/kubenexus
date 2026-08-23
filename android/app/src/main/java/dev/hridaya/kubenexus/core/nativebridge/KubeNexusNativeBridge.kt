@@ -67,13 +67,10 @@ interface KubeNexusNativeBridge {
     fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>>
 
     /**
-     * Retrieves resource explanation details (kubectl explain) from native runtime.
+     * Fetches the cluster's OpenAPI v2 schema document verbatim. The document
+     * is large; callers are expected to persist it rather than refetch.
      */
-    fun explainResource(
-        rawKubeconfig: String,
-        resourceOrKind: String,
-        groupVersion: String = "",
-    ): Result<ResourceExplain>
+    fun openAPISchemaJSON(rawKubeconfig: String): Result<String>
 
     /**
      * Describes a pod in detail, including its events.

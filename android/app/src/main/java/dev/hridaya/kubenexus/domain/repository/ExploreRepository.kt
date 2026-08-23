@@ -25,5 +25,6 @@ interface ExploreRepository {
         clusterId: String?,
         resourceOrKind: String,
         groupVersion: String = "",
+        forceRefresh: Boolean = false,
     ): Result<ResourceExplain>
 }

@@ -10,7 +10,6 @@ import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
-import dev.hridaya.kubenexus.domain.model.ResourceExplain
 
 /**
  * Reusable test double for [KubeNexusNativeBridge].
@@ -50,17 +49,8 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
     override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
         Result.Success(emptyList())
 
-    override fun explainResource(
-        rawKubeconfig: String,
-        resourceOrKind: String,
-        groupVersion: String,
-    ): Result<ResourceExplain> = Result.Success(
-        ResourceExplain(
-            kind = resourceOrKind,
-            groupVersion = groupVersion,
-            description = "fake explain description",
-        ),
-    )
+    override fun openAPISchemaJSON(rawKubeconfig: String): Result<String> =
+        Result.Error(AppError.Unknown("OpenAPI schema not configured"))
 
     override fun describePod(
         rawKubeconfig: String,

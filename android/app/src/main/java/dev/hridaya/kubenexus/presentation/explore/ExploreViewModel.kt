@@ -318,7 +318,7 @@ class ExploreViewModel @Inject constructor(
             }
 
             // Fetch fresh from native / cluster and sync to Room database
-            val result = explainResourceUseCase(clusterId, resource.name, resource.groupVersion)
+            val result = explainResourceUseCase(clusterId, resource.name, resource.groupVersion, forceRefresh)
             when (result) {
                 is Result.Success -> {
                     _uiState.update { state ->

@@ -25,7 +25,7 @@ import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
-import dev.hridaya.kubenexus.domain.model.ResourceExplain
+
 import go.Seq
 import java.security.MessageDigest
 import javax.inject.Inject
@@ -85,20 +85,6 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     // identifiers for the resources this app touches are created once.
     private val podsResource: GroupVersionResource by lazy { Client.podsResource() }
     private val namespacesResource: GroupVersionResource by lazy { Client.namespacesResource() }
-
-    /**
-     * OpenAPI schema per kubeconfig digest. The document is megabytes, so it is
-     * fetched once per cluster and reused across explain calls; a rotated
-     * kubeconfig hashes differently and therefore refetches.
-     */
-    private val schemaCache = object : LinkedHashMap<String, String>(
-        /* initialCapacity = */ CLIENT_CACHE_SIZE,
-        /* loadFactor = */ 0.75f,
-        /* accessOrder = */ true,
-    ) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean =
-            size > CLIENT_CACHE_SIZE
-    }
 
     override fun initialize() {
         try {
@@ -198,27 +184,9 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             jsonParser.parseAPIResources(clientFor(rawKubeconfig).listAPIResourcesJSON())
         }
 
-    override fun explainResource(
-        rawKubeconfig: String,
-        resourceOrKind: String,
-        groupVersion: String,
-    ): Result<ResourceExplain> =
-        nativeCatching("Failed to explainResource '$resourceOrKind' from native client") {
-            val schema = try {
-                synchronized(schemaCache) {
-                    schemaCache.getOrPut(digest(rawKubeconfig)) {
-                        clientFor(rawKubeconfig).openAPISchemaJSON()
-                    }
-                }
-            } catch (t: Throwable) {
-                Log.w(
-                    TAG,
-                    "OpenAPI schema unavailable, explaining from fallback: " +
-                        LogSanitizer.sanitize(t.message),
-                )
-                ""
-            }
-            jsonParser.resolveResourceExplain(schema, resourceOrKind, groupVersion)
+    override fun openAPISchemaJSON(rawKubeconfig: String): Result<String> =
+        nativeCatching("Failed to fetch OpenAPI schema from native client") {
+            clientFor(rawKubeconfig).openAPISchemaJSON()
         }
 
     override fun describePod(

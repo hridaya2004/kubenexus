@@ -4,6 +4,7 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.nativebridge.FakeKubeNexusNativeBridge
+import dev.hridaya.kubenexus.core.nativebridge.NativeBridgeJsonParser
 import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ExplainedResourceDao
@@ -11,9 +12,9 @@ import dev.hridaya.kubenexus.data.source.local.entity.APIResourceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ExplainedResourceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
+import dev.hridaya.kubenexus.data.source.local.dao.OpenApiSchemaDao
+import dev.hridaya.kubenexus.data.source.local.entity.OpenApiSchemaEntity
 import dev.hridaya.kubenexus.domain.model.APIResource
-import dev.hridaya.kubenexus.domain.model.ResourceExplain
-import dev.hridaya.kubenexus.domain.model.ResourceField
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,7 @@ class ExploreRepositoryImplTest {
     private lateinit var fakeClusterDao: FakeClusterDao
     private lateinit var fakeAPIResourceDao: FakeAPIResourceDao
     private lateinit var fakeExplainedResourceDao: FakeExplainedResourceDao
+    private lateinit var fakeOpenApiSchemaDao: FakeOpenApiSchemaDao
     private lateinit var fakeNativeBridge: FakeNativeBridge
     private lateinit var repository: ExploreRepositoryImpl
 
@@ -50,13 +52,16 @@ class ExploreRepositoryImplTest {
         fakeClusterDao = FakeClusterDao()
         fakeAPIResourceDao = FakeAPIResourceDao()
         fakeExplainedResourceDao = FakeExplainedResourceDao()
+        fakeOpenApiSchemaDao = FakeOpenApiSchemaDao()
         fakeNativeBridge = FakeNativeBridge()
 
         repository = ExploreRepositoryImpl(
             clusterDao = fakeClusterDao,
             apiResourceDao = fakeAPIResourceDao,
             explainedResourceDao = fakeExplainedResourceDao,
+            openApiSchemaDao = fakeOpenApiSchemaDao,
             nativeBridge = fakeNativeBridge,
+            jsonParser = NativeBridgeJsonParser(),
             dispatcherProvider = testDispatcherProvider,
         )
     }
@@ -146,20 +151,6 @@ class ExploreRepositoryImplTest {
                 ),
             )
 
-            fakeNativeBridge.mockExplain = ResourceExplain(
-                kind = "Pod",
-                groupVersion = "v1",
-                description = "Pod is a collection of containers",
-                fields = listOf(
-                    ResourceField(
-                        name = "spec",
-                        type = "PodSpec",
-                        description = "Specification",
-                        required = true
-                    ),
-                ),
-            )
-
             val result = repository.explainResource(clusterId, "pods", "v1")
             assertTrue(result is Result.Success)
             val explainData = (result as Result.Success).data
@@ -171,9 +162,11 @@ class ExploreRepositoryImplTest {
             assertNotNull(cached)
             assertEquals("Pod", cached!!.kind)
 
-            // Now simulate native bridge failure: explainResource should return Error so failed refresh is not counted as success
-            fakeNativeBridge.shouldFailExplain = true
-            val failedResult = repository.explainResource(clusterId, "pods", "v1")
+            // Now simulate a schema fetch failure on force refresh: explainResource should
+            // return Error so failed refresh is not counted as success, and the cached
+            // explanation must survive untouched.
+            fakeNativeBridge.shouldFailSchema = true
+            val failedResult = repository.explainResource(clusterId, "pods", "v1", forceRefresh = true)
             assertTrue(failedResult is Result.Error)
 
             // Test direct getCachedExplainedResource returns cached schema
@@ -362,26 +355,37 @@ class ExploreRepositoryImplTest {
 
     private class FakeNativeBridge : FakeKubeNexusNativeBridge() {
         var mockResources: List<APIResource> = emptyList()
-        var mockExplain: ResourceExplain? = null
-        var shouldFailExplain: Boolean = false
+        var mockSchemaJson: String = loadSchemaFixture()
+        var shouldFailSchema: Boolean = false
 
         override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
             Result.Success(mockResources)
 
-        override fun explainResource(
-            rawKubeconfig: String,
-            resourceOrKind: String,
-            groupVersion: String,
-        ): Result<ResourceExplain> {
-            if (shouldFailExplain) {
+        override fun openAPISchemaJSON(rawKubeconfig: String): Result<String> {
+            if (shouldFailSchema) {
                 return Result.Error(AppError.Network("Network error"))
             }
-            val exp = mockExplain ?: ResourceExplain(
-                kind = resourceOrKind,
-                groupVersion = groupVersion,
-                description = "desc",
-            )
-            return Result.Success(exp)
+            return Result.Success(mockSchemaJson)
+        }
+
+        private fun loadSchemaFixture(): String =
+            javaClass.classLoader!!
+                .getResourceAsStream("openapi-schema-test.json")!!
+                .bufferedReader()
+                .readText()
+    }
+
+    private class FakeOpenApiSchemaDao : OpenApiSchemaDao {
+        private val storage = mutableMapOf<String, OpenApiSchemaEntity>()
+
+        override suspend fun getForCluster(clusterId: String): OpenApiSchemaEntity? = storage[clusterId]
+
+        override suspend fun upsert(schema: OpenApiSchemaEntity) {
+            storage[schema.clusterId] = schema
+        }
+
+        override suspend fun deleteForCluster(clusterId: String) {
+            storage.remove(clusterId)
         }
     }
 }

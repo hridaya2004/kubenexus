@@ -10,11 +10,13 @@ import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ExplainedResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
+import dev.hridaya.kubenexus.data.source.local.dao.OpenApiSchemaDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
 import dev.hridaya.kubenexus.data.source.local.entity.APIResourceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ExplainedResourceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
+import dev.hridaya.kubenexus.data.source.local.entity.OpenApiSchemaEntity
 import dev.hridaya.kubenexus.data.source.local.entity.PodEntity
 import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
 
@@ -26,9 +28,13 @@ import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
         SyncMetadataEntity::class,
         APIResourceEntity::class,
         ExplainedResourceEntity::class,
+        OpenApiSchemaEntity::class,
     ],
-    version = 5,
-    exportSchema = false,
+    version = 6,
+    exportSchema = true,
+    // AutoMigration(5, 6) is not possible: schema JSON was never exported for
+    // v5. From here on, exported schemas let future bumps declare auto-migrations.
+    autoMigrations = [],
 )
 abstract class KubeNexusDatabase : RoomDatabase() {
 
@@ -37,6 +43,7 @@ abstract class KubeNexusDatabase : RoomDatabase() {
     abstract fun namespaceDao(): NamespaceDao
     abstract fun apiResourceDao(): APIResourceDao
     abstract fun explainedResourceDao(): ExplainedResourceDao
+    abstract fun openApiSchemaDao(): OpenApiSchemaDao
 
     companion object {
         const val DATABASE_NAME = "kubenexus.db"
@@ -142,6 +149,21 @@ abstract class KubeNexusDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `open_api_schemas` (
+                        `clusterId` TEXT NOT NULL,
+                        `schemaGzip` BLOB NOT NULL,
+                        `fetchedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`clusterId`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: KubeNexusDatabase? = null
 
@@ -152,7 +174,7 @@ abstract class KubeNexusDatabase : RoomDatabase() {
                     KubeNexusDatabase::class.java,
                     DATABASE_NAME,
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { INSTANCE = it }
             }

@@ -15,8 +15,8 @@ import dev.hridaya.kubenexus.data.mapper.toEntity
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
-import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
+import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.TerminalSession
@@ -121,8 +121,7 @@ class PodRepositoryImpl @Inject constructor(
                 }
 
             try {
-                val nativeResult =
-                    nativeBridge.listPodsWide(decryptedKubeconfig, queryNamespace)
+                val nativeResult = nativeBridge.listPods(decryptedKubeconfig, queryNamespace)
                 if (nativeResult.isFailure) {
                     val ex = nativeResult.exceptionOrNull()
                     val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
@@ -130,34 +129,26 @@ class PodRepositoryImpl @Inject constructor(
                         AppError.Network(sanitizedMsg.ifEmpty { "Failed to list pods from cluster" }),
                     )
                 }
-                val livePods: List<Pod> = nativeResult.getOrThrow().map { it.toDomain() }
+                val livePods: List<Pod> = nativeResult.getOrThrow()
 
-                val nativeNsResult =
-                    nativeBridge.listNamespaces(decryptedKubeconfig)
-                val liveNamespaces: List<String> = if (nativeNsResult.isSuccess) {
-                    nativeNsResult.getOrThrow().map { it.toDomainName() }
+                val nativeNsResult = nativeBridge.listNamespaces(decryptedKubeconfig)
+                val liveNamespaces: List<Namespace> = if (nativeNsResult.isSuccess) {
+                    nativeNsResult.getOrThrow()
                 } else {
                     emptyList()
                 }
 
-                val podEntities = livePods.map { it.toEntity(clusterId) }
                 podDao.syncPods(
                     clusterId = clusterId,
                     namespace = queryNamespace,
-                    pods = podEntities,
+                    pods = livePods.map { it.toEntity(clusterId) },
                     timestamp = System.currentTimeMillis(),
                 )
 
                 if (liveNamespaces.isNotEmpty()) {
                     val namespaceEntities = liveNamespaces
-                        .filter { it != "All Namespaces" && it.isNotBlank() }
-                        .map { name ->
-                            NamespaceEntity(
-                                id = "${clusterId}_$name",
-                                clusterId = clusterId,
-                                name = name,
-                            )
-                        }
+                        .filter { it.name != "All Namespaces" && it.name.isNotBlank() }
+                        .map { it.toEntity(clusterId) }
                     namespaceDao.syncNamespaces(clusterId, namespaceEntities)
                 }
 
@@ -184,8 +175,7 @@ class PodRepositoryImpl @Inject constructor(
         try {
             val nativeResult = nativeBridge.describePod(decryptedKubeconfig, namespace, podName)
             if (nativeResult.isSuccess) {
-                val nativePodDetails = nativeResult.getOrThrow()
-                Result.Success(nativePodDetails.toDomain())
+                Result.Success(nativeResult.getOrThrow())
             } else {
                 val ex = nativeResult.exceptionOrNull()
                 val sanitizedMsg = LogSanitizer.sanitize(ex?.message)

@@ -1,205 +1,99 @@
 package dev.hridaya.kubenexus.core.nativebridge
 
-import client.ExecCallback
-import client.ExecResult
-import client.ExecSession
-import client.LogCallback
-import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
-import dev.hridaya.kubenexus.domain.model.ResourceExplain
+import dev.hridaya.kubenexus.domain.model.Namespace
+import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import client.Namespace as NativeNamespace
-import client.Pod as NativePod
-import client.PodDetails as NativePodDetails
 
 class KubeNexusNativeBridgeTest {
 
     @Test
-    fun `fake bridge reports availability and creates client successfully`() {
-        val fakeBridge = object : KubeNexusNativeBridge {
-            private var isInit = false
-
-            override fun initialize() {
-                isInit = true
-            }
-
-            override fun isAvailable(): Boolean = isInit
-
-            override fun touch(): Boolean = true
-
-            override fun createClient(rawKubeconfig: String): Result<client.Client_> {
-                return if (isInit) {
-                    Result.Error(AppError.Unknown("JVM mock environment"))
-                } else {
-                    Result.Error(AppError.Unknown("Not initialized"))
-                }
-            }
-
-            override fun createClientWithOptions(
-                rawKubeconfig: String,
-                timeoutSec: Long,
-                insecure: Boolean
-            ): Result<client.Client_> {
-                return createClient(rawKubeconfig)
-            }
-
-            override fun listPods(rawKubeconfig: String, namespace: String?): Result<List<String>> {
-                return Result.Success(listOf("coredns", "traefik"))
-            }
-
-            override fun listPodsWide(
-                rawKubeconfig: String,
-                namespace: String?
-            ): Result<List<NativePod>> {
-                return Result.Success(emptyList())
-            }
-
-            override fun listNamespaces(rawKubeconfig: String): Result<List<NativeNamespace>> {
-                return Result.Success(emptyList())
-            }
-
-            override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> {
-                return Result.Success(Unit)
-            }
-
-            override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> {
-                return Result.Success(
-                    listOf(
-                        APIResource(
-                            name = "pods",
-                            kind = "Pod",
-                            groupVersion = "v1"
-                        )
-                    )
-                )
-            }
-
-            override fun explainResource(
-                rawKubeconfig: String,
-                resourceOrKind: String,
-                groupVersion: String,
-            ): Result<ResourceExplain> {
-                return Result.Success(
-                    ResourceExplain(
-                        kind = resourceOrKind,
-                        groupVersion = groupVersion,
-                        description = "Test explain description",
-                    ),
-                )
-            }
-
-
-            override fun describePod(
-                rawKubeconfig: String,
-                namespace: String,
-                podName: String
-            ): Result<NativePodDetails> {
-                return Result.Error(AppError.Unknown())
-            }
-
-            override fun deletePod(
-                rawKubeconfig: String,
-                namespace: String,
-                podName: String
-            ): Result<Unit> {
-                return Result.Success(Unit)
-            }
-
-            override fun getPodLogs(
-                rawKubeconfig: String,
-                namespace: String,
-                podName: String,
-                container: String?,
-                tailLines: Long?,
-            ): Result<String> {
-                return Result.Success("log data")
-            }
-
-            override fun streamPodLogs(
-                rawKubeconfig: String,
-                namespace: String,
-                podName: String,
-                container: String?,
-                tailLines: Long?,
-                callback: LogCallback,
-            ): Result<Unit> {
-                callback.onLogLine("streaming line")
-                callback.onDone()
-                return Result.Success(Unit)
-            }
-
-            override fun exec(
-                rawKubeconfig: String,
-                namespace: String,
-                podName: String,
-                container: String,
-                command: String,
-                stdin: String,
-            ): Result<ExecResult> {
-                return Result.Error(AppError.Unknown())
-            }
-
-            override fun startTerminal(
-                rawKubeconfig: String,
-                namespace: String,
-                podName: String,
-                container: String,
-                callback: ExecCallback,
-            ): Result<ExecSession> {
-                return Result.Error(AppError.Unknown())
-            }
-
-            override fun startExecSession(
-                rawKubeconfig: String,
-                namespace: String,
-                podName: String,
-                container: String,
-                command: String,
-                tty: Boolean,
-                callback: ExecCallback,
-            ): Result<ExecSession> {
-                return Result.Error(AppError.Unknown())
-            }
-
-            override fun ping(rawKubeconfig: String): Result<String> =
-                Result.Success("Cluster ready & healthy (Kubernetes v1.30.0)")
-
-            override fun checkLivez(rawKubeconfig: String): Result<Boolean> =
-                Result.Success(true)
-
-            override fun checkReadyz(rawKubeconfig: String): Result<Boolean> =
-                Result.Success(true)
-
-            override fun checkHealthz(rawKubeconfig: String): Result<Boolean> =
-                Result.Success(true)
-
-            override fun serverVersion(rawKubeconfig: String): Result<String> =
-                Result.Success("v1.30.0")
-
-            override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
-                Result.Success(
-                    ClusterHealth(
-                        livez = true,
-                        readyz = true,
-                        serverVersion = "v1.30.0",
-                        statusMessage = "Ready"
-                    )
-                )
-        }
+    fun `fake bridge reports availability only after initialization`() {
+        val fakeBridge = FakeKubeNexusNativeBridge()
 
         assertFalse(fakeBridge.isAvailable())
         fakeBridge.initialize()
         assertTrue(fakeBridge.isAvailable())
         assertTrue(fakeBridge.touch())
-        val pods = fakeBridge.listPods("mock-kubeconfig", null).getOrNull()
-        assertEquals(2, pods?.size)
+    }
+
+    @Test
+    fun `bridge surfaces pods as domain models`() {
+        val fakeBridge = object : FakeKubeNexusNativeBridge() {
+            override fun listPods(
+                rawKubeconfig: String,
+                namespace: String?,
+                labelSelector: String,
+                limit: Long,
+            ): Result<List<Pod>> = Result.Success(
+                listOf(
+                    Pod(id = "kube-system_coredns", name = "coredns", namespace = "kube-system"),
+                    Pod(
+                        id = "kube-system_traefik",
+                        name = "traefik",
+                        namespace = "kube-system",
+                        status = PodStatus.CRASH_LOOP,
+                    ),
+                ),
+            )
+        }
+
+        val pods = fakeBridge.listPods("mock-kubeconfig", null).getOrThrow()
+
+        assertEquals(2, pods.size)
+        assertEquals("coredns", pods[0].name)
+        assertEquals(PodStatus.CRASH_LOOP, pods[1].status)
+    }
+
+    @Test
+    fun `bridge carries namespace phase through instead of assuming Active`() {
+        val fakeBridge = object : FakeKubeNexusNativeBridge() {
+            override fun listNamespaces(rawKubeconfig: String): Result<List<Namespace>> =
+                Result.Success(
+                    listOf(
+                        Namespace(name = "default", status = "Active"),
+                        Namespace(name = "doomed", status = "Terminating"),
+                    ),
+                )
+        }
+
+        val namespaces = fakeBridge.listNamespaces("mock-kubeconfig").getOrThrow()
+
+        assertEquals(2, namespaces.size)
+        assertEquals("Terminating", namespaces[1].status)
+    }
+
+    @Test
+    fun `health and version probes report success`() {
+        val fakeBridge = FakeKubeNexusNativeBridge()
+
         assertTrue(fakeBridge.checkLivez("mock-kubeconfig").getOrThrow())
         assertTrue(fakeBridge.checkReadyz("mock-kubeconfig").getOrThrow())
+        assertTrue(fakeBridge.checkHealthz("mock-kubeconfig").getOrThrow())
         assertEquals("v1.30.0", fakeBridge.serverVersion("mock-kubeconfig").getOrThrow())
-        assertEquals("Ready", fakeBridge.checkHealth("mock-kubeconfig").getOrThrow().statusMessage)
+        assertEquals(
+            "Ready",
+            fakeBridge.checkHealth("mock-kubeconfig").getOrThrow().statusMessage,
+        )
+    }
+
+    @Test
+    fun `api resources are returned as domain models`() {
+        val fakeBridge = object : FakeKubeNexusNativeBridge() {
+            override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
+                Result.Success(
+                    listOf(APIResource(name = "pods", kind = "Pod", groupVersion = "v1")),
+                )
+        }
+
+        val resources = fakeBridge.listAPIResources("mock-kubeconfig").getOrThrow()
+
+        assertEquals(1, resources.size)
+        assertEquals("Pod", resources[0].kind)
     }
 }

@@ -1,20 +1,25 @@
 package dev.hridaya.kubenexus.core.nativebridge
 
-import client.Client_
 import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.LogCallback
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.Namespace
+import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
-import client.Namespace as NativeNamespace
-import client.Pod as NativePod
-import client.PodDetails as NativePodDetails
 
 /**
- * Bridge interface defining the contract for interacting with the native Go runtime
- * provided by kubenexus.aar.
+ * Bridge interface defining the contract for interacting with the native Go
+ * runtime provided by kubenexus.aar.
+ *
+ * Resource reads cross the boundary as verbatim Kubernetes JSON and are decoded
+ * into domain models here, so no `client.*` type appears in a resource signature.
+ * The remaining `client.*` references are the streaming primitives — log and exec
+ * callbacks and the exec session handle — which are genuinely not expressible as
+ * a request/response pair and therefore stay purpose-built Gomobile bindings.
  */
 interface KubeNexusNativeBridge {
     /**
@@ -33,33 +38,23 @@ interface KubeNexusNativeBridge {
     fun touch(): Boolean
 
     /**
-     * Creates a new instance of [Client_] using the provided kubeconfig content.
+     * Lists pods in a namespace, or across all namespaces when [namespace] is
+     * null or blank.
+     *
+     * [labelSelector] and [limit] map directly onto the Kubernetes list options;
+     * pass an empty selector and a zero limit to list everything.
      */
-    fun createClient(rawKubeconfig: String): Result<Client_>
-
-    /**
-     * Creates a new instance of [Client_] with custom timeout and insecure TLS option.
-     */
-    fun createClientWithOptions(
+    fun listPods(
         rawKubeconfig: String,
-        timeoutSec: Long = 30,
-        insecure: Boolean = false
-    ): Result<Client_>
-
-    /**
-     * Retrieves a quick list of pod names for the specified namespace from native runtime.
-     */
-    fun listPods(rawKubeconfig: String, namespace: String? = null): Result<List<String>>
-
-    /**
-     * Retrieves full pod details list from native runtime.
-     */
-    fun listPodsWide(rawKubeconfig: String, namespace: String? = null): Result<List<NativePod>>
+        namespace: String? = null,
+        labelSelector: String = "",
+        limit: Long = 0,
+    ): Result<List<Pod>>
 
     /**
      * Retrieves existing cluster namespaces from native runtime.
      */
-    fun listNamespaces(rawKubeconfig: String): Result<List<NativeNamespace>>
+    fun listNamespaces(rawKubeconfig: String): Result<List<Namespace>>
 
     /**
      * Deletes a namespace from native runtime.
@@ -77,17 +72,17 @@ interface KubeNexusNativeBridge {
     fun explainResource(
         rawKubeconfig: String,
         resourceOrKind: String,
-        groupVersion: String = ""
+        groupVersion: String = "",
     ): Result<ResourceExplain>
 
     /**
-     * Describes a pod in detail from native runtime.
+     * Describes a pod in detail, including its events.
      */
     fun describePod(
         rawKubeconfig: String,
         namespace: String,
-        podName: String
-    ): Result<NativePodDetails>
+        podName: String,
+    ): Result<PodDetails>
 
     /**
      * Deletes a pod from native runtime.

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -33,8 +34,14 @@ func defaultExecutorFactory(config *rest.Config, method string, u *url.URL) (rem
 }
 
 // Client wraps a Kubernetes clientset for mobile Android cluster operations.
+//
+// clientset is retained for endpoints that are not expressible generically:
+// discovery, health probes, log streaming and exec. All resource reads and
+// deletes go through dynamic, which returns unstructured objects that can be
+// handed to Android as verbatim JSON.
 type Client struct {
 	clientset       *kubernetes.Clientset
+	dynamic         dynamic.Interface
 	config          *rest.Config
 	timeout         time.Duration
 	contentType     string
@@ -75,13 +82,35 @@ func NewClientWithOptions(data []byte, timeoutSeconds int64, useProtobuf bool) (
 		config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
 	}
 
+	return newClientFromConfig(config, timeout, contentType)
+}
+
+// newClientFromConfig builds the typed and dynamic clients from a prepared
+// rest.Config.
+//
+// Resource reads go through the dynamic client, which copies the config and
+// forces JSON content negotiation, so its response bodies are larger than the
+// typed clientset's protobuf. Response compression claws most of that back and
+// matters materially on a cellular connection, so it is enabled explicitly here
+// rather than left to the rest.Config zero value.
+func newClientFromConfig(config *rest.Config, timeout time.Duration, contentType string) (*Client, error) {
+	config.DisableCompression = false
+
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating clientset: %w", err)
 	}
 
+	// dynamic.NewForConfig copies the config before forcing JSON, so this does
+	// not disturb the protobuf negotiation used by clientset above.
+	dyn, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("creating dynamic client: %w", err)
+	}
+
 	return &Client{
 		clientset:       clientset,
+		dynamic:         dyn,
 		config:          config,
 		timeout:         timeout,
 		contentType:     contentType,
@@ -99,18 +128,7 @@ func NewFromPath(filePath string) (*Client, error) {
 	config.ContentType = runtime.ContentTypeProtobuf
 	config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
 
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("creating clientset: %w", err)
-	}
-
-	return &Client{
-		clientset:       clientset,
-		config:          config,
-		timeout:         defaultTimeout,
-		contentType:     runtime.ContentTypeProtobuf,
-		executorFactory: defaultExecutorFactory,
-	}, nil
+	return newClientFromConfig(config, defaultTimeout, runtime.ContentTypeProtobuf)
 }
 
 // SetTimeout updates the client timeout duration in seconds.
@@ -126,30 +144,4 @@ func (c *Client) SetTimeout(timeoutSeconds int64) {
 // GetTimeout returns the current client timeout in seconds.
 func (c *Client) GetTimeout() int64 {
 	return int64(c.timeout.Seconds())
-}
-
-// StringList represents an indexed list of strings for Gomobile / Android JNI binding.
-type StringList struct {
-	items []string
-}
-
-// newStringList creates a StringList wrapper.
-func newStringList(items []string) *StringList {
-	return &StringList{items: items}
-}
-
-// Len returns the count of items in the list.
-func (l *StringList) Len() int {
-	if l == nil {
-		return 0
-	}
-	return len(l.items)
-}
-
-// Get returns the string at the given index, or empty string if out of bounds.
-func (l *StringList) Get(index int) string {
-	if l == nil || index < 0 || index >= len(l.items) {
-		return ""
-	}
-	return l.items[index]
 }

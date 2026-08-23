@@ -46,6 +46,13 @@ go-core: ## Build kubenexus.aar from core Go source and copy to android libs
 	$(MAKE) -C $(CORE_DIR) build-android
 	mkdir -p $(ANDROID_DIR)/app/libs
 	cp $(CORE_DIR)/kubenexus.aar $(ANDROID_DIR)/app/libs/kubenexus.aar
+	@# gomobile also emits a sources jar. Keeping it next to the AAR lets Android
+	@# Studio show Go doc comments and real parameter names instead of p0, p1.
+	@# The Gradle fileTree excludes *-sources.jar from the compile classpath.
+	@if [ -f $(CORE_DIR)/kubenexus-sources.jar ]; then \
+		cp $(CORE_DIR)/kubenexus-sources.jar $(ANDROID_DIR)/app/libs/kubenexus-sources.jar; \
+		echo "Updated $(ANDROID_DIR)/app/libs/kubenexus-sources.jar"; \
+	fi
 	@echo "Updated $(ANDROID_DIR)/app/libs/kubenexus.aar"
 
 ghostty: ## Cross-compile libghostty_jni.so for Android (arm64-v8a) using Zig
@@ -98,7 +105,7 @@ install-release: jni ## Install release APK on connected Android device/emulator
 
 clean-jni: ## Remove compiled native JNI libraries and Zig artifacts
 	rm -rf $(ANDROID_DIR)/app/src/main/jniLibs
-	rm -f $(ANDROID_DIR)/app/libs/kubenexus.aar
+	rm -f $(ANDROID_DIR)/app/libs/kubenexus.aar $(ANDROID_DIR)/app/libs/kubenexus-sources.jar
 	rm -rf $(TERMINAL_DIR)/.zig-cache $(TERMINAL_DIR)/zig-out
 
 clean: go-clean clean-jni ## Clean build cache, generated artifacts, and JNI libraries

@@ -7,23 +7,39 @@ import client.Client_
 import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
+import client.GroupVersionResource
+import client.ListOptions
 import client.LogCallback
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.security.LogSanitizer
+import dev.hridaya.kubenexus.data.mapper.toDetails
+import dev.hridaya.kubenexus.data.mapper.toDomain
+import dev.hridaya.kubenexus.data.source.remote.dto.EventListDto
+import dev.hridaya.kubenexus.data.source.remote.dto.K8sJson
+import dev.hridaya.kubenexus.data.source.remote.dto.NamespaceListDto
+import dev.hridaya.kubenexus.data.source.remote.dto.PodDto
+import dev.hridaya.kubenexus.data.source.remote.dto.PodListDto
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.Namespace
+import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import go.Seq
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
-import client.Namespace as NativeNamespace
-import client.Pod as NativePod
-import client.PodDetails as NativePodDetails
 
 /**
- * Concrete implementation of [KubeNexusNativeBridge] that bridges calls to the Go Mobile
- * runtime and kubenexus.aar native client library.
+ * Concrete implementation of [KubeNexusNativeBridge] that bridges calls to the Go
+ * Mobile runtime and kubenexus.aar native client library.
+ *
+ * Resource access goes through the Go core's generic `listJSON` / `getJSON` /
+ * `deleteResource` methods and is decoded here with kotlinx.serialization. That
+ * replaces the previous per-resource flattened structs, whose indexed
+ * `len()`/`get(i)` traversal cost two JNI crossings and one Go proxy handle per
+ * element; a JSON payload costs one crossing regardless of size.
  */
 @Singleton
 class KubeNexusNativeBridgeImpl @Inject constructor(
@@ -33,9 +49,42 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
 
     companion object {
         private const val TAG = "KubeNexusNativeBridge"
+
+        /**
+         * Number of Go clients kept alive. Each holds a parsed kubeconfig, a TLS
+         * configuration and an HTTP connection pool, so reuse matters; a handful
+         * covers realistic multi-cluster use without pinning memory.
+         */
+        private const val CLIENT_CACHE_SIZE = 4
     }
 
     private var initialized = false
+
+    /**
+     * Cached Go clients keyed by a digest of the kubeconfig.
+     *
+     * Every bridge method used to call `Client.newClient(rawKubeconfig)`, which
+     * re-parsed the kubeconfig, rebuilt the TLS configuration and created a fresh
+     * connection pool on every single list, describe and delete. That cost far
+     * more than the shape of the binding ever did.
+     *
+     * The key is a digest rather than the kubeconfig itself so cluster
+     * credentials are not retained as map keys. A rotated kubeconfig hashes
+     * differently and therefore builds a new client, as it must.
+     */
+    private val clientCache = object : LinkedHashMap<String, Client_>(
+        /* initialCapacity = */ CLIENT_CACHE_SIZE,
+        /* loadFactor = */ 0.75f,
+        /* accessOrder = */ true,
+    ) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Client_>?): Boolean =
+            size > CLIENT_CACHE_SIZE
+    }
+
+    // Gomobile factory calls allocate a Go-side proxy each time, so the
+    // identifiers for the resources this app touches are created once.
+    private val podsResource: GroupVersionResource by lazy { Client.podsResource() }
+    private val namespacesResource: GroupVersionResource by lazy { Client.namespacesResource() }
 
     override fun initialize() {
         try {
@@ -81,85 +130,58 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         }
     }
 
-    override fun createClient(rawKubeconfig: String): Result<Client_> =
-        nativeCatching("Failed to create Client_ instance") {
-            Client.newClient(rawKubeconfig)
+    /**
+     * Returns a cached Go client for this kubeconfig, creating one if needed.
+     * Synchronised because bridge methods are called from repository coroutines
+     * on the IO dispatcher and [LinkedHashMap] is not thread safe.
+     */
+    private fun clientFor(rawKubeconfig: String): Client_ = synchronized(clientCache) {
+        val key = digest(rawKubeconfig)
+        clientCache.getOrPut(key) { Client.newClient(rawKubeconfig) }
+    }
+
+    private fun digest(value: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString(separator = "") { byte -> "%02x".format(byte) }
+
+    private fun listOptions(labelSelector: String, limit: Long): ListOptions =
+        ListOptions().apply {
+            if (labelSelector.isNotBlank()) this.labelSelector = labelSelector
+            if (limit > 0L) this.limit = limit
         }
 
-    override fun createClientWithOptions(
+    override fun listPods(
         rawKubeconfig: String,
-        timeoutSec: Long,
-        insecure: Boolean
-    ): Result<Client_> =
-        nativeCatching("Failed to create Client_ with options") {
-            Client.newClientWithOptions(
-                rawKubeconfig.toByteArray(Charsets.UTF_8),
-                timeoutSec,
-                insecure,
+        namespace: String?,
+        labelSelector: String,
+        limit: Long,
+    ): Result<List<Pod>> =
+        nativeCatching("Failed to list pods from native client") {
+            val json = clientFor(rawKubeconfig).listJSON(
+                podsResource,
+                normalizeNamespace(namespace),
+                listOptions(labelSelector, limit),
             )
+            K8sJson.decodeFromString<PodListDto>(json).items.map { it.toDomain() }
         }
 
-    override fun listPods(rawKubeconfig: String, namespace: String?): Result<List<String>> =
-        nativeCatching("Failed to listPods from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            val ns = normalizeNamespace(namespace)
-            val nativeList = client.listPods(ns)
-            val result = mutableListOf<String>()
-            val len = nativeList.len()
-            for (i in 0 until len) {
-                val item = nativeList.get(i)
-                if (!item.isNullOrBlank()) {
-                    result.add(item)
-                }
-            }
-            result
+    override fun listNamespaces(rawKubeconfig: String): Result<List<Namespace>> =
+        nativeCatching("Failed to list namespaces from native client") {
+            // Namespaces are cluster scoped, so the namespace argument is empty.
+            val json = clientFor(rawKubeconfig).listJSON(namespacesResource, "", ListOptions())
+            val now = System.currentTimeMillis()
+            K8sJson.decodeFromString<NamespaceListDto>(json).items.map { it.toDomain(now) }
         }
 
-    override fun listPodsWide(rawKubeconfig: String, namespace: String?): Result<List<NativePod>> =
-        nativeCatching("Failed to listPodsWide from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            val ns = normalizeNamespace(namespace)
-            val nativeList = client.listPodsWide(ns)
-            val result = mutableListOf<NativePod>()
-            val len = nativeList.len()
-            for (i in 0 until len) {
-                val pod = nativeList.get(i)
-                if (pod != null) {
-                    result.add(pod)
-                }
-            }
-            result
-        }
-
-    override fun listNamespaces(rawKubeconfig: String): Result<List<NativeNamespace>> =
-        nativeCatching("Failed to listNamespaces from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            val nativeList = client.listNamespaces()
-            val result = mutableListOf<NativeNamespace>()
-            val len = nativeList.len()
-            for (i in 0 until len) {
-                val ns = nativeList.get(i)
-                if (ns != null) {
-                    result.add(ns)
-                }
-            }
-            result
-        }
-
-    override fun deleteNamespace(
-        rawKubeconfig: String,
-        namespace: String
-    ): Result<Unit> =
-        nativeCatching("Failed to deleteNamespace '$namespace' from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            client.deleteNamespace(namespace)
+    override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> =
+        nativeCatching("Failed to delete namespace '$namespace' from native client") {
+            clientFor(rawKubeconfig).deleteResource(namespacesResource, "", namespace, null)
         }
 
     override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
         nativeCatching("Failed to listAPIResources from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            val apiResourceList = client.listAPIResourcesJSON()
-            jsonParser.parseAPIResources(apiResourceList)
+            jsonParser.parseAPIResources(clientFor(rawKubeconfig).listAPIResourcesJSON())
         }
 
     override fun explainResource(
@@ -168,8 +190,8 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         groupVersion: String,
     ): Result<ResourceExplain> =
         nativeCatching("Failed to explainResource '$resourceOrKind' from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            val resourceExplain = client.explainResourceJSON(resourceOrKind, groupVersion)
+            val resourceExplain =
+                clientFor(rawKubeconfig).explainResourceJSON(resourceOrKind, groupVersion)
             jsonParser.parseResourceExplain(
                 resourceExplain = resourceExplain,
                 fallbackKind = resourceOrKind,
@@ -180,21 +202,36 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     override fun describePod(
         rawKubeconfig: String,
         namespace: String,
-        podName: String
-    ): Result<NativePodDetails> =
+        podName: String,
+    ): Result<PodDetails> =
         nativeCatching("Failed to describePod '$podName' from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            client.describePod(namespace, podName)
+            val nativeClient = clientFor(rawKubeconfig)
+            val podJson = nativeClient.getJSON(podsResource, namespace, podName)
+            val pod = K8sJson.decodeFromString<PodDto>(podJson)
+
+            // Events are a separate collection with a field selector. A failure
+            // here must not lose the pod itself, which is the primary payload.
+            val events = try {
+                val eventsJson = nativeClient.eventsForJSON(namespace, "Pod", podName)
+                K8sJson.decodeFromString<EventListDto>(eventsJson).items
+            } catch (t: Throwable) {
+                Log.w(
+                    TAG,
+                    "Failed to load events for pod '$podName': ${LogSanitizer.sanitize(t.message)}",
+                )
+                emptyList()
+            }
+
+            pod.toDetails(events = events, rawJson = podJson)
         }
 
     override fun deletePod(
         rawKubeconfig: String,
         namespace: String,
-        podName: String
+        podName: String,
     ): Result<Unit> =
         nativeCatching("Failed to deletePod '$podName' from native client") {
-            val client = Client.newClient(rawKubeconfig)
-            client.deletePod(namespace, podName)
+            clientFor(rawKubeconfig).deleteResource(podsResource, namespace, podName, null)
         }
 
     override fun getPodLogs(
@@ -205,12 +242,12 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         tailLines: Long?,
     ): Result<String> =
         nativeCatching("Failed to getPodLogs for '$podName' from native client") {
-            val client = Client.newClient(rawKubeconfig)
+            val nativeClient = clientFor(rawKubeconfig)
             val tail = tailLines ?: 0L
             if (tail > 0L) {
-                client.logsWithTail(namespace, podName, container.orEmpty(), tail)
+                nativeClient.logsWithTail(namespace, podName, container.orEmpty(), tail)
             } else {
-                client.logs(namespace, podName, container.orEmpty())
+                nativeClient.logs(namespace, podName, container.orEmpty())
             }
         }
 
@@ -223,12 +260,18 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         callback: LogCallback,
     ): Result<Unit> =
         nativeCatching("Failed to streamPodLogs for '$podName' from native client") {
-            val client = Client.newClient(rawKubeconfig)
+            val nativeClient = clientFor(rawKubeconfig)
             val tail = tailLines ?: 0L
             if (tail > 0L) {
-                client.streamLogsWithTail(namespace, podName, container.orEmpty(), tail, callback)
+                nativeClient.streamLogsWithTail(
+                    namespace,
+                    podName,
+                    container.orEmpty(),
+                    tail,
+                    callback,
+                )
             } else {
-                client.streamLogs(namespace, podName, container.orEmpty(), callback)
+                nativeClient.streamLogs(namespace, podName, container.orEmpty(), callback)
             }
         }
 
@@ -241,8 +284,7 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         stdin: String,
     ): Result<ExecResult> =
         nativeCatching("Failed to exec command in pod '$podName'") {
-            val client = Client.newClient(rawKubeconfig)
-            client.exec(namespace, podName, container, command, stdin)
+            clientFor(rawKubeconfig).exec(namespace, podName, container, command, stdin)
         }
 
     override fun startTerminal(
@@ -253,8 +295,7 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         callback: ExecCallback,
     ): Result<ExecSession> =
         nativeCatching("Failed to start terminal session for pod '$podName'") {
-            val client = Client.newClient(rawKubeconfig)
-            client.startTerminal(namespace, podName, container, callback)
+            clientFor(rawKubeconfig).startTerminal(namespace, podName, container, callback)
         }
 
     override fun startExecSession(
@@ -267,45 +308,38 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         callback: ExecCallback,
     ): Result<ExecSession> =
         nativeCatching("Failed to start exec session for pod '$podName'") {
-            val client = Client.newClient(rawKubeconfig)
-            client.startExecSession(namespace, podName, container, command, tty, callback)
+            clientFor(rawKubeconfig)
+                .startExecSession(namespace, podName, container, command, tty, callback)
         }
 
     override fun ping(rawKubeconfig: String): Result<String> =
         nativeCatching("Failed to ping cluster") {
-            val client = Client.newClient(rawKubeconfig)
-            client.ping()
+            clientFor(rawKubeconfig).ping()
         }
 
     override fun checkLivez(rawKubeconfig: String): Result<Boolean> =
         nativeCatching("Failed to check /livez") {
-            val client = Client.newClient(rawKubeconfig)
-            client.checkLivez()
+            clientFor(rawKubeconfig).checkLivez()
         }
 
     override fun checkReadyz(rawKubeconfig: String): Result<Boolean> =
         nativeCatching("Failed to check /readyz") {
-            val client = Client.newClient(rawKubeconfig)
-            client.checkReadyz()
+            clientFor(rawKubeconfig).checkReadyz()
         }
 
     override fun checkHealthz(rawKubeconfig: String): Result<Boolean> =
         nativeCatching("Failed to check /healthz") {
-            val client = Client.newClient(rawKubeconfig)
-            client.checkHealthz()
+            clientFor(rawKubeconfig).checkHealthz()
         }
 
     override fun serverVersion(rawKubeconfig: String): Result<String> =
         nativeCatching("Failed to retrieve server version") {
-            val client = Client.newClient(rawKubeconfig)
-            client.serverVersion()
+            clientFor(rawKubeconfig).serverVersion()
         }
 
     override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
         nativeCatching("Failed to check cluster health") {
-            val client = Client.newClient(rawKubeconfig)
-            val clusterHealth = client.checkHealthJSON()
-            jsonParser.parseClusterHealth(clusterHealth)
+            jsonParser.parseClusterHealth(clientFor(rawKubeconfig).checkHealthJSON())
         }
 
     private fun normalizeNamespace(namespace: String?): String {

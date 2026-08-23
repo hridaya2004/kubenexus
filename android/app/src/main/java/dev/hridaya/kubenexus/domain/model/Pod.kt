@@ -1,5 +1,7 @@
 package dev.hridaya.kubenexus.domain.model
 
+import dev.hridaya.kubenexus.core.common.time.K8sTime
+
 enum class PodStatus(val title: String) {
     RUNNING("Running"),
     PENDING("Pending"),
@@ -16,8 +18,20 @@ data class Pod(
     val status: PodStatus = PodStatus.RUNNING,
     val readyContainers: String = "1/1",
     val restarts: Int = 0,
-    val age: String = "1d",
+    /**
+     * Pod creation time in epoch milliseconds.
+     *
+     * This replaces the previously stored, pre-formatted `age` string. That string
+     * was rendered in Go at sync time and then cached, so it drifted out of date
+     * until the next refresh. Holding the timestamp keeps a single source of truth
+     * and lets [age] be derived instead.
+     */
+    val creationTimestampMillis: Long? = null,
     val ip: String? = null,
     val node: String? = null,
     val image: String? = null,
-)
+) {
+    /** Human readable age in kubectl's format, derived from [creationTimestampMillis]. */
+    val age: String
+        get() = K8sTime.formatAge(creationTimestampMillis)
+}

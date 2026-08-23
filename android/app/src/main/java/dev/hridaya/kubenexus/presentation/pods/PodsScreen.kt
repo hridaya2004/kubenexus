@@ -42,6 +42,7 @@ import dev.hridaya.kubenexus.presentation.pods.components.PodsNamespaceFilterBar
 import dev.hridaya.kubenexus.presentation.pods.components.PodsNoMatchState
 import dev.hridaya.kubenexus.presentation.pods.components.PodsSearchBar
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import kotlin.time.Duration.Companion.days
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -204,7 +205,8 @@ private fun PodsScreenPreview() {
                         status = PodStatus.RUNNING,
                         readyContainers = "1/1",
                         restarts = 0,
-                        age = "12d",
+                        creationTimestampMillis = System.currentTimeMillis() -
+                            12.days.inWholeMilliseconds,
                         ip = "10.244.0.2",
                     ),
                     Pod(
@@ -214,7 +216,8 @@ private fun PodsScreenPreview() {
                         status = PodStatus.RUNNING,
                         readyContainers = "1/1",
                         restarts = 1,
-                        age = "2d",
+                        creationTimestampMillis = System.currentTimeMillis() -
+                            2.days.inWholeMilliseconds,
                         ip = "10.244.0.15",
                     ),
                 ),

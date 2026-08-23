@@ -20,7 +20,14 @@ data class PodEntity(
     val status: String,
     val readyContainers: String,
     val restarts: Int,
-    val age: String,
+    /**
+     * Pod creation time in epoch milliseconds, replacing the pre-rendered `age`
+     * string that used to be formatted in Go. A cached string froze at sync time
+     * and drifted until the next refresh; age is now derived on read.
+     *
+     * Null when the API server omitted a creation timestamp.
+     */
+    val creationTimestampMillis: Long?,
     val ip: String?,
     val node: String?,
     val image: String?,

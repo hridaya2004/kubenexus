@@ -31,6 +31,8 @@ import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.scaleOnPress
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 
 @Composable
 fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -134,7 +136,8 @@ private fun PodCardPreview() {
                     status = PodStatus.RUNNING,
                     readyContainers = "1/1",
                     restarts = 0,
-                    age = "2d4h",
+                    creationTimestampMillis = System.currentTimeMillis() -
+                        (2.days + 4.hours).inWholeMilliseconds,
                     ip = "10.244.0.15",
                     node = "node-1",
                 ),

@@ -3,8 +3,7 @@ package dev.hridaya.kubenexus.data.repository
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
-import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.core.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ExplainedResourceDao
@@ -361,100 +360,10 @@ class ExploreRepositoryImplTest {
         }
     }
 
-    private class FakeNativeBridge : KubeNexusNativeBridge {
+    private class FakeNativeBridge : FakeKubeNexusNativeBridge() {
         var mockResources: List<APIResource> = emptyList()
         var mockExplain: ResourceExplain? = null
         var shouldFailExplain: Boolean = false
-
-        override fun initialize() {}
-        override fun isAvailable(): Boolean = true
-        override fun touch(): Boolean = true
-        override fun createClient(rawKubeconfig: String): Result<client.Client_> =
-            Result.Error(AppError.Unknown())
-
-        override fun createClientWithOptions(
-            rawKubeconfig: String,
-            timeoutSec: Long,
-            insecure: Boolean,
-        ): Result<client.Client_> = Result.Error(AppError.Unknown())
-
-        override fun listPods(rawKubeconfig: String, namespace: String?): Result<List<String>> =
-            Result.Success(emptyList())
-
-        override fun listPodsWide(
-            rawKubeconfig: String,
-            namespace: String?
-        ): Result<List<client.Pod>> =
-            Result.Success(emptyList())
-
-        override fun describePod(
-            rawKubeconfig: String,
-            namespace: String,
-            podName: String
-        ): Result<client.PodDetails> =
-            Result.Error(AppError.Unknown())
-
-        override fun getPodLogs(
-            rawKubeconfig: String,
-            namespace: String,
-            podName: String,
-            container: String?,
-            tailLines: Long?,
-        ): Result<String> =
-            Result.Success("")
-
-        override fun streamPodLogs(
-            rawKubeconfig: String,
-            namespace: String,
-            podName: String,
-            container: String?,
-            tailLines: Long?,
-            callback: client.LogCallback
-        ): Result<Unit> =
-            Result.Success(Unit)
-
-        override fun listNamespaces(rawKubeconfig: String): Result<List<client.Namespace>> =
-            Result.Success(emptyList())
-
-        override fun deletePod(
-            rawKubeconfig: String,
-            namespace: String,
-            podName: String
-        ): Result<Unit> =
-            Result.Success(Unit)
-
-        override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> =
-            Result.Success(Unit)
-
-        override fun exec(
-            rawKubeconfig: String,
-            namespace: String,
-            podName: String,
-            container: String,
-            command: String,
-            stdin: String
-        ): Result<client.ExecResult> =
-            Result.Error(AppError.Unknown())
-
-        override fun startTerminal(
-            rawKubeconfig: String,
-            namespace: String,
-            podName: String,
-            container: String,
-            callback: client.ExecCallback
-        ): Result<client.ExecSession> =
-            Result.Error(AppError.Unknown())
-
-        override fun startExecSession(
-            rawKubeconfig: String,
-            namespace: String,
-            podName: String,
-            container: String,
-            command: String,
-            tty: Boolean,
-            callback: client.ExecCallback
-        ): Result<client.ExecSession> =
-            Result.Error(AppError.Unknown())
 
         override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
             Result.Success(mockResources)
@@ -474,22 +383,5 @@ class ExploreRepositoryImplTest {
             )
             return Result.Success(exp)
         }
-
-        override fun ping(rawKubeconfig: String): Result<String> = Result.Success("ready")
-        override fun checkLivez(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
-        override fun checkReadyz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
-        override fun checkHealthz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
-        override fun serverVersion(rawKubeconfig: String): Result<String> =
-            Result.Success("v1.30.0")
-
-        override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
-            Result.Success(
-                ClusterHealth(
-                    livez = true,
-                    readyz = true,
-                    serverVersion = "v1.30.0",
-                    statusMessage = "Ready"
-                )
-            )
     }
 }

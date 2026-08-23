@@ -27,7 +27,7 @@ import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
         APIResourceEntity::class,
         ExplainedResourceEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class KubeNexusDatabase : RoomDatabase() {
@@ -100,6 +100,48 @@ abstract class KubeNexusDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Replaces the pre-rendered `age` string on `pods` with the pod creation
+         * timestamp, so age can be recomputed on read instead of being frozen at
+         * sync time.
+         *
+         * SQLite before 3.35 cannot drop a column, and the minSdk of this app
+         * does not guarantee a newer version, so the table is recreated. Cached
+         * rows are discarded rather than migrated: the old column held a
+         * formatted string such as "2d7h" that cannot be converted back into a
+         * timestamp, and the cache is repopulated on the next refresh anyway.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `pods`")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `pods` (
+                        `id` TEXT NOT NULL,
+                        `clusterId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `namespace` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `readyContainers` TEXT NOT NULL,
+                        `restarts` INTEGER NOT NULL,
+                        `creationTimestampMillis` INTEGER,
+                        `ip` TEXT,
+                        `node` TEXT,
+                        `image` TEXT,
+                        `lastUpdated` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pods_clusterId_namespace` ON `pods` (`clusterId`, `namespace`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_pods_clusterId_name` ON `pods` (`clusterId`, `name`)")
+
+                // Pod rows were the only cached data keyed off the removed column;
+                // force a refresh so the UI does not show an empty list.
+                db.execSQL("DELETE FROM `sync_metadata` WHERE `key` LIKE '%_pods'")
+            }
+        }
+
         @Volatile
         private var INSTANCE: KubeNexusDatabase? = null
 
@@ -110,7 +152,7 @@ abstract class KubeNexusDatabase : RoomDatabase() {
                     KubeNexusDatabase::class.java,
                     DATABASE_NAME,
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }

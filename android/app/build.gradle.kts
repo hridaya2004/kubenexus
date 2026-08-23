@@ -218,3 +218,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.leakcanary)
 }
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}

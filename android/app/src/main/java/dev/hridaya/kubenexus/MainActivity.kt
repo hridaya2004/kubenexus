@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -12,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
+import dev.hridaya.kubenexus.presentation.main.AppSplashScreen
 import dev.hridaya.kubenexus.presentation.main.MainScreen
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalAmoledDark
@@ -57,9 +60,14 @@ class MainActivity : Hilt_MainActivity() {
                     themeMode = themeMode,
                     amoledDark = amoledDark,
                 ) {
-                    MainScreen(
-                        homeViewModel = viewModel,
-                    )
+                    val homeState by viewModel.uiState.collectAsStateWithLifecycle()
+                    if (homeState.isLoading) {
+                        AppSplashScreen(logo = Icons.Outlined.Dns)
+                    } else {
+                        MainScreen(
+                            homeViewModel = viewModel,
+                        )
+                    }
                 }
             }
         }

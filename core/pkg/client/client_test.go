@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 )
 
@@ -24,31 +23,28 @@ func TestNewClientFromBytes_Invalid(t *testing.T) {
 
 func TestNewClientWithOptions(t *testing.T) {
 	tests := []struct {
-		name        string
-		data        []byte
-		timeoutSec  int64
-		useProtobuf bool
-		wantErr     bool
+		name       string
+		data       []byte
+		timeoutSec int64
+		wantErr    bool
 	}{
 		{
-			name:        "empty data",
-			data:        nil,
-			timeoutSec:  10,
-			useProtobuf: true,
-			wantErr:     true,
+			name:       "empty data",
+			data:       nil,
+			timeoutSec: 10,
+			wantErr:    true,
 		},
 		{
-			name:        "invalid data",
-			data:        []byte("not valid yaml"),
-			timeoutSec:  10,
-			useProtobuf: true,
-			wantErr:     true,
+			name:       "invalid data",
+			data:       []byte("not valid yaml"),
+			timeoutSec: 10,
+			wantErr:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewClientWithOptions(tt.data, tt.timeoutSec, tt.useProtobuf)
+			_, err := NewClientWithOptions(tt.data, tt.timeoutSec)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewClientWithOptions() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -87,7 +83,7 @@ func TestClient_TimeoutGetSet(t *testing.T) {
 func TestNewClientFromConfig_BuildsBothClients(t *testing.T) {
 	config := &rest.Config{Host: "http://localhost:8080"}
 
-	c, err := newClientFromConfig(config, 15*time.Second, runtime.ContentTypeProtobuf)
+	c, err := newClientFromConfig(config, 15*time.Second)
 	if err != nil {
 		t.Fatalf("newClientFromConfig() error = %v", err)
 	}
@@ -107,11 +103,12 @@ func TestNewClientFromConfig_BuildsBothClients(t *testing.T) {
 }
 
 // Response compression must stay enabled: the dynamic client forces JSON, whose
-// bodies are materially larger than protobuf on a cellular connection.
+// bodies are materially larger than the protobuf they replaced, on a cellular
+// connection.
 func TestNewClientFromConfig_EnablesCompression(t *testing.T) {
 	config := &rest.Config{Host: "http://localhost:8080", DisableCompression: true}
 
-	if _, err := newClientFromConfig(config, defaultTimeout, ""); err != nil {
+	if _, err := newClientFromConfig(config, defaultTimeout); err != nil {
 		t.Fatalf("newClientFromConfig() error = %v", err)
 	}
 
@@ -120,24 +117,25 @@ func TestNewClientFromConfig_EnablesCompression(t *testing.T) {
 	}
 }
 
-// The typed clientset negotiates protobuf while the dynamic client needs JSON.
-// dynamic.NewForConfig copies the config before rewriting content negotiation,
-// so the caller's protobuf setting must survive.
-func TestNewClientFromConfig_PreservesProtobufOnSharedConfig(t *testing.T) {
+// One rest.Config is shared between the typed clientset, the dynamic client and
+// the exec/log factories. dynamic.NewForConfig forces JSON content negotiation,
+// but it must do so on its own copy: leaking that override onto the shared
+// config would silently change negotiation for every other consumer.
+func TestNewClientFromConfig_DoesNotMutateSharedConfig(t *testing.T) {
 	config := &rest.Config{Host: "http://localhost:8080"}
-	config.ContentType = runtime.ContentTypeProtobuf
-	config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
+	config.ContentType = "application/test"
+	config.AcceptContentTypes = "application/test"
 
-	c, err := newClientFromConfig(config, defaultTimeout, runtime.ContentTypeProtobuf)
-	if err != nil {
+	if _, err := newClientFromConfig(config, defaultTimeout); err != nil {
 		t.Fatalf("newClientFromConfig() error = %v", err)
 	}
 
-	if config.ContentType != runtime.ContentTypeProtobuf {
-		t.Errorf("config.ContentType = %q, want %q; dynamic client leaked its JSON override",
-			config.ContentType, runtime.ContentTypeProtobuf)
+	if config.ContentType != "application/test" {
+		t.Errorf("config.ContentType = %q; dynamic client leaked its JSON override",
+			config.ContentType)
 	}
-	if c.contentType != runtime.ContentTypeProtobuf {
-		t.Errorf("contentType = %q, want %q", c.contentType, runtime.ContentTypeProtobuf)
+	if config.AcceptContentTypes != "application/test" {
+		t.Errorf("config.AcceptContentTypes = %q; dynamic client leaked its JSON override",
+			config.AcceptContentTypes)
 	}
 }

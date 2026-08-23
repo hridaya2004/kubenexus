@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -44,7 +43,6 @@ type Client struct {
 	dynamic         dynamic.Interface
 	config          *rest.Config
 	timeout         time.Duration
-	contentType     string
 	executorFactory executorFactoryFunc
 }
 
@@ -53,13 +51,13 @@ func NewClient(kubeconfigYAML string) (*Client, error) {
 	return NewClientFromBytes([]byte(kubeconfigYAML))
 }
 
-// NewClientFromBytes creates a Client from raw kubeconfig YAML byte slice with default settings (Protobuf enabled).
+// NewClientFromBytes creates a Client from raw kubeconfig YAML byte slice.
 func NewClientFromBytes(data []byte) (*Client, error) {
-	return NewClientWithOptions(data, 30, true)
+	return NewClientWithOptions(data, 30)
 }
 
-// NewClientWithOptions creates a Client with custom timeout and protobuf wire format settings.
-func NewClientWithOptions(data []byte, timeoutSeconds int64, useProtobuf bool) (*Client, error) {
+// NewClientWithOptions creates a Client with a custom timeout in seconds.
+func NewClientWithOptions(data []byte, timeoutSeconds int64) (*Client, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("kubeconfig data cannot be empty")
 	}
@@ -75,25 +73,17 @@ func NewClientWithOptions(data []byte, timeoutSeconds int64, useProtobuf bool) (
 	}
 	config.Timeout = timeout
 
-	var contentType string
-	if useProtobuf {
-		contentType = runtime.ContentTypeProtobuf
-		config.ContentType = runtime.ContentTypeProtobuf
-		config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
-	}
-
-	return newClientFromConfig(config, timeout, contentType)
+	return newClientFromConfig(config, timeout)
 }
 
 // newClientFromConfig builds the typed and dynamic clients from a prepared
 // rest.Config.
 //
-// Resource reads go through the dynamic client, which copies the config and
-// forces JSON content negotiation, so its response bodies are larger than the
-// typed clientset's protobuf. Response compression claws most of that back and
-// matters materially on a cellular connection, so it is enabled explicitly here
-// rather than left to the rest.Config zero value.
-func newClientFromConfig(config *rest.Config, timeout time.Duration, contentType string) (*Client, error) {
+// Resource reads go through the dynamic client, which copies the config before
+// forcing JSON content negotiation. Compression claws most of the larger JSON
+// bodies back and matters materially on a cellular connection, so it is enabled
+// explicitly here rather than left to the rest.Config zero value.
+func newClientFromConfig(config *rest.Config, timeout time.Duration) (*Client, error) {
 	config.DisableCompression = false
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -101,8 +91,8 @@ func newClientFromConfig(config *rest.Config, timeout time.Duration, contentType
 		return nil, fmt.Errorf("creating clientset: %w", err)
 	}
 
-	// dynamic.NewForConfig copies the config before forcing JSON, so this does
-	// not disturb the protobuf negotiation used by clientset above.
+	// dynamic.NewForConfig copies the config before forcing JSON, so the shared
+	// config used by exec and logs below is left untouched.
 	dyn, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating dynamic client: %w", err)
@@ -113,7 +103,6 @@ func newClientFromConfig(config *rest.Config, timeout time.Duration, contentType
 		dynamic:         dyn,
 		config:          config,
 		timeout:         timeout,
-		contentType:     contentType,
 		executorFactory: defaultExecutorFactory,
 	}, nil
 }
@@ -125,10 +114,8 @@ func NewFromPath(filePath string) (*Client, error) {
 		return nil, fmt.Errorf("building kubeconfig from %q: %w", filePath, err)
 	}
 	config.Timeout = defaultTimeout
-	config.ContentType = runtime.ContentTypeProtobuf
-	config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
 
-	return newClientFromConfig(config, defaultTimeout, runtime.ContentTypeProtobuf)
+	return newClientFromConfig(config, defaultTimeout)
 }
 
 // SetTimeout updates the client timeout duration in seconds.

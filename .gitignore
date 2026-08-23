@@ -31,3 +31,6 @@ terminal-native/zig-out/
 
 # Agent skills
 .agents/
+
+# GrayMatter agent memory store
+.graymatter/

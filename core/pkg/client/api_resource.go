@@ -51,7 +51,7 @@ func (c *Client) ListAPIResources() ([]APIResource, error) {
 	_ = ctx
 	resLists, err := c.clientset.Discovery().ServerPreferredResources()
 	if err != nil && len(resLists) == 0 {
-		return err, nil
+		return nil, err
 	}
 
 	var results []APIResource
@@ -223,8 +223,17 @@ func (c *Client) ExplainResource(resourceOrKind, groupVersion string) (*Resource
 		}
 	}
 
+	// Fallback when the OpenAPI schema is unavailable (e.g. no active cluster
+	// connection): best-effort normalize well-known singular names ("pod" -> "Pod")
+	// while leaving explicitly versioned custom resources untouched.
+	kind := resourceOrKind
+	if groupVersion == "" && kind != "" {
+		r := []rune(kind)
+		kind = strings.ToUpper(string(r[0])) + string(r[1:])
+	}
+
 	return &ResourceExplain{
-		Kind:         resourceOrKind,
+		Kind:         kind,
 		GroupVersion: groupVersion,
 		Description:  fmt.Sprintf("Kubernetes resource %s (%s). Documentation schema unavailable from active cluster discovery.", resourceOrKind, groupVersion),
 		Fields: []ResourceField{

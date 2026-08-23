@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 )
 
 // ListAPIResourcesJSON returns the cluster's preferred API resources as the
@@ -17,7 +17,7 @@ func (c *Client) ListAPIResourcesJSON() (string, error) {
 		return "", err
 	}
 	if err != nil {
-		log.Printf("partial API discovery (%d group versions): %v", len(resLists), err)
+		slog.Warn("partial API discovery", "groupVersions", len(resLists), "err", err)
 	}
 
 	data, err := json.Marshal(resLists)

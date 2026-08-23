@@ -19,6 +19,7 @@ import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import kotlinx.coroutines.channels.awaitClose
@@ -185,6 +186,32 @@ class PodRepositoryImpl @Inject constructor(
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
             Log.e(TAG, "Failed to describe pod '$podName': $sanitizedMsg", t)
             Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to describe pod from cluster API" }))
+        }
+    }
+
+    override suspend fun getPodMetrics(
+        clusterId: String?,
+        namespace: String?
+    ): Result<List<PodMetricSample>> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.topPods(decryptedKubeconfig, namespace)
+            if (nativeResult.isSuccess) {
+                Result.Success(nativeResult.getOrThrow())
+            } else {
+                val ex = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch pod metrics" }))
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to fetch pod metrics: $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch pod metrics" }))
         }
     }
 

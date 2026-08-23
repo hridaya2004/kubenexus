@@ -4,6 +4,7 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.TerminalSession
 import kotlinx.coroutines.flow.Flow
 
@@ -17,6 +18,8 @@ interface PodRepository {
         namespace: String,
         podName: String
     ): Result<PodDetails>
+
+    suspend fun getPodMetrics(clusterId: String?, namespace: String?): Result<List<PodMetricSample>>
 
     suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit>
     suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit>

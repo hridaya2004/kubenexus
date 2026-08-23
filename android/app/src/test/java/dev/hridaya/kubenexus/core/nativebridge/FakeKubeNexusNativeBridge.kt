@@ -10,6 +10,7 @@ import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 
 /**
  * Reusable test double for [KubeNexusNativeBridge].
@@ -47,6 +48,9 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
         Result.Success(Unit)
 
     override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
+        Result.Success(emptyList())
+
+    override fun topPods(rawKubeconfig: String, namespace: String?): Result<List<PodMetricSample>> =
         Result.Success(emptyList())
 
     override fun openAPISchemaJSON(rawKubeconfig: String): Result<String> =

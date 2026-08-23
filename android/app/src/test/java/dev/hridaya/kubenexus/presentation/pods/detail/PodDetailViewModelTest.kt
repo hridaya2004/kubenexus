@@ -14,6 +14,7 @@ import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodEventDetail
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
@@ -23,6 +24,7 @@ import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetPodMetricsUseCase
 import dev.hridaya.kubenexus.domain.usecase.StartExecSessionUseCase
 import dev.hridaya.kubenexus.domain.usecase.StartPodTerminalUseCase
 import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
@@ -76,6 +78,7 @@ class PodDetailViewModelTest {
                 testDispatcherProvider,
             ),
             describePodUseCase = DescribePodUseCase(fakePodRepository),
+            getPodMetricsUseCase = GetPodMetricsUseCase(fakePodRepository),
             getPodLogsUseCase = GetPodLogsUseCase(fakePodRepository),
             streamPodLogsUseCase = StreamPodLogsUseCase(fakePodRepository),
             deletePodUseCase = DeletePodUseCase(fakePodRepository),
@@ -400,6 +403,11 @@ class PodDetailViewModelTest {
             clusterId: String?,
             namespace: String?
         ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun getPodMetrics(
+            clusterId: String?,
+            namespace: String?,
+        ): Result<List<PodMetricSample>> = Result.Success(emptyList())
 
         override suspend fun describePod(
             clusterId: String?,

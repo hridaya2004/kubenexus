@@ -51,6 +51,7 @@ import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.presentation.common.components.LoadingContent
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiAction
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiState
+import dev.hridaya.kubenexus.presentation.pods.detail.components.PodMetricsSection
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
 
@@ -255,6 +256,17 @@ fun DescribeTabContent(
                         }
                     }
                 }
+            }
+        }
+
+        if (uiState.isOnline && uiState.clusterConnectionStatus == ClusterConnectionStatus.CONNECTED) {
+            item {
+                PodMetricsSection(
+                    samples = uiState.metricsSamples,
+                    selectedRange = uiState.metricsRange,
+                    isLoading = uiState.isLoadingMetrics,
+                    onSelectRange = { onAction(PodDetailUiAction.SelectMetricsRange(it)) },
+                )
             }
         }
 

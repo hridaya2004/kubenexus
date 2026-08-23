@@ -2,11 +2,19 @@ package dev.hridaya.kubenexus.presentation.pods.detail
 
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 
 enum class PodDetailTab(val title: String) {
     DESCRIBE("Describe"),
     LOGS("Logs"),
     TERMINAL("Terminal"),
+}
+
+enum class MetricsRange(val label: String, val durationMs: Long) {
+    SECONDS_5("5s", 5_000L),
+    SECONDS_30("30s", 30_000L),
+    MINUTES_1("1 min", 60_000L),
+    MINUTES_5("5 min", 300_000L),
 }
 
 enum class TerminalLineType {
@@ -47,6 +55,9 @@ data class PodDetailUiState(
     val isDeletingPod: Boolean = false,
     val isOnline: Boolean = true,
     val clusterConnectionStatus: ClusterConnectionStatus = ClusterConnectionStatus.CONNECTED,
+    val metricsSamples: List<PodMetricSample> = emptyList(),
+    val metricsRange: MetricsRange = MetricsRange.MINUTES_5,
+    val isLoadingMetrics: Boolean = true,
 ) {
     val isContainerAttachable: Boolean
         get() {
@@ -78,6 +89,7 @@ sealed interface PodDetailUiAction {
     data class ExecuteCommand(val command: String) : PodDetailUiAction
     data class StartInteractiveTerminal(val shell: String? = null) : PodDetailUiAction
     data object StopInteractiveTerminal : PodDetailUiAction
+    data class SelectMetricsRange(val range: MetricsRange) : PodDetailUiAction
     data class SendTerminalInput(val input: String) : PodDetailUiAction
     data object ClearTerminal : PodDetailUiAction
 

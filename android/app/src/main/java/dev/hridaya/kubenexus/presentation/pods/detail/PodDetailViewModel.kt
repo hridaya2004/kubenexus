@@ -18,6 +18,7 @@ import dev.hridaya.kubenexus.domain.usecase.DescribePodUseCase
 import dev.hridaya.kubenexus.domain.usecase.ExecPodCommandUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetPodLogsUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetPodMetricsUseCase
 import dev.hridaya.kubenexus.domain.usecase.StartExecSessionUseCase
 import dev.hridaya.kubenexus.domain.usecase.StartPodTerminalUseCase
 import dev.hridaya.kubenexus.domain.usecase.StreamPodLogsUseCase
@@ -25,6 +26,7 @@ import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTermin
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,12 +36,15 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+private const val METRICS_POLL_INTERVAL_MS = 5_000L
+
 @HiltViewModel(assistedFactory = PodDetailViewModel.Factory::class)
 class PodDetailViewModel @AssistedInject constructor(
     @Assisted("podName") private val podName: String,
     @Assisted("namespace") private val namespace: String,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
     private val describePodUseCase: DescribePodUseCase,
+    private val getPodMetricsUseCase: GetPodMetricsUseCase,
     private val getPodLogsUseCase: GetPodLogsUseCase,
     private val streamPodLogsUseCase: StreamPodLogsUseCase,
     private val deletePodUseCase: DeletePodUseCase,
@@ -74,12 +79,51 @@ class PodDetailViewModel @AssistedInject constructor(
 
     private var activeClusterId: String? = null
     private var streamJob: Job? = null
+    private var metricsJob: Job? = null
     private var activeTerminalSession: TerminalSession? = null
 
     init {
         terminalEngine.initialize(80, 24)
         observeNetwork()
         loadClusterAndDescribe()
+        startMetricsPolling()
+    }
+
+    /**
+     * Samples `kubectl top pods` every few seconds into a rolling buffer that
+     * covers the widest selectable range. Poll cadence is fixed; the dropdown
+     * only changes how much history the chart shows.
+     */
+    private fun startMetricsPolling() {
+        if (metricsJob?.isActive == true) return
+        metricsJob = viewModelScope.launch(dispatcherProvider.io) {
+            while (isActive) {
+                if (_uiState.value.isOnline && _uiState.value.podDetails != null) {
+                    fetchMetricsSample()
+                }
+                delay(METRICS_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    private suspend fun fetchMetricsSample() {
+        val clusterId = activeClusterId ?: return
+        when (val result = getPodMetricsUseCase(clusterId, namespace)) {
+            is Result.Success -> {
+                val sample = result.data.firstOrNull { it.podName == podName } ?: return
+                val cutoff = System.currentTimeMillis() - MetricsRange.MINUTES_5.durationMs
+                _uiState.update { state ->
+                    state.copy(
+                        isLoadingMetrics = false,
+                        metricsSamples = (state.metricsSamples + sample)
+                            .filter { it.timestampMillis >= cutoff }
+                            .sortedBy { it.timestampMillis },
+                    )
+                }
+            }
+            is Result.Error -> _uiState.update { it.copy(isLoadingMetrics = false) }
+            is Result.Loading -> Unit
+        }
     }
 
     private fun observeNetwork() {
@@ -166,6 +210,10 @@ class PodDetailViewModel @AssistedInject constructor(
 
     fun onAction(action: PodDetailUiAction) {
         when (action) {
+            is PodDetailUiAction.SelectMetricsRange -> {
+                _uiState.update { it.copy(metricsRange = action.range) }
+            }
+
             is PodDetailUiAction.RefreshDescribe -> {
                 if (activeClusterId == null) {
                     loadClusterAndDescribe()

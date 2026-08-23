@@ -9,6 +9,7 @@ import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
 
 /**
@@ -65,6 +66,12 @@ interface KubeNexusNativeBridge {
      * Retrieves all discovered Kubernetes API resources from native runtime.
      */
     fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>>
+
+    /**
+     * Fetches metrics.k8s.io usage for pods in [namespace], or across all
+     * namespaces when null/blank. One sample per pod, container usage summed.
+     */
+    fun topPods(rawKubeconfig: String, namespace: String?): Result<List<PodMetricSample>>
 
     /**
      * Fetches the cluster's OpenAPI v2 schema document verbatim. The document

@@ -20,11 +20,14 @@ import dev.hridaya.kubenexus.data.source.remote.dto.EventListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.K8sJson
 import dev.hridaya.kubenexus.data.source.remote.dto.NamespaceListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodDto
+import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodListDto
+import dev.hridaya.kubenexus.data.source.remote.dto.toSample
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 
 import go.Seq
 import java.security.MessageDigest
@@ -182,6 +185,14 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
         nativeCatching("Failed to listAPIResources from native client") {
             jsonParser.parseAPIResources(clientFor(rawKubeconfig).listAPIResourcesJSON())
+        }
+
+    override fun topPods(rawKubeconfig: String, namespace: String?): Result<List<PodMetricSample>> =
+        nativeCatching("Failed to fetch pod metrics from native client") {
+            val json = clientFor(rawKubeconfig).topPodsJSON(normalizeNamespace(namespace))
+            K8sJson.decodeFromString<PodMetricsListDto>(json)
+                .items
+                .mapNotNull { it.toSample() }
         }
 
     override fun openAPISchemaJSON(rawKubeconfig: String): Result<String> =

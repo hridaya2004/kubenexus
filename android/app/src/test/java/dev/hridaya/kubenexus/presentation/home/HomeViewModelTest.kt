@@ -10,6 +10,7 @@ import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.PodStatus
 import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
@@ -494,6 +495,11 @@ class HomeViewModelTest {
             lastRefreshedFlow.value = System.currentTimeMillis()
             return Result.Success(Unit)
         }
+
+        override suspend fun getPodMetrics(
+            clusterId: String?,
+            namespace: String?,
+        ): Result<List<PodMetricSample>> = Result.Success(emptyList())
 
         override suspend fun describePod(
             clusterId: String?,

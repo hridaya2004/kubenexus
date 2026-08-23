@@ -2,7 +2,6 @@ package dev.hridaya.kubenexus.presentation.pods.detail.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Speed
-
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -25,6 +23,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,9 +38,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
@@ -90,7 +89,11 @@ fun PodMetricsSection(
 
             val windowed = remember(samples, selectedRange) {
                 val cutoff = System.currentTimeMillis() - selectedRange.durationMs
-                samples.filter { it.timestampMillis >= cutoff }
+                val filtered = samples.filter { it.timestampMillis >= cutoff }
+                // A short range can hold fewer samples than a fresh poll cycle
+                // provides; falling back to the whole buffer keeps the chart
+                // alive instead of flashing "not enough samples".
+                if (filtered.size >= 2 || samples.isEmpty()) filtered else samples
             }
             val latest = windowed.lastOrNull()
 
@@ -105,21 +108,21 @@ fun PodMetricsSection(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp),
+                        .height(150.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = if (isLoading || windowed.isEmpty()) {
                             "Collecting usage samples…"
                         } else {
-                            "Not enough samples for this range yet"
+                            "Not enough samples yet"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
-                UsageChart(windowed)
+                UsageChart(windowed, selectedRange)
             }
         }
     }
@@ -132,15 +135,16 @@ private fun IntervalDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clickable { expanded = true }
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+        TextButton(
+            onClick = { expanded = true },
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                horizontal = 10.dp,
+                vertical = 4.dp,
+            ),
         ) {
             Text(
                 text = selected.label,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -153,7 +157,16 @@ private fun IntervalDropdown(
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             MetricsRange.entries.forEach { range ->
                 DropdownMenuItem(
-                    text = { Text(range.label) },
+                    text = {
+                        Text(
+                            text = range.label,
+                            color = if (range == selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    },
                     onClick = {
                         expanded = false
                         onSelect(range)
@@ -182,10 +195,11 @@ private fun LegendDot(color: Color, label: String, value: String) {
 }
 
 @Composable
-private fun UsageChart(samples: List<PodMetricSample>) {
+private fun UsageChart(samples: List<PodMetricSample>, range: MetricsRange) {
     val gridColor = MaterialTheme.colorScheme.surfaceVariant
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val textMeasurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(fontSize = 9.sp, color = labelColor)
 
     val spanMs = (samples.last().timestampMillis - samples.first().timestampMillis)
         .coerceAtLeast(1L)
@@ -195,42 +209,42 @@ private fun UsageChart(samples: List<PodMetricSample>) {
     val cpuMax = (cpuValues.maxOrNull() ?: 0.0).coerceAtLeast(1e-9)
     val memMax = (memValues.maxOrNull() ?: 0.0).coerceAtLeast(1.0)
 
-    val labelStyle = TextStyle(fontSize = 9.sp, color = labelColor)
-
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
             .height(150.dp),
     ) {
-        val padLeft = 44f
-        val padRight = 40f
-        val padTop = 6f
-        val padBottom = 18f
+        // Paddings must be density-aware: raw floats clip axis labels on real
+        // devices even though they look right in the preview.
+        val padLeft = 52.dp.toPx()
+        val padRight = 48.dp.toPx()
+        val padTop = 8.dp.toPx()
+        val padBottom = 30.dp.toPx()
+        val labelAscent = 11.sp.toPx()
         val width = size.width - padLeft - padRight
         val height = size.height - padTop - padBottom
+        val step = width / (samples.size - 1).coerceAtLeast(1)
 
-        fun xAt(index: Int): Float =
-            padLeft + width * index / (samples.size - 1).coerceAtLeast(1)
+        fun xAt(index: Int): Float = padLeft + step * index
 
-        fun fractionAt(sample: PodMetricSample): Float =
-            ((sample.timestampMillis - samples.first().timestampMillis).toFloat() / spanMs)
-                .coerceIn(0f, 1f)
+        fun yAt(value: Double, max: Double): Float =
+            padTop + height * (1f - (value / max).toFloat().coerceIn(0f, 1f))
 
-        // Gridlines at 0%, 50%, 100% of the plot area.
         for (i in 0..2) {
-            val y = padTop + height * i / 2f
+            val fraction = i / 2f
+            val y = padTop + height * (1f - fraction)
             drawLine(gridColor, Offset(padLeft, y), Offset(padLeft + width, y), strokeWidth = 1f)
-            val frac = 1f - i / 2f
+
             drawText(
                 textMeasurer = textMeasurer,
-                text = formatBytes((memMax * frac).roundToLong()),
-                topLeft = Offset(0f, y - 14f),
+                text = formatBytes((memMax * fraction).roundToLong()),
+                topLeft = Offset(0f, y - labelAscent / 2),
                 style = labelStyle,
             )
             drawText(
                 textMeasurer = textMeasurer,
-                text = formatCores(cpuMax * frac),
-                topLeft = Offset(padLeft + width + 4f, y - 14f),
+                text = formatCores(cpuMax * fraction),
+                topLeft = Offset(padLeft + width + 6.dp.toPx(), y - labelAscent / 2),
                 style = labelStyle,
             )
         }
@@ -239,12 +253,12 @@ private fun UsageChart(samples: List<PodMetricSample>) {
             val path = Path()
             values.forEachIndexed { index, value ->
                 val x = xAt(index)
-                val y = padTop + height * (1f - (value / max).toFloat().coerceIn(0f, 1f))
+                val y = yAt(value, max)
                 if (index == 0) {
                     path.moveTo(x, y)
                 } else {
                     val prevX = xAt(index - 1)
-                    val prevY = padTop + height * (1f - (values[index - 1] / max).toFloat().coerceIn(0f, 1f))
+                    val prevY = yAt(values[index - 1], max)
                     val midX = (prevX + x) / 2f
                     path.cubicTo(midX, prevY, midX, y, x, y)
                 }
@@ -252,8 +266,8 @@ private fun UsageChart(samples: List<PodMetricSample>) {
             return path
         }
 
-        val memPath = seriesPath(memValues, memMax)
         val cpuPath = seriesPath(cpuValues, cpuMax)
+        val memPath = seriesPath(memValues, memMax)
         val bottom = padTop + height
 
         drawPath(
@@ -273,25 +287,32 @@ private fun UsageChart(samples: List<PodMetricSample>) {
         drawPath(cpuPath, CPU_COLOR, style = Stroke(width = 4f, cap = StrokeCap.Round))
         drawPath(memPath, MEMORY_COLOR, style = Stroke(width = 4f, cap = StrokeCap.Round))
 
-        // Time markers.
+        val spanLabel = formatSpan(spanMs, range)
         drawText(
             textMeasurer = textMeasurer,
-            text = "-${selectedRangeLabel(samples)}",
-            topLeft = Offset(padLeft, padTop + height + 4f),
+            text = "-$spanLabel",
+            topLeft = Offset(padLeft, padTop + height + 8.dp.toPx()),
             style = labelStyle,
         )
+        val nowLayout = textMeasurer.measure("now", labelStyle)
         drawText(
             textMeasurer = textMeasurer,
             text = "now",
-            topLeft = Offset(padLeft + width - 20f, padTop + height + 4f),
+            topLeft = Offset(
+                padLeft + width - nowLayout.size.width,
+                padTop + height + 8.dp.toPx(),
+            ),
             style = labelStyle,
         )
     }
 }
 
-private fun selectedRangeLabel(samples: List<PodMetricSample>): String {
-    val spanMin = (samples.last().timestampMillis - samples.first().timestampMillis) / 60_000f
-    return if (spanMin >= 1f) "${spanMin.roundToInt()}m" else "${((spanMin * 60f).roundToInt())}s"
+private fun formatSpan(spanMs: Long, range: MetricsRange): String {
+    val minutes = spanMs / 60_000f
+    return when {
+        minutes >= 1f -> "${minutes.roundToInt()}m"
+        else -> "${range.label}+"
+    }
 }
 
 private fun formatCores(cores: Double): String =

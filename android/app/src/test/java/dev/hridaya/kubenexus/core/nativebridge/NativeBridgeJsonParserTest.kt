@@ -2,6 +2,7 @@ package dev.hridaya.kubenexus.core.nativebridge
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -100,6 +101,19 @@ class NativeBridgeJsonParserTest {
 
         val podsPlural = parser.resolveResourceExplain(schema, "pods", "v1")
         assertEquals("Pod", podsPlural.kind)
+    }
+
+    @Test
+    fun `findDefinitionByGVK matches exact GVK regardless of pluralization`() {
+        val schema = loadFixture("openapi-schema-test.json")
+
+        val policy = parser.findDefinitionByGVK(schema, "kyverno.io", "v1", "Policy")
+        assertEquals("Policy", policy?.kind)
+        assertEquals("Kyverno policy rule set.", policy?.description)
+
+        // The heuristic finder only knows singular+s, so irregular plurals
+        // require the discovery-driven GVK path.
+        assertNull(parser.findDefinition(schema, "policies", "kyverno.io/v1"))
     }
 
     @Test

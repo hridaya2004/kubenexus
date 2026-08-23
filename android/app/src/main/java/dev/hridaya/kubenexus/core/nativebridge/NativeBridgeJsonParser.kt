@@ -91,41 +91,86 @@ class NativeBridgeJsonParser @Inject constructor() {
                     "$group/$version".equals(groupVersion, ignoreCase = true)
                 if (!kindMatches || !versionMatches) continue
 
-                val required = mutableSetOf<String>()
-                definition.optJSONArray("required")?.let { arr ->
-                    for (r in 0 until arr.length()) required.add(arr.getString(r))
-                }
-
-                val fields = ArrayList<ResourceField>()
-                val props = definition.optJSONObject("properties")
-                for (name in props?.sortedKeys() ?: emptyList()) {
-                    val prop = props!!.getJSONObject(name)
-                    var type = prop.optString("type", "object").ifBlank { "object" }
-                    if (!prop.isNull("\$ref") && prop.optString("\$ref").isNotEmpty()) {
-                        type = prop.optString("\$ref").substringAfterLast('.')
-                    }
-                    prop.optString("format", "").takeIf { it.isNotEmpty() }?.let { type += " ($it)" }
-                    fields.add(
-                        ResourceField(
-                            name = name,
-                            type = type,
-                            description = prop.optString("description", ""),
-                            required = name in required,
-                        )
-                    )
-                }
-
-                return ResourceExplain(
-                    kind = kind,
-                    group = group,
-                    version = version,
-                    groupVersion = if (group.isEmpty()) version else "$group/$version",
-                    description = definition.optString("description", ""),
-                    fields = fields,
-                )
+                return buildExplainFromDefinition(definition, kind, group, version)
             }
         }
         return null
+    }
+
+    /**
+     * Exact GVK lookup — the kubectl approach. Discovery maps a resource name,
+     * singular name or kind to group+version+kind; this finds the schema
+     * definition carrying that GVK. Handles irregular plurals ("policies" ->
+     * Policy) and every custom resource installed on the cluster.
+     */
+    fun findDefinitionByGVK(
+        schemaJson: String,
+        group: String,
+        version: String,
+        kind: String,
+    ): ResourceExplain? {
+        if (schemaJson.isBlank() || kind.isBlank()) return null
+        val definitions = JSONObject(schemaJson).optJSONObject("definitions") ?: return null
+
+        for (key in definitions.sortedKeys()) {
+            val definition = definitions.optJSONObject(key) ?: continue
+            val gvks = definition.optJSONArray("x-kubernetes-group-version-kind") ?: continue
+            for (i in 0 until gvks.length()) {
+                val gvk = gvks.getJSONObject(i)
+                if (gvk.optString("kind").equals(kind, ignoreCase = true) &&
+                    gvk.optString("group").equals(group, ignoreCase = true) &&
+                    gvk.optString("version").equals(version, ignoreCase = true)
+                ) {
+                    return buildExplainFromDefinition(
+                        definition,
+                        gvk.optString("kind"),
+                        gvk.optString("group"),
+                        gvk.optString("version"),
+                    )
+                }
+            }
+        }
+        return null
+    }
+
+    private fun buildExplainFromDefinition(
+        definition: JSONObject,
+        kind: String,
+        group: String,
+        version: String,
+    ): ResourceExplain {
+        val required = mutableSetOf<String>()
+        definition.optJSONArray("required")?.let { arr ->
+            for (r in 0 until arr.length()) required.add(arr.getString(r))
+        }
+
+        val fields = ArrayList<ResourceField>()
+        val props = definition.optJSONObject("properties")
+        for (name in props?.sortedKeys() ?: emptyList()) {
+            val prop = props!!.getJSONObject(name)
+            var type = prop.optString("type", "object").ifBlank { "object" }
+            if (!prop.isNull("\$ref") && prop.optString("\$ref").isNotEmpty()) {
+                type = prop.optString("\$ref").substringAfterLast('.')
+            }
+            prop.optString("format", "").takeIf { it.isNotEmpty() }?.let { type += " ($it)" }
+            fields.add(
+                ResourceField(
+                    name = name,
+                    type = type,
+                    description = prop.optString("description", ""),
+                    required = name in required,
+                )
+            )
+        }
+
+        return ResourceExplain(
+            kind = kind,
+            group = group,
+            version = version,
+            groupVersion = if (group.isEmpty()) version else "$group/$version",
+            description = definition.optString("description", ""),
+            fields = fields,
+        )
     }
 
     fun buildFallbackExplain(resourceOrKind: String, groupVersion: String): ResourceExplain {

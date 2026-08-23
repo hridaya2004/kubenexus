@@ -142,31 +142,39 @@ class ExploreRepositoryImpl @Inject constructor(
         val resolvedClusterId = clusterId ?: OFFLINE_CLUSTER_ID
         val normalizedResourceOrKind = resourceOrKind.trim().lowercase()
 
-        var schemaJson: String? = null
-        if (!forceRefresh) {
-            schemaJson = openApiSchemaDao.getForCluster(resolvedClusterId)
-                ?.let { gunzip(it.schemaGzip) }
+        // kubectl-style resolution: discovery maps the name, singular name or
+        // kind to an exact GVK, which handles irregular plurals ("policies" ->
+        // Policy) and every custom resource installed on this cluster.
+        val resolvedGVK = apiResourceDao.getAPIResourcesList(resolvedClusterId)
+            .firstOrNull {
+                it.name.lowercase() == normalizedResourceOrKind ||
+                    it.kind.lowercase() == normalizedResourceOrKind ||
+                    it.singularName.lowercase() == normalizedResourceOrKind
+            }
+
+        fun locate(schemaJson: String?): ResourceExplain? {
+            schemaJson ?: return null
+            return resolvedGVK?.let {
+                jsonParser.findDefinitionByGVK(schemaJson, it.group, it.version, it.kind)
+            } ?: jsonParser.findDefinition(schemaJson, resourceOrKind, groupVersion)
         }
 
-        if (schemaJson == null) {
-            val decryptedKubeconfig = if (clusterId != null) {
-                val cluster = clusterDao.getClusterById(clusterId)
-                if (cluster != null) encryptor.decrypt(cluster.rawKubeconfig) else ""
-            } else ""
+        var hadStoredSchema = false
+        var schemaJson: String? = null
+        if (!forceRefresh) {
+            schemaJson = openApiSchemaDao.getForCluster(resolvedClusterId)?.let { gunzip(it.schemaGzip) }
+            hadStoredSchema = schemaJson != null
+        }
+        var explain = locate(schemaJson)
 
-            when (val nativeResult = nativeBridge.openAPISchemaJSON(decryptedKubeconfig)) {
+        if (explain == null) {
+            when (val fetched = fetchFreshSchema(clusterId, resolvedClusterId)) {
                 is Result.Success -> {
-                    schemaJson = nativeResult.data
-                    openApiSchemaDao.upsert(
-                        OpenApiSchemaEntity(
-                            clusterId = resolvedClusterId,
-                            schemaGzip = gzip(schemaJson),
-                            fetchedAt = System.currentTimeMillis(),
-                        )
-                    )
+                    schemaJson = fetched.data
+                    explain = locate(schemaJson)
                 }
-                is Result.Error -> {
-                    val sanitizedMsg = LogSanitizer.sanitize(nativeResult.error.message)
+                is Result.Error -> if (!hadStoredSchema) {
+                    val sanitizedMsg = LogSanitizer.sanitize(fetched.error.message)
                     return@withContext Result.Error(
                         AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch schema for $resourceOrKind" })
                     )
@@ -174,22 +182,41 @@ class ExploreRepositoryImpl @Inject constructor(
                 is Result.Loading -> Unit
             }
         }
-        val schema = schemaJson ?: return@withContext Result.Error(
-            AppError.Network("Failed to load schema for $resourceOrKind")
-        )
 
-        try {
-            // Persist only real matches; a missing definition stays out of the cache.
-            val explain = jsonParser.findDefinition(schema, resourceOrKind, groupVersion)
-                ?: return@withContext Result.Error(AppError.NotFound("Documentation for $resourceOrKind not found"))
-            explainedResourceDao.insertExplainedResource(
-                explain.toEntity(resolvedClusterId, normalizedResourceOrKind),
-            )
-            Result.Success(explain)
-        } catch (t: Throwable) {
-            val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to explain resource '$resourceOrKind': $sanitizedMsg", t)
-            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to explain resource" }))
+        if (explain == null) {
+            return@withContext Result.Error(AppError.NotFound("Documentation for $resourceOrKind not found"))
+        }
+
+        explainedResourceDao.insertExplainedResource(
+            explain.toEntity(resolvedClusterId, normalizedResourceOrKind),
+        )
+        Result.Success(explain)
+    }
+
+    private suspend fun fetchFreshSchema(
+        clusterId: String?,
+        resolvedClusterId: String,
+    ): Result<String> = withContext(dispatcherProvider.io) {
+        val decryptedKubeconfig = if (clusterId != null) {
+            clusterDao.getClusterById(clusterId)?.let { encryptor.decrypt(it.rawKubeconfig) } ?: ""
+        } else ""
+
+        when (val nativeResult = nativeBridge.openAPISchemaJSON(decryptedKubeconfig)) {
+            is Result.Success -> {
+                openApiSchemaDao.upsert(
+                    OpenApiSchemaEntity(
+                        clusterId = resolvedClusterId,
+                        schemaGzip = gzip(nativeResult.data),
+                        fetchedAt = System.currentTimeMillis(),
+                    )
+                )
+                Result.Success(nativeResult.data)
+            }
+            is Result.Error -> {
+                val sanitizedMsg = LogSanitizer.sanitize(nativeResult.error.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch OpenAPI schema" }))
+            }
+            is Result.Loading -> Result.Error(AppError.Network("Schema fetch in progress"))
         }
     }
 

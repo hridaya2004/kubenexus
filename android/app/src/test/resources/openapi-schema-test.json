@@ -27,6 +27,21 @@
       ],
       "description": "Deployment",
       "properties": {}
+    },
+    "io.kyverno.policy.v1.Policy": {
+      "x-kubernetes-group-version-kind": [
+        {"group": "kyverno.io", "version": "v1", "kind": "Policy"}
+      ],
+      "description": "Kyverno policy rule set.",
+      "properties": {
+        "spec": {
+          "$ref": "#/definitions/io.kyverno.policy.v1.PolicySpec",
+          "description": "Policy specification"
+        }
+      }
+    },
+    "io.kyverno.policy.v1.PolicySpec": {
+      "description": "Policy spec."
     }
   }
 }

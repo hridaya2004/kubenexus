@@ -353,6 +353,45 @@ class ExploreRepositoryImplTest {
         }
     }
 
+    @Test
+    fun `explainResource resolves custom resources through discovery GVKs`() =
+        runTest(testDispatcher) {
+            val clusterId = "cluster-1"
+            fakeClusterDao.insertCluster(
+                ClusterEntity(
+                    id = clusterId,
+                    name = "test-cluster",
+                    serverUrl = "https://127.0.0.1:6443",
+                    rawKubeconfig = "raw",
+                    contextName = "ctx",
+                    userName = "user",
+                    namespace = "default",
+                    isActive = true,
+                    createdAt = 1000L,
+                    lastConnectedAt = 1000L,
+                    status = "Connected",
+                ),
+            )
+
+            fakeNativeBridge.mockResources = listOf(
+                APIResource(
+                    name = "policies",
+                    kind = "Policy",
+                    group = "kyverno.io",
+                    version = "v1",
+                    groupVersion = "kyverno.io/v1",
+                ),
+            )
+            assertTrue(repository.fetchAPIResources(clusterId) is Result.Success)
+
+            // Irregular plural: only the discovery GVK path can resolve this.
+            val result = repository.explainResource(clusterId, "policies", "kyverno.io/v1")
+            assertTrue(result is Result.Success)
+            val explain = (result as Result.Success).data
+            assertEquals("Policy", explain.kind)
+            assertEquals("Kyverno policy rule set.", explain.description)
+        }
+
     private class FakeNativeBridge : FakeKubeNexusNativeBridge() {
         var mockResources: List<APIResource> = emptyList()
         var mockSchemaJson: String = loadSchemaFixture()

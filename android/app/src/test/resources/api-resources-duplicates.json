@@ -1,0 +1,4 @@
+[
+  {"groupVersion": "v1", "resources": [{"name": "services", "kind": "Service"}]},
+  {"groupVersion": "v1", "resources": [{"name": "services", "kind": "Service"}]}
+]

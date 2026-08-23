@@ -86,6 +86,20 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     private val podsResource: GroupVersionResource by lazy { Client.podsResource() }
     private val namespacesResource: GroupVersionResource by lazy { Client.namespacesResource() }
 
+    /**
+     * OpenAPI schema per kubeconfig digest. The document is megabytes, so it is
+     * fetched once per cluster and reused across explain calls; a rotated
+     * kubeconfig hashes differently and therefore refetches.
+     */
+    private val schemaCache = object : LinkedHashMap<String, String>(
+        /* initialCapacity = */ CLIENT_CACHE_SIZE,
+        /* loadFactor = */ 0.75f,
+        /* accessOrder = */ true,
+    ) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean =
+            size > CLIENT_CACHE_SIZE
+    }
+
     override fun initialize() {
         try {
             Seq.setContext(context)
@@ -190,13 +204,21 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         groupVersion: String,
     ): Result<ResourceExplain> =
         nativeCatching("Failed to explainResource '$resourceOrKind' from native client") {
-            val resourceExplain =
-                clientFor(rawKubeconfig).explainResourceJSON(resourceOrKind, groupVersion)
-            jsonParser.parseResourceExplain(
-                resourceExplain = resourceExplain,
-                fallbackKind = resourceOrKind,
-                fallbackGroupVersion = groupVersion,
-            )
+            val schema = try {
+                synchronized(schemaCache) {
+                    schemaCache.getOrPut(digest(rawKubeconfig)) {
+                        clientFor(rawKubeconfig).openAPISchemaJSON()
+                    }
+                }
+            } catch (t: Throwable) {
+                Log.w(
+                    TAG,
+                    "OpenAPI schema unavailable, explaining from fallback: " +
+                        LogSanitizer.sanitize(t.message),
+                )
+                ""
+            }
+            jsonParser.resolveResourceExplain(schema, resourceOrKind, groupVersion)
         }
 
     override fun describePod(

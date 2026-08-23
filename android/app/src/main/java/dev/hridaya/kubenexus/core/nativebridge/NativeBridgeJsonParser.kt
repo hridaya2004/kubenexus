@@ -9,92 +9,159 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Parser responsible for transforming raw JSON payloads returned by the native Go runtime
- * into typed domain models.
+ * Transforms raw JSON payloads from the native Go runtime into domain models.
  */
 @Singleton
 class NativeBridgeJsonParser @Inject constructor() {
 
     /**
-     * Parses the JSON payload returned by `Client.listAPIResourcesJSON()` into a list of [APIResource].
+     * Parses the discovery payload of `Client.listAPIResourcesJSON()`: an array
+     * of `{groupVersion, resources:[...]}` listings, into [APIResource]s sorted
+     * by name then group version.
      */
-    fun parseAPIResources(apiResourceList: String): List<APIResource> {
-        if (apiResourceList.isBlank()) return emptyList()
-        val resourcesArray = JSONArray(apiResourceList)
-        val resourceList = ArrayList<APIResource>(resourcesArray.length())
-        for (index in 0 until resourcesArray.length()) {
-            val resourceObject = resourcesArray.getJSONObject(index)
-            val verbs = resourceObject.optJSONArray("verbs")?.toStringList() ?: emptyList()
-            val shortNames = resourceObject.optJSONArray("shortNames")?.toStringList() ?: emptyList()
-            val categories = resourceObject.optJSONArray("categories")?.toStringList() ?: emptyList()
-
-            resourceList.add(
-                APIResource(
-                    name = resourceObject.optString("name", ""),
-                    singularName = resourceObject.optString("singularName", ""),
-                    namespaced = resourceObject.optBoolean("namespaced", true),
-                    kind = resourceObject.optString("kind", ""),
-                    group = resourceObject.optString("group", ""),
-                    version = resourceObject.optString("version", ""),
-                    groupVersion = resourceObject.optString("groupVersion", ""),
-                    verbs = verbs,
-                    shortNames = shortNames,
-                    categories = categories,
-                )
-            )
-        }
-        return resourceList
-    }
-
-    /**
-     * Parses the JSON payload returned by `Client.explainResourceJSON()` into a [ResourceExplain] model.
-     */
-    fun parseResourceExplain(
-        resourceExplain: String,
-        fallbackKind: String = "",
-        fallbackGroupVersion: String = "",
-    ): ResourceExplain {
-        if (resourceExplain.isBlank()) {
-            return ResourceExplain(
-                kind = fallbackKind,
-                groupVersion = fallbackGroupVersion,
-                description = "",
-                fields = emptyList(),
-            )
-        }
-
-        val explainObject = JSONObject(resourceExplain)
-        val fieldsArray = explainObject.optJSONArray("fields")
-        val fieldsList = if (fieldsArray != null) {
-            val resourceFields = ArrayList<ResourceField>(fieldsArray.length())
-            for (index in 0 until fieldsArray.length()) {
-                val fieldObject = fieldsArray.getJSONObject(index)
-                resourceFields.add(
-                    ResourceField(
-                        name = fieldObject.optString("name", ""),
-                        type = fieldObject.optString("type", ""),
-                        description = fieldObject.optString("description", ""),
-                        required = fieldObject.optBoolean("required", false),
+    fun parseAPIResources(payload: String): List<APIResource> {
+        if (payload.isBlank()) return emptyList()
+        val seen = HashSet<String>()
+        val result = ArrayList<APIResource>()
+        val listings = JSONArray(payload)
+        for (i in 0 until listings.length()) {
+            val listing = listings.getJSONObject(i)
+            val groupVersion = listing.optString("groupVersion", "")
+            val slash = groupVersion.indexOf('/')
+            val group = if (slash >= 0) groupVersion.take(slash) else ""
+            val version = if (slash >= 0) groupVersion.substring(slash + 1) else groupVersion
+            val resources = listing.optJSONArray("resources") ?: continue
+            for (j in 0 until resources.length()) {
+                val r = resources.getJSONObject(j)
+                val name = r.optString("name", "")
+                if (!seen.add("$groupVersion/$name")) continue
+                result.add(
+                    APIResource(
+                        name = name,
+                        singularName = r.optString("singularName", ""),
+                        namespaced = r.optBoolean("namespaced", true),
+                        kind = r.optString("kind", ""),
+                        group = group,
+                        version = version,
+                        groupVersion = groupVersion,
+                        verbs = r.optJSONArray("verbs")?.toStringList() ?: emptyList(),
+                        shortNames = r.optJSONArray("shortNames")?.toStringList() ?: emptyList(),
+                        categories = r.optJSONArray("categories")?.toStringList() ?: emptyList(),
                     )
                 )
             }
-            resourceFields
-        } else {
-            emptyList()
         }
+        result.sortWith(compareBy({ it.name }, { it.groupVersion }))
+        return result
+    }
 
+    /**
+     * Resolves [ResourceExplain] for a resource or kind against an OpenAPI v2
+     * schema document. Returns a best-effort fallback when the schema is
+     * unavailable or nothing matches.
+     */
+    fun resolveResourceExplain(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain {
+        findDefinition(schemaJson, resourceOrKind, groupVersion)?.let { return it }
+        return fallbackExplain(resourceOrKind, groupVersion)
+    }
+
+    private fun findDefinition(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain? {
+        if (schemaJson.isBlank()) return null
+        val definitions = JSONObject(schemaJson).optJSONObject("definitions") ?: return null
+        val target = resourceOrKind.lowercase()
+
+        // Sorted for deterministic match order across JVMs.
+        for (key in definitions.sortedKeys()) {
+            val definition = definitions.optJSONObject(key) ?: continue
+            val gvks = definition.optJSONArray("x-kubernetes-group-version-kind") ?: continue
+            for (i in 0 until gvks.length()) {
+                val gvk = gvks.getJSONObject(i)
+                val kind = gvk.optString("kind", "")
+                val group = gvk.optString("group", "")
+                val version = gvk.optString("version", "")
+
+                val kindMatches =
+                    kind.equals(target, ignoreCase = true) || kind.plus("s").equals(target, ignoreCase = true)
+                val versionMatches = groupVersion.isBlank() ||
+                    version.equals(groupVersion, ignoreCase = true) ||
+                    "$group/$version".equals(groupVersion, ignoreCase = true)
+                if (!kindMatches || !versionMatches) continue
+
+                val required = mutableSetOf<String>()
+                definition.optJSONArray("required")?.let { arr ->
+                    for (r in 0 until arr.length()) required.add(arr.getString(r))
+                }
+
+                val fields = ArrayList<ResourceField>()
+                val props = definition.optJSONObject("properties")
+                for (name in props?.sortedKeys() ?: emptyList()) {
+                    val prop = props!!.getJSONObject(name)
+                    var type = prop.optString("type", "object").ifBlank { "object" }
+                    if (!prop.isNull("\$ref") && prop.optString("\$ref").isNotEmpty()) {
+                        type = prop.optString("\$ref").substringAfterLast('.')
+                    }
+                    prop.optString("format", "").takeIf { it.isNotEmpty() }?.let { type += " ($it)" }
+                    fields.add(
+                        ResourceField(
+                            name = name,
+                            type = type,
+                            description = prop.optString("description", ""),
+                            required = name in required,
+                        )
+                    )
+                }
+
+                return ResourceExplain(
+                    kind = kind,
+                    group = group,
+                    version = version,
+                    groupVersion = if (group.isEmpty()) version else "$group/$version",
+                    description = definition.optString("description", ""),
+                    fields = fields,
+                )
+            }
+        }
+        return null
+    }
+
+    private fun fallbackExplain(resourceOrKind: String, groupVersion: String): ResourceExplain {
+        val kind = if (groupVersion.isBlank() && resourceOrKind.isNotEmpty()) {
+            resourceOrKind.replaceFirstChar { it.uppercase() }
+        } else {
+            resourceOrKind
+        }
         return ResourceExplain(
-            kind = explainObject.optString("kind", fallbackKind),
-            group = explainObject.optString("group", ""),
-            version = explainObject.optString("version", ""),
-            groupVersion = explainObject.optString("groupVersion", fallbackGroupVersion),
-            description = explainObject.optString("description", ""),
-            fields = fieldsList,
+            kind = kind,
+            groupVersion = groupVersion,
+            description =
+                "Kubernetes resource %s (%s). Documentation schema unavailable from active cluster discovery."
+                    .format(resourceOrKind, groupVersion),
+            fields = listOf(
+                ResourceField(
+                    "apiVersion", "string",
+                    "APIVersion defines the versioned schema of this representation of an object.",
+                    required = true,
+                ),
+                ResourceField(
+                    "kind", "string",
+                    "Kind is a string value representing the REST resource this object represents.",
+                    required = true,
+                ),
+                ResourceField(
+                    "metadata", "ObjectMeta",
+                    "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+                ),
+                ResourceField("spec", "object", "Specification of the desired behavior of the resource."),
+                ResourceField(
+                    "status", "object",
+                    "Most recently observed status of the resource. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",
+                ),
+            ),
         )
     }
 
     /**
-     * Parses the JSON payload returned by `Client.checkHealthJSON()` into a [ClusterHealth] model.
+     * Parses the JSON payload of `Client.checkHealthJSON()` into [ClusterHealth].
      */
     fun parseClusterHealth(clusterHealth: String): ClusterHealth {
         if (clusterHealth.isBlank()) return ClusterHealth()
@@ -106,6 +173,13 @@ class NativeBridgeJsonParser @Inject constructor() {
             serverVersion = healthObject.optString("serverVersion", ""),
             statusMessage = healthObject.optString("statusMessage", ""),
         )
+    }
+
+    private fun JSONObject.sortedKeys(): List<String> {
+        val names = ArrayList<String>()
+        val iter = keys()
+        while (iter.hasNext()) names.add(iter.next())
+        return names.sorted()
     }
 
     private fun JSONArray.toStringList(): List<String> {

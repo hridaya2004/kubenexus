@@ -15,139 +15,104 @@ class NativeBridgeJsonParserTest {
         parser = NativeBridgeJsonParser()
     }
 
+    private fun loadFixture(name: String): String =
+        javaClass.classLoader.getResourceAsStream(name)!!.bufferedReader().readText()
+
     @Test
-    fun `parseAPIResources returns empty list for empty or blank json`() {
+    fun `parseAPIResources returns empty list for blank input`() {
         assertTrue(parser.parseAPIResources("").isEmpty())
         assertTrue(parser.parseAPIResources("   ").isEmpty())
     }
 
     @Test
-    fun `parseAPIResources correctly parses json array`() {
-        val apiResourceList = """
-            [
-                {
-                    "name": "pods",
-                    "singularName": "pod",
-                    "namespaced": true,
-                    "kind": "Pod",
-                    "group": "",
-                    "version": "v1",
-                    "groupVersion": "v1",
-                    "verbs": ["get", "list", "watch", "create", "delete"],
-                    "shortNames": ["po"],
-                    "categories": ["all"]
-                },
-                {
-                    "name": "nodes",
-                    "singularName": "node",
-                    "namespaced": false,
-                    "kind": "Node",
-                    "group": "",
-                    "version": "v1",
-                    "groupVersion": "v1",
-                    "verbs": ["get", "list"],
-                    "shortNames": ["no"],
-                    "categories": []
-                }
-            ]
-        """.trimIndent()
+    fun `parseAPIResources splits groupVersion, dedupes and sorts by name`() {
+        val resources = parser.parseAPIResources(loadFixture("api-resources.json"))
 
-        val resources = parser.parseAPIResources(apiResourceList)
-        assertEquals(2, resources.size)
+        assertEquals(4, resources.size)
 
-        val pod = resources[0]
-        assertEquals("pods", pod.name)
-        assertEquals("pod", pod.singularName)
-        assertTrue(pod.namespaced)
-        assertEquals("Pod", pod.kind)
-        assertEquals("v1", pod.groupVersion)
-        assertEquals(listOf("get", "list", "watch", "create", "delete"), pod.verbs)
-        assertEquals(listOf("po"), pod.shortNames)
-        assertEquals(listOf("all"), pod.categories)
+        // Sorted by name, then group version: apps/v1 pods before core v1 pods.
+        assertEquals("deployments", resources[0].name)
+        assertEquals("apps/v1", resources[0].groupVersion)
+        assertEquals("apps", resources[0].group)
+        assertEquals("v1", resources[0].version)
 
-        val node = resources[1]
-        assertEquals("nodes", node.name)
-        assertFalse(node.namespaced)
-        assertEquals(listOf("no"), node.shortNames)
+        val corePods = resources.last { it.name == "pods" }
+        assertEquals("", corePods.group)
+        assertEquals("v1", corePods.version)
+        assertEquals("pod", corePods.singularName)
+        assertTrue(corePods.namespaced)
+        assertEquals(listOf("po"), corePods.shortNames)
+        assertEquals(listOf("all"), corePods.categories)
+
+        val nodes = resources.first { it.name == "nodes" }
+        assertFalse(nodes.namespaced)
+        assertEquals("Node", nodes.kind)
     }
 
     @Test
-    fun `parseResourceExplain returns fallback on blank json`() {
-        val result = parser.parseResourceExplain("", fallbackKind = "Deployment", fallbackGroupVersion = "apps/v1")
-        assertEquals("Deployment", result.kind)
-        assertEquals("apps/v1", result.groupVersion)
-        assertTrue(result.fields.isEmpty())
+    fun `parseAPIResources drops repeated entries within a group version`() {
+        val payload = loadFixture("api-resources-duplicates.json")
+
+        assertEquals(1, parser.parseAPIResources(payload).size)
     }
 
     @Test
-    fun `parseResourceExplain correctly parses full explain json`() {
-        val resourceExplain = """
-            {
-                "kind": "Pod",
-                "group": "",
-                "version": "v1",
-                "groupVersion": "v1",
-                "description": "Pod is a collection of containers that can run on a host.",
-                "fields": [
-                    {
-                        "name": "apiVersion",
-                        "type": "string",
-                        "description": "APIVersion defines the versioned schema.",
-                        "required": false
-                    },
-                    {
-                        "name": "spec",
-                        "type": "PodSpec",
-                        "description": "Specification of the desired behavior of the pod.",
-                        "required": true
-                    }
-                ]
-            }
-        """.trimIndent()
+    fun `resolveResourceExplain falls back to title-cased stub without schema`() {
+        val explain = parser.resolveResourceExplain("", "pod", "")
 
-        val explain = parser.parseResourceExplain(resourceExplain, "Pod", "v1")
         assertEquals("Pod", explain.kind)
-        assertEquals("v1", explain.groupVersion)
-        assertEquals("Pod is a collection of containers that can run on a host.", explain.description)
-        assertEquals(2, explain.fields.size)
-
-        val apiVersionField = explain.fields[0]
-        assertEquals("apiVersion", apiVersionField.name)
-        assertEquals("string", apiVersionField.type)
-        assertFalse(apiVersionField.required)
-
-        val specField = explain.fields[1]
-        assertEquals("spec", specField.name)
-        assertEquals("PodSpec", specField.type)
-        assertTrue(specField.required)
+        assertEquals("", explain.groupVersion)
+        assertTrue(explain.description.contains("schema unavailable"))
+        assertTrue(explain.fields.isNotEmpty())
+        assertTrue(explain.fields.any { it.name == "spec" && it.type == "object" })
     }
 
     @Test
-    fun `parseClusterHealth returns default on blank json`() {
-        val health = parser.parseClusterHealth("")
-        assertFalse(health.livez)
-        assertFalse(health.readyz)
-        assertFalse(health.healthz)
-        assertEquals("", health.serverVersion)
+    fun `resolveResourceExplain leaves versioned custom resources untouched`() {
+        val explain = parser.resolveResourceExplain("", "mycustomresource", "custom.io/v1alpha1")
+
+        assertEquals("mycustomresource", explain.kind)
+        assertEquals("custom.io/v1alpha1", explain.groupVersion)
     }
 
     @Test
-    fun `parseClusterHealth parses health json correctly`() {
-        val clusterHealth = """
-            {
-                "livez": true,
-                "readyz": true,
-                "healthz": true,
-                "serverVersion": "v1.31.1",
-                "statusMessage": "Cluster is operational"
-            }
-        """.trimIndent()
+    fun `resolveResourceExplain matches singular and plural against schema GVKs`() {
+        val schema = loadFixture("openapi-pod-schema.json")
 
-        val health = parser.parseClusterHealth(clusterHealth)
-        assertTrue(health.livez)
-        assertTrue(health.readyz)
-        assertTrue(health.healthz)
-        assertEquals("v1.31.1", health.serverVersion)
-        assertEquals("Cluster is operational", health.statusMessage)
+        val pod = parser.resolveResourceExplain(schema, "pod", "")
+        assertEquals("Pod", pod.kind)
+        assertEquals("", pod.group)
+        assertEquals("v1", pod.version)
+        assertEquals("v1", pod.groupVersion)
+        assertEquals("Pod is a collection of containers.", pod.description)
+
+        // Fields come out sorted by name; $ref maps to its last path segment;
+        // format rides along in parentheses; required comes from the schema.
+        assertEquals(
+            listOf("apiVersion", "restartPolicy", "status", "terminationGracePeriodSeconds"),
+            pod.fields.map { it.name },
+        )
+        val status = pod.fields.first { it.name == "status" }
+        assertEquals("PodStatus", status.type)
+        assertFalse(status.required)
+        assertTrue(pod.fields.first { it.name == "apiVersion" }.required)
+        assertEquals("integer (int64)", pod.fields.first { it.name == "terminationGracePeriodSeconds" }.type)
+
+        val podsPlural = parser.resolveResourceExplain(schema, "pods", "v1")
+        assertEquals("Pod", podsPlural.kind)
+    }
+
+    @Test
+    fun `resolveResourceExplain uses groupVersion to disambiguate`() {
+        val schema = loadFixture("openapi-pod-multiversion.json")
+
+        assertEquals(
+            "Something pod.",
+            parser.resolveResourceExplain(schema, "pod", "something/v2").description,
+        )
+        assertEquals(
+            "Core pod.",
+            parser.resolveResourceExplain(schema, "pod", "v1").description,
+        )
     }
 }

@@ -1,0 +1,39 @@
+[
+  {
+    "groupVersion": "v1",
+    "resources": [
+      {
+        "name": "pods",
+        "singularName": "pod",
+        "namespaced": true,
+        "kind": "Pod",
+        "verbs": ["get", "list"],
+        "shortNames": ["po"],
+        "categories": ["all"]
+      },
+      {
+        "name": "nodes",
+        "namespaced": false,
+        "kind": "Node",
+        "verbs": ["get"]
+      }
+    ]
+  },
+  {
+    "groupVersion": "apps/v1",
+    "resources": [
+      {
+        "name": "deployments",
+        "singularName": "deployment",
+        "namespaced": true,
+        "kind": "Deployment",
+        "verbs": ["get", "list"]
+      },
+      {
+        "name": "pods",
+        "kind": "Pod",
+        "verbs": ["get"]
+      }
+    ]
+  }
+]

@@ -1,4 +1,4 @@
-.PHONY: build-android clean test lint fmt
+.PHONY: build-android clean test lint fmt generate-kube-openapi-spec
 
 ANDROID_API ?= 35
 LIB_NAME ?= kubenexus_client
@@ -21,3 +21,6 @@ lint:
 
 fmt:
 	go fmt ./...
+
+generate-kube-openapi-spec:
+	./scripts/record-testdata.sh

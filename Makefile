@@ -21,7 +21,7 @@ GHOSTTY_SO_TARGET := $(ANDROID_DIR)/app/src/main/jniLibs/arm64-v8a/libghostty_jn
 
 .DEFAULT_GOAL := help
 
-.PHONY: help jni go-core ghostty debug release build bundle lint fmt test clean clean-jni install install-debug install-release go-clean go-test go-lint go-fmt ghostty-fmt
+.PHONY: help jni go-core ghostty debug release build bundle lint fmt test clean clean-jni install install-debug install-release go-clean go-test go-lint go-fmt ghostty-fmt generate-kube-openapi-spec
 
 help: ## Display this help message
 	@echo "KubeNexus Build & Development Commands"
@@ -67,6 +67,9 @@ go-clean: ## Clean core Go build artifacts and gomobile cache
 
 go-test: ## Run core Go unit tests
 	$(MAKE) -C $(CORE_DIR) test
+
+generate-kube-openapi-spec: ## Re-record live cluster payloads into core/pkg/client/testdata (kubectl + jq required)
+	$(MAKE) -C $(CORE_DIR) generate-kube-openapi-spec
 
 go-lint: ## Run golangci-lint on core Go source
 	$(MAKE) -C $(CORE_DIR) lint

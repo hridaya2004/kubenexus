@@ -119,13 +119,12 @@ fun ResourceFieldCard(
                     Spacer(modifier = Modifier.width(4.dp))
                     IconButton(
                         onClick = onCopy,
-                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = "Copy field",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }

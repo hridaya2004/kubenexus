@@ -52,7 +52,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
@@ -194,8 +193,9 @@ fun LogcatScreen(
                             } else {
                                 "No logcat entries available"
                             },
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                            ),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

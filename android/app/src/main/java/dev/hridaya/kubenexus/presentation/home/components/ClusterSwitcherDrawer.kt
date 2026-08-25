@@ -125,7 +125,7 @@ fun ClusterSwitcherDrawer(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
+                                .clip(MaterialTheme.shapes.medium)
                                 .clickable {
                                     if (!isSelected) {
                                         onSelectCluster(cluster.id)

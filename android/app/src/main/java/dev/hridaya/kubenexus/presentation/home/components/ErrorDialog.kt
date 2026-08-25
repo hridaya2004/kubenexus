@@ -97,10 +97,10 @@ fun ErrorDialog(
                 ) {
                     Text(
                         text = data.rawErrorTrace,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                        ),
                         color = MaterialTheme.colorScheme.onErrorContainer,
-                        lineHeight = 16.sp,
                     )
                 }
             }

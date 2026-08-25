@@ -22,15 +22,14 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.logColors
 
 @Composable
 fun LogcatEntryRow(
@@ -41,14 +40,13 @@ fun LogcatEntryRow(
     modifier: Modifier = Modifier,
     wrapLines: Boolean = true,
 ) {
-    val levelColor = getLogLevelColor(entry.level)
+    val levelColor = MaterialTheme.logColors.forLevel(entry.level)
     val highlightBg = MaterialTheme.colorScheme.primaryContainer
     val highlightColor = MaterialTheme.colorScheme.onPrimaryContainer
 
-    val monoStyle = TextStyle(
+    val monoStyle = MaterialTheme.typography.labelSmall.copy(
         fontFamily = FontFamily.Monospace,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
+        fontWeight = FontWeight.Normal,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
 
@@ -67,7 +65,6 @@ fun LogcatEntryRow(
         Text(
             text = index.toString().padStart(4, ' '),
             style = monoStyle.copy(
-                fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 textAlign = TextAlign.End,
             ),
@@ -81,12 +78,11 @@ fun LogcatEntryRow(
         Text(
             text = if (entry.timestamp.isNotBlank()) entry.timestamp.takeLast(12) else "",
             style = monoStyle.copy(
-                fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             ),
             maxLines = 1,
             modifier = Modifier
-                .width(76.dp)
+                .width(80.dp)
                 .alignByBaseline(),
         )
 
@@ -103,7 +99,6 @@ fun LogcatEntryRow(
             Text(
                 text = entry.level.code,
                 style = monoStyle.copy(
-                    fontSize = 9.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = levelColor,
                     textAlign = TextAlign.Center,

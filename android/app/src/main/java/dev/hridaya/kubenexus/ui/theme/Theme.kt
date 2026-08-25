@@ -77,6 +77,10 @@ fun KubeNexusTheme(
         if (isDark) DarkStatusColors else LightStatusColors
     }
 
+    val logColors = remember(isDark) {
+        if (isDark) DarkLogLevelColors else LightLogLevelColors
+    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         LaunchedEffect(isDark) {
@@ -91,13 +95,12 @@ fun KubeNexusTheme(
 
     val expressiveShapes = remember { ExpressiveShapes() }
     val spacing = remember { Spacing() }
-    val expressiveTypography = remember { ExpressiveTypography() }
 
     CompositionLocalProvider(
         LocalStatusColors provides statusColors,
+        LocalLogLevelColors provides logColors,
         LocalExpressiveShapes provides expressiveShapes,
         LocalSpacing provides spacing,
-        LocalExpressiveTypography provides expressiveTypography,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

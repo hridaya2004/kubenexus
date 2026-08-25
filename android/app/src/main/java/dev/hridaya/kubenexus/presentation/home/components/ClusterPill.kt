@@ -1,6 +1,5 @@
 package dev.hridaya.kubenexus.presentation.home.components
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -32,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.Material3Motion
 import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
 
 @Composable
@@ -51,7 +51,7 @@ fun ClusterPill(
         initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
+            animation = tween(500, easing = Material3Motion.Emphasized),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulse_alpha",

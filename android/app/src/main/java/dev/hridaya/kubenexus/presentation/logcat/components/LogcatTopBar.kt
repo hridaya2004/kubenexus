@@ -61,11 +61,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.presentation.logcat.LogcatUiAction
 import dev.hridaya.kubenexus.presentation.logcat.LogcatUiState
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.logColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -198,7 +198,7 @@ fun LogcatTopBar(
                 placeholder = {
                     Text(
                         "Filter by tag, message, or keyword",
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 },
                 singleLine = true,
@@ -251,9 +251,10 @@ fun LogcatTopBar(
                 label = {
                     Text(
                         "All (${uiState.logs.size})",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        fontWeight = if (uiState.selectedLogLevel == null) FontWeight.SemiBold else FontWeight.Normal,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = if (uiState.selectedLogLevel == null) FontWeight.SemiBold else FontWeight.Normal,
+                        ),
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
@@ -284,16 +285,17 @@ fun LogcatTopBar(
                     label = {
                         Text(
                             "${level.code} ($count)",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp,
-                            fontWeight = if (uiState.selectedLogLevel == level) FontWeight.SemiBold else FontWeight.Normal,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = if (uiState.selectedLogLevel == level) FontWeight.SemiBold else FontWeight.Normal,
+                            ),
                         )
                     },
                     leadingIcon = {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
-                                .background(getLogLevelColor(level), CircleShape),
+                                .background(MaterialTheme.logColors.forLevel(level), CircleShape),
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(

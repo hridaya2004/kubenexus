@@ -150,14 +150,13 @@ fun AddClusterBottomSheet(
                 placeholder = {
                     Text(
                         "apiVersion: v1\nkind: Config\nclusters:\n- cluster:\n    server: https://...\n...",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                        ),
                     )
                 },
-                textStyle = TextStyle(
+                textStyle = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
                 ),
                 isError = kubeconfigError != null,
                 supportingText = kubeconfigError?.let {

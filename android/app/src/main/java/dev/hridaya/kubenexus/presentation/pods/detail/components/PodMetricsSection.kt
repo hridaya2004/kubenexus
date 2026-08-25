@@ -199,7 +199,7 @@ private fun UsageChart(samples: List<PodMetricSample>, range: MetricsRange) {
     val gridColor = MaterialTheme.colorScheme.surfaceVariant
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val textMeasurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(fontSize = 9.sp, color = labelColor)
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
 
     val spanMs = (samples.last().timestampMillis - samples.first().timestampMillis)
         .coerceAtLeast(1L)

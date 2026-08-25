@@ -10,6 +10,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
+import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.PodStatus
 
 // Fallback Brand Light Palette (Kubernetes Blue seed #326CE5)
@@ -154,3 +155,55 @@ val MaterialTheme.statusColors: StatusColors
     @Composable
     @ReadOnlyComposable
     get() = LocalStatusColors.current
+
+/**
+ * Semantic log-level colors for the logcat viewer. Resolved per theme so log text
+ * keeps sufficient contrast on both light and dark surfaces (the previous fixed
+ * palette was tuned for dark terminals and failed contrast in light mode).
+ */
+@Immutable
+data class LogLevelColors(
+    val verbose: Color,
+    val debug: Color,
+    val info: Color,
+    val warn: Color,
+    val error: Color,
+    val fatal: Color,
+) {
+    fun forLevel(level: LogLevel): Color = when (level) {
+        LogLevel.VERBOSE -> verbose
+        LogLevel.DEBUG -> debug
+        LogLevel.INFO -> info
+        LogLevel.WARN -> warn
+        LogLevel.ERROR -> error
+        LogLevel.FATAL -> fatal
+        LogLevel.UNKNOWN -> verbose
+    }
+}
+
+// On light surfaces (all >= 4.5:1 against surfaceContainer range)
+val LightLogLevelColors = LogLevelColors(
+    verbose = Color(0xFF5F6368),
+    debug = Color(0xFF0B57D0),
+    info = Color(0xFF137333),
+    warn = Color(0xFF92400E),
+    error = Color(0xFFBA1A1A),
+    fatal = Color(0xFF6B21A8),
+)
+
+// On dark surfaces (all >= 4.5:1 against background/surfaceContainer range)
+val DarkLogLevelColors = LogLevelColors(
+    verbose = Color(0xFF9AA0A6),
+    debug = Color(0xFF8AB4F8),
+    info = Color(0xFF81C995),
+    warn = Color(0xFFFDD663),
+    error = Color(0xFFFFB4AB),
+    fatal = Color(0xFFD8B4FE),
+)
+
+val LocalLogLevelColors = staticCompositionLocalOf { LightLogLevelColors }
+
+val MaterialTheme.logColors: LogLevelColors
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalLogLevelColors.current

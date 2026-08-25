@@ -64,7 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import kotlinx.coroutines.launch
 
@@ -154,16 +154,18 @@ fun GhosttyTerminalLogViewer(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isStreaming) "LIVE LOGS" else "LOGS",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                        ),
                         color = TerminalText,
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "(${filteredLogs.size})",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                        ),
                         color = TerminalGutter,
                     )
                 }
@@ -242,8 +244,10 @@ fun GhosttyTerminalLogViewer(
                     placeholder = {
                         Text(
                             "Filter logs",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                            ),
                             color = TerminalGutter,
-                            fontSize = 12.sp,
                         )
                     },
                     singleLine = true,
@@ -275,8 +279,9 @@ fun GhosttyTerminalLogViewer(
                     ) {
                         Text(
                             text = if (isStreaming) "Waiting for container logs" else "No log output available",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                            ),
                             color = TerminalGutter,
                         )
                     }
@@ -302,8 +307,9 @@ fun GhosttyTerminalLogViewer(
                                 ) {
                                     Text(
                                         text = (index + 1).toString().padStart(4, ' '),
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = FontFamily.Monospace,
+                                        ),
                                         color = TerminalGutter,
                                         modifier = Modifier.width(36.dp),
                                     )
@@ -314,9 +320,9 @@ fun GhosttyTerminalLogViewer(
 
                                     Text(
                                         text = parsedLine,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = FontFamily.Monospace,
+                                        ),
                                         color = TerminalText,
                                         modifier = Modifier.weight(1f),
                                     )

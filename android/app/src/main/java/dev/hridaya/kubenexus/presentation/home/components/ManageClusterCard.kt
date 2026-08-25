@@ -31,13 +31,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.presentation.home.ClusterTestStatus
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.ui.theme.statusColors
 
 @Composable
 fun ManageClusterCard(
@@ -167,8 +167,8 @@ fun ManageClusterCard(
                                 onClick = {},
                                 shape = MaterialTheme.shapes.small,
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = Color(0xFF238636).copy(alpha = 0.2f),
-                                    contentColor = Color(0xFF3FB950),
+                                    containerColor = MaterialTheme.statusColors.successContainer,
+                                    contentColor = MaterialTheme.statusColors.onSuccessContainer,
                                 ),
                                 modifier = Modifier.weight(1f),
                             ) {
@@ -176,10 +176,9 @@ fun ManageClusterCard(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
-                                    tint = Color(0xFF3FB950),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Healthy", style = MaterialTheme.typography.labelMedium, color = Color(0xFF3FB950))
+                                Text("Healthy", style = MaterialTheme.typography.labelMedium)
                             }
                         }
 
@@ -224,7 +223,6 @@ fun ManageClusterCard(
 
                 IconButton(
                     onClick = onEdit,
-                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Edit,
@@ -235,7 +233,6 @@ fun ManageClusterCard(
 
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,

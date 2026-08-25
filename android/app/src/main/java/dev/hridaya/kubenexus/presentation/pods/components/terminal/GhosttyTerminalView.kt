@@ -75,7 +75,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -84,7 +83,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiAction
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiState
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
@@ -231,7 +230,7 @@ fun GhosttyTerminalView(
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Disconnect", fontSize = 12.sp)
+                    Text("Disconnect", style = MaterialTheme.typography.labelMedium)
                 }
             } else {
                 Button(
@@ -246,7 +245,7 @@ fun GhosttyTerminalView(
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Attach", fontSize = 12.sp)
+                    Text("Attach", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -300,17 +299,19 @@ fun GhosttyTerminalView(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = statusTitle,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                            ),
                             color = if (uiState.isTerminalActive) GhosttyGreen else if (!uiState.isOnline) GhosttyRed else GhosttyGutter,
                             maxLines = 1,
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = statusSubtitle,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                            ),
                             color = GhosttyGutter,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -487,9 +488,10 @@ fun GhosttyTerminalView(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Text(
                                     text = "Terminal Detached",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                    ),
                                     color = GhosttyText,
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -499,8 +501,9 @@ fun GhosttyTerminalView(
                                     } else {
                                         "Network offline. Connect to network to attach terminal."
                                     },
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                    ),
                                     color = GhosttyGutter,
                                     textAlign = TextAlign.Center,
                                 )
@@ -546,18 +549,18 @@ fun GhosttyTerminalView(
             ) {
                 Text(
                     text = "❯ ",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                    ),
                     color = Color.White,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
                 )
                 BasicTextField(
                     value = localInput,
                     onValueChange = { localInput = it },
-                    textStyle = TextStyle(
-                        color = GhosttyText,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
+                        color = GhosttyText,
                     ),
                     cursorBrush = SolidColor(Color.White),
                     singleLine = true,
@@ -726,9 +729,10 @@ private fun TerminalKeyButton(
         ) {
             Text(
                 text = label,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold,
+                ),
                 color = if (isActive) Color.Black else GhosttyText,
             )
         }

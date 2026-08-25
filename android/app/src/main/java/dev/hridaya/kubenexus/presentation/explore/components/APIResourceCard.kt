@@ -138,7 +138,6 @@ fun APIResourceCard(
                             Text(
                                 text = verb.uppercase(),
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = MaterialTheme.typography.labelSmall.fontSize * 0.85f,
                                     fontFamily = FontFamily.Monospace,
                                 ),
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),

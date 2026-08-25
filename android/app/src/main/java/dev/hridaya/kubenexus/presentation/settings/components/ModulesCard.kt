@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -119,7 +118,7 @@ fun ModuleInfoItem(
         Spacer(modifier = Modifier.width(8.dp))
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
+                .clip(MaterialTheme.shapes.extraSmall)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

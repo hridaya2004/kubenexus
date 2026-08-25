@@ -41,6 +41,9 @@ import dev.hridaya.kubenexus.presentation.pods.create.CreatePodUiEffect
 import dev.hridaya.kubenexus.presentation.pods.create.CreatePodViewModel
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailRoute
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
+import dev.hridaya.kubenexus.presentation.services.create.CreateServiceRoute
+import dev.hridaya.kubenexus.presentation.services.create.CreateServiceUiEffect
+import dev.hridaya.kubenexus.presentation.services.create.CreateServiceViewModel
 import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
@@ -56,6 +59,7 @@ fun MainScreen(
     var isViewingLogcat by rememberSaveable { mutableStateOf(false) }
     var isCreatingDeployment by rememberSaveable { mutableStateOf(false) }
     var isCreatingPod by rememberSaveable { mutableStateOf(false) }
+    var isCreatingService by rememberSaveable { mutableStateOf(false) }
     var selectedPodName by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPodNamespace by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -68,6 +72,7 @@ fun MainScreen(
                 isViewingLogcat = false
                 isCreatingDeployment = false
                 isCreatingPod = false
+                isCreatingService = false
                 selectedPodName = null
                 selectedPodNamespace = null
                 currentDestination = Destination.Home
@@ -242,6 +247,48 @@ fun MainScreen(
             )
         }
 
+        isCreatingService -> {
+            val context = LocalContext.current
+            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val createServiceViewModel: CreateServiceViewModel = hiltViewModel(
+                key = "create_service",
+                creationCallback = { factory: CreateServiceViewModel.Factory ->
+                    factory.create(
+                        clusterId = homeUiState.activeCluster?.id,
+                        namespace = homeUiState.selectedNamespace
+                            .takeIf { it.isNotBlank() && it != "All Namespaces" }
+                            ?: "default",
+                        availableNamespaces = homeUiState.availableNamespaces,
+                    )
+                },
+            )
+            LaunchedEffect(createServiceViewModel.effects) {
+                createServiceViewModel.effects.collect { effect ->
+                    when (effect) {
+                        is CreateServiceUiEffect.Created -> {
+                            isCreatingService = false
+                            Toast.makeText(
+                                context,
+                                "Service '${effect.serviceName}' created successfully",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
+                        }
+
+                        is CreateServiceUiEffect.NamespaceCreated -> {
+                            Toast.makeText(context, "Namespace created", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            BackHandler { isCreatingService = false }
+            CreateServiceRoute(
+                viewModel = createServiceViewModel,
+                onNavigateBack = { isCreatingService = false },
+                modifier = modifier,
+            )
+        }
+
         else -> {
             NavigationSuiteScaffold(
                 navigationSuiteItems = {
@@ -285,6 +332,7 @@ fun MainScreen(
                                 onNavigateToDeployments = { isViewingDeployments = true },
                                 onNavigateToCreatePod = { isCreatingPod = true },
                                 onNavigateToCreateDeployment = { isCreatingDeployment = true },
+                                onNavigateToCreateService = { isCreatingService = true },
                             )
                         }
 

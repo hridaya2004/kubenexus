@@ -100,6 +100,12 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         Client.newGroupVersionResource("apps", "v1", "deployments")
     }
 
+    // Services are core v1 with no dedicated Go factory either; an empty group
+    // is valid there and means the core API group.
+    private val servicesResource: GroupVersionResource by lazy {
+        Client.newGroupVersionResource("", "v1", "services")
+    }
+
     override fun initialize() {
         try {
             Seq.setContext(context)
@@ -306,6 +312,15 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     ): Result<String> =
         nativeCatching("Failed to create pod from native client") {
             clientFor(rawKubeconfig).createResource(podsResource, namespace, manifestYaml)
+        }
+
+    override fun createService(
+        rawKubeconfig: String,
+        namespace: String,
+        manifestYaml: String,
+    ): Result<String> =
+        nativeCatching("Failed to create service from native client") {
+            clientFor(rawKubeconfig).createResource(servicesResource, namespace, manifestYaml)
         }
 
     override fun getPodLogs(

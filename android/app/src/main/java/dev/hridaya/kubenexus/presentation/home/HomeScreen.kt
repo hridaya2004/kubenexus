@@ -47,6 +47,7 @@ fun HomeRoute(
     onNavigateToDeployments: () -> Unit,
     onNavigateToCreatePod: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
+    onNavigateToCreateService: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -72,6 +73,7 @@ fun HomeRoute(
         onNavigateToDeployments = onNavigateToDeployments,
         onNavigateToCreatePod = onNavigateToCreatePod,
         onNavigateToCreateDeployment = onNavigateToCreateDeployment,
+        onNavigateToCreateService = onNavigateToCreateService,
         modifier = modifier,
     )
 }
@@ -86,6 +88,7 @@ fun HomeScreen(
     onNavigateToDeployments: () -> Unit,
     onNavigateToCreatePod: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
+    onNavigateToCreateService: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -176,7 +179,7 @@ fun HomeScreen(
                 onAddClusterClick = { onAction(HomeUiAction.OpenAddClusterSheet) },
                 onAddPodClick = onNavigateToCreatePod,
                 onAddDeploymentClick = onNavigateToCreateDeployment,
-                onAddServiceClick = { onAction(HomeUiAction.TriggerNoopAction("Service creation coming soon")) },
+                onAddServiceClick = onNavigateToCreateService,
                 onDismiss = { onAction(HomeUiAction.DismissFabActionSheet) },
             )
         }
@@ -249,6 +252,7 @@ private fun HomeScreenPreview() {
             onNavigateToDeployments = {},
             onNavigateToCreatePod = {},
             onNavigateToCreateDeployment = {},
+            onNavigateToCreateService = {},
         )
     }
 }
@@ -268,6 +272,7 @@ private fun HomeScreenEmptyPreview() {
             onNavigateToDeployments = {},
             onNavigateToCreatePod = {},
             onNavigateToCreateDeployment = {},
+            onNavigateToCreateService = {},
         )
     }
 }

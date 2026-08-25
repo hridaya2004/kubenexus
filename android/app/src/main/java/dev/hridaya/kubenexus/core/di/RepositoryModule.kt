@@ -11,6 +11,7 @@ import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridgeImpl
 import dev.hridaya.kubenexus.core.security.AndroidKeystoreKubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.data.repository.ClusterRepositoryImpl
+import dev.hridaya.kubenexus.data.repository.DeploymentRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ExploreRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.LogcatRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.PodRepositoryImpl
@@ -20,6 +21,7 @@ import dev.hridaya.kubenexus.data.source.local.LogcatLocalDataSource
 import dev.hridaya.kubenexus.data.source.local.SharedPrefsThemePreferencesDataSource
 import dev.hridaya.kubenexus.data.source.local.ThemePreferencesLocalDataSource
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
+import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
 import dev.hridaya.kubenexus.domain.repository.ExploreRepository
 import dev.hridaya.kubenexus.domain.repository.LogcatRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
@@ -41,6 +43,12 @@ abstract class RepositoryModule {
     abstract fun bindPodRepository(
         impl: PodRepositoryImpl
     ): PodRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDeploymentRepository(
+        impl: DeploymentRepositoryImpl
+    ): DeploymentRepository
 
     @Binds
     @Singleton

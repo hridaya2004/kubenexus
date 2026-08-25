@@ -90,6 +90,12 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     private val podsResource: GroupVersionResource by lazy { Client.podsResource() }
     private val namespacesResource: GroupVersionResource by lazy { Client.namespacesResource() }
 
+    // No dedicated Go factory exists for deployments, so the identifier is
+    // built through the bound NewGroupVersionResource constructor.
+    private val deploymentsResource: GroupVersionResource by lazy {
+        Client.newGroupVersionResource("apps", "v1", "deployments")
+    }
+
     override fun initialize() {
         try {
             Seq.setContext(context)
@@ -246,6 +252,15 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     ): Result<Unit> =
         nativeCatching("Failed to deletePod '$podName' from native client") {
             clientFor(rawKubeconfig).deleteResource(podsResource, namespace, podName, null)
+        }
+
+    override fun createDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        manifestYaml: String,
+    ): Result<String> =
+        nativeCatching("Failed to create deployment from native client") {
+            clientFor(rawKubeconfig).createResource(deploymentsResource, namespace, manifestYaml)
         }
 
     override fun getPodLogs(

@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Typography
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -28,6 +29,29 @@ val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
 val LocalOnThemeModeChange = compositionLocalOf<(ThemeMode) -> Unit> { {} }
 val LocalAmoledDark = compositionLocalOf { false }
 val LocalOnAmoledDarkChange = compositionLocalOf<(Boolean) -> Unit> { {} }
+
+// M3 type scale over the device font families from Type.kt: every slot keeps
+// its default size, weight and line-height, only the family is swapped, so the
+// theme tracks the platform's variable fonts without re-specifying the scale.
+private val AppTypography = Typography().let { base ->
+    Typography(
+        displayLarge = base.displayLarge.copy(fontFamily = DisplayLargeFamily),
+        displayMedium = base.displayMedium.copy(fontFamily = DisplayMediumFamily),
+        displaySmall = base.displaySmall.copy(fontFamily = DisplaySmallFamily),
+        headlineLarge = base.headlineLarge.copy(fontFamily = HeadlineLargeFamily),
+        headlineMedium = base.headlineMedium.copy(fontFamily = HeadlineMediumFamily),
+        headlineSmall = base.headlineSmall.copy(fontFamily = HeadlineSmallFamily),
+        titleLarge = base.titleLarge.copy(fontFamily = TitleLargeEmphasized),
+        titleMedium = base.titleMedium.copy(fontFamily = TitleMediumFamily),
+        titleSmall = base.titleSmall.copy(fontFamily = TitleSmallFamily),
+        bodyLarge = base.bodyLarge.copy(fontFamily = BodyLargeFamily),
+        bodyMedium = base.bodyMedium.copy(fontFamily = BodyMediumFamily),
+        bodySmall = base.bodySmall.copy(fontFamily = BodySmallFamily),
+        labelLarge = base.labelLarge.copy(fontFamily = LabelLargeFamily),
+        labelMedium = base.labelMedium.copy(fontFamily = LabelMediumFamily),
+        labelSmall = base.labelSmall.copy(fontFamily = LabelSmallFamily),
+    )
+}
 
 @Composable
 fun KubeNexusTheme(
@@ -104,7 +128,7 @@ fun KubeNexusTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
+            typography = AppTypography,
             shapes = Shapes,
         ) {
             Surface(

@@ -7,6 +7,18 @@
 # at the cluster to capture, plus jq.
 set -euo pipefail
 
+for tool in kubectl jq gzip; do
+    command -v "$tool" >/dev/null 2>&1 || {
+        echo "error: $tool is required but not installed" >&2
+        exit 1
+    }
+done
+
+kubectl cluster-info >/dev/null 2>&1 || {
+    echo "error: kubectl cannot reach a cluster; check your current context" >&2
+    exit 1
+}
+
 cd "$(dirname "$0")/.."
 out="pkg/client/testdata"
 mkdir -p "$out/gv"
@@ -36,7 +48,13 @@ BUILTIN_GROUPS=(
     flowcontrol.apiserver.k8s.io
 )
 
-kubectl get --raw /api > "$out/discovery-api.json"
+# /api advertises the API server's reachable address, which is specific to the
+# machine that recorded the fixture and has no bearing on the tests (they serve
+# these files from a local httptest server). Replace it so re-recording does not
+# commit a private network address.
+kubectl get --raw /api \
+    | jq -c '(.serverAddressByClientCIDRs[]?).serverAddress = "10.0.0.1:6443"' \
+    > "$out/discovery-api.json"
 
 # Record /apis with non-built-in groups stripped, so the fixture mirrors what
 # the other fixtures serve and discovery sees no missing group versions.

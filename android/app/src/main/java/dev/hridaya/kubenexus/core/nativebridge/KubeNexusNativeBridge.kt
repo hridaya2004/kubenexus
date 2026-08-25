@@ -70,8 +70,22 @@ interface KubeNexusNativeBridge {
     /**
      * Fetches metrics.k8s.io usage for pods in [namespace], or across all
      * namespaces when null/blank. One sample per pod, container usage summed.
+     *
+     * Prefer [topPod] when only one pod is of interest; this transfers usage for
+     * every pod in the namespace.
      */
     fun topPods(rawKubeconfig: String, namespace: String?): Result<List<PodMetricSample>>
+
+    /**
+     * Fetches metrics.k8s.io usage for a single pod, with container usage
+     * summed. Returns null on success when the pod has no usable sample, which
+     * is distinct from the request itself failing.
+     */
+    fun topPod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+    ): Result<PodMetricSample?>
 
     /**
      * Fetches the cluster's OpenAPI v2 schema document verbatim. The document

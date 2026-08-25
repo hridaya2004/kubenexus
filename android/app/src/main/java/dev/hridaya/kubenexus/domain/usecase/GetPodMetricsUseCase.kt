@@ -12,4 +12,16 @@ class GetPodMetricsUseCase @Inject constructor(private val podRepository: PodRep
     ): Result<List<PodMetricSample>> {
         return podRepository.getPodMetrics(clusterId, namespace)
     }
+
+    /**
+     * Usage for one pod. Used by the detail screen, which polls continuously and
+     * would otherwise refetch the entire namespace on every tick.
+     */
+    suspend fun forPod(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+    ): Result<PodMetricSample?> {
+        return podRepository.getSinglePodMetrics(clusterId, namespace, podName)
+    }
 }

@@ -215,6 +215,33 @@ class PodRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getSinglePodMetrics(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+    ): Result<PodMetricSample?> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.topPod(decryptedKubeconfig, namespace, podName)
+            if (nativeResult.isSuccess) {
+                Result.Success(nativeResult.getOrThrow())
+            } else {
+                val ex = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch metrics for pod '$podName'" }))
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to fetch metrics for pod '$podName': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch pod metrics" }))
+        }
+    }
+
     override suspend fun deletePod(
         clusterId: String?,
         namespace: String,

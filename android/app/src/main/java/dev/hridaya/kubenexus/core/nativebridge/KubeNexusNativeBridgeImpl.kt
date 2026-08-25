@@ -20,8 +20,9 @@ import dev.hridaya.kubenexus.data.source.remote.dto.EventListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.K8sJson
 import dev.hridaya.kubenexus.data.source.remote.dto.NamespaceListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodDto
-import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodListDto
+import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsDto
+import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.toSample
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Namespace
@@ -193,6 +194,18 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             K8sJson.decodeFromString<PodMetricsListDto>(json)
                 .items
                 .mapNotNull { it.toSample() }
+        }
+
+    override fun topPod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+    ): Result<PodMetricSample?> =
+        nativeCatching("Failed to fetch metrics for pod '$podName' from native client") {
+            // A named resource returns a single PodMetrics object rather than a
+            // PodMetricsList, so this decodes a different shape to topPods.
+            val json = clientFor(rawKubeconfig).topPodJSON(namespace, podName)
+            K8sJson.decodeFromString<PodMetricsDto>(json).toSample()
         }
 
     override fun openAPISchemaJSON(rawKubeconfig: String): Result<String> =

@@ -50,6 +50,12 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
     override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> =
         Result.Success(emptyList())
 
+    override fun topPod(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+    ): Result<PodMetricSample?> = Result.Success(null)
+
     override fun topPods(rawKubeconfig: String, namespace: String?): Result<List<PodMetricSample>> =
         Result.Success(emptyList())
 

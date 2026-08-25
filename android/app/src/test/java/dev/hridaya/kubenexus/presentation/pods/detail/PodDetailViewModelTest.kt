@@ -476,6 +476,12 @@ class PodDetailViewModelTest {
             namespace: String?,
         ): Result<List<PodMetricSample>> = Result.Success(emptyList())
 
+        override suspend fun getSinglePodMetrics(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+        ): Result<PodMetricSample?> = Result.Success(null)
+
         override suspend fun describePod(
             clusterId: String?,
             namespace: String,

@@ -21,6 +21,16 @@ interface PodRepository {
 
     suspend fun getPodMetrics(clusterId: String?, namespace: String?): Result<List<PodMetricSample>>
 
+    /**
+     * Usage for a single pod. Preferred over [getPodMetrics] when polling one
+     * pod, since it does not transfer usage for the whole namespace.
+     */
+    suspend fun getSinglePodMetrics(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+    ): Result<PodMetricSample?>
+
     suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit>
     suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit>
     suspend fun getPodLogs(

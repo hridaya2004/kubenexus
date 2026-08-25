@@ -36,6 +36,9 @@ import dev.hridaya.kubenexus.presentation.logcat.LogcatRoute
 import dev.hridaya.kubenexus.presentation.logcat.LogcatViewModel
 import dev.hridaya.kubenexus.presentation.navigation.Destination
 import dev.hridaya.kubenexus.presentation.pods.PodsScreen
+import dev.hridaya.kubenexus.presentation.pods.create.CreatePodRoute
+import dev.hridaya.kubenexus.presentation.pods.create.CreatePodUiEffect
+import dev.hridaya.kubenexus.presentation.pods.create.CreatePodViewModel
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailRoute
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
 import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
@@ -52,6 +55,7 @@ fun MainScreen(
     var isViewingDeployments by rememberSaveable { mutableStateOf(false) }
     var isViewingLogcat by rememberSaveable { mutableStateOf(false) }
     var isCreatingDeployment by rememberSaveable { mutableStateOf(false) }
+    var isCreatingPod by rememberSaveable { mutableStateOf(false) }
     var selectedPodName by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPodNamespace by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -63,6 +67,7 @@ fun MainScreen(
                 isViewingDeployments = false
                 isViewingLogcat = false
                 isCreatingDeployment = false
+                isCreatingPod = false
                 selectedPodName = null
                 selectedPodNamespace = null
                 currentDestination = Destination.Home
@@ -195,6 +200,48 @@ fun MainScreen(
             )
         }
 
+        isCreatingPod -> {
+            val context = LocalContext.current
+            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val createPodViewModel: CreatePodViewModel = hiltViewModel(
+                key = "create_pod",
+                creationCallback = { factory: CreatePodViewModel.Factory ->
+                    factory.create(
+                        clusterId = homeUiState.activeCluster?.id,
+                        namespace = homeUiState.selectedNamespace
+                            .takeIf { it.isNotBlank() && it != "All Namespaces" }
+                            ?: "default",
+                        availableNamespaces = homeUiState.availableNamespaces,
+                    )
+                },
+            )
+            LaunchedEffect(createPodViewModel.effects) {
+                createPodViewModel.effects.collect { effect ->
+                    when (effect) {
+                        is CreatePodUiEffect.Created -> {
+                            isCreatingPod = false
+                            Toast.makeText(
+                                context,
+                                "Pod '${effect.podName}' created successfully",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
+                        }
+
+                        is CreatePodUiEffect.NamespaceCreated -> {
+                            Toast.makeText(context, "Namespace created", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            BackHandler { isCreatingPod = false }
+            CreatePodRoute(
+                viewModel = createPodViewModel,
+                onNavigateBack = { isCreatingPod = false },
+                modifier = modifier,
+            )
+        }
+
         else -> {
             NavigationSuiteScaffold(
                 navigationSuiteItems = {
@@ -236,6 +283,7 @@ fun MainScreen(
                                 onNavigateToManageClusters = { isManagingClusters = true },
                                 onNavigateToPods = { isViewingPods = true },
                                 onNavigateToDeployments = { isViewingDeployments = true },
+                                onNavigateToCreatePod = { isCreatingPod = true },
                                 onNavigateToCreateDeployment = { isCreatingDeployment = true },
                             )
                         }

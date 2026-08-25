@@ -541,6 +541,11 @@ class HomeViewModelTest {
             name: String,
         ): Result<Unit> = Result.Success(Unit)
 
+        override suspend fun createPodFromManifest(
+            clusterId: String?,
+            manifestYaml: String,
+        ): Result<Unit> = Result.Success(Unit)
+
         override suspend fun getPodLogs(
             clusterId: String?,
             namespace: String,

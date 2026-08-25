@@ -45,6 +45,7 @@ fun HomeRoute(
     onNavigateToManageClusters: () -> Unit,
     onNavigateToPods: () -> Unit,
     onNavigateToDeployments: () -> Unit,
+    onNavigateToCreatePod: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -69,6 +70,7 @@ fun HomeRoute(
         onNavigateToManageClusters = onNavigateToManageClusters,
         onNavigateToPods = onNavigateToPods,
         onNavigateToDeployments = onNavigateToDeployments,
+        onNavigateToCreatePod = onNavigateToCreatePod,
         onNavigateToCreateDeployment = onNavigateToCreateDeployment,
         modifier = modifier,
     )
@@ -82,6 +84,7 @@ fun HomeScreen(
     onNavigateToManageClusters: () -> Unit,
     onNavigateToPods: () -> Unit,
     onNavigateToDeployments: () -> Unit,
+    onNavigateToCreatePod: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -171,7 +174,7 @@ fun HomeScreen(
             FabActionBottomSheet(
                 hasClustersConfigured = uiState.clusters.isNotEmpty(),
                 onAddClusterClick = { onAction(HomeUiAction.OpenAddClusterSheet) },
-                onAddPodClick = onNavigateToPods,
+                onAddPodClick = onNavigateToCreatePod,
                 onAddDeploymentClick = onNavigateToCreateDeployment,
                 onAddServiceClick = { onAction(HomeUiAction.TriggerNoopAction("Service creation coming soon")) },
                 onDismiss = { onAction(HomeUiAction.DismissFabActionSheet) },
@@ -244,6 +247,7 @@ private fun HomeScreenPreview() {
             onNavigateToManageClusters = {},
             onNavigateToPods = {},
             onNavigateToDeployments = {},
+            onNavigateToCreatePod = {},
             onNavigateToCreateDeployment = {},
         )
     }
@@ -262,6 +266,7 @@ private fun HomeScreenEmptyPreview() {
             onNavigateToManageClusters = {},
             onNavigateToPods = {},
             onNavigateToDeployments = {},
+            onNavigateToCreatePod = {},
             onNavigateToCreateDeployment = {},
         )
     }

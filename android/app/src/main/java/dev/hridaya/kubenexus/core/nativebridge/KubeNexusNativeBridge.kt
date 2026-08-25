@@ -136,6 +136,18 @@ interface KubeNexusNativeBridge {
     ): Result<String>
 
     /**
+     * Creates a new v1 Pod by applying [manifestYaml] (YAML or JSON) and
+     * returns the created object verbatim as JSON.
+     *
+     * A blank [namespace] uses the one declared in the manifest itself.
+     */
+    fun createPod(
+        rawKubeconfig: String,
+        namespace: String,
+        manifestYaml: String,
+    ): Result<String>
+
+    /**
      * Fetches historical logs for a pod container with optional tail line limit.
      */
     fun getPodLogs(

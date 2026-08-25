@@ -325,6 +325,35 @@ class PodRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun createPodFromManifest(
+        clusterId: String?,
+        manifestYaml: String,
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            // The reviewed manifest carries its own namespace, so the bridge is
+            // told to fall back to it rather than overriding the user's choice.
+            val nativeResult = nativeBridge.createPod(decryptedKubeconfig, "", manifestYaml)
+            if (nativeResult.isSuccess) {
+                Result.Success(Unit)
+            } else {
+                val error = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(error?.message)
+                Log.e(TAG, "Failed to create pod for cluster '$clusterId': $sanitizedMsg")
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create pod" }))
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to create pod for cluster '$clusterId': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create pod" }))
+        }
+    }
+
     override suspend fun getPodLogs(
         clusterId: String?,
         namespace: String,

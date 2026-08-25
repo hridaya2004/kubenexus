@@ -89,6 +89,12 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
         manifestYaml: String,
     ): Result<String> = Result.Success(manifestYaml)
 
+    override fun createPod(
+        rawKubeconfig: String,
+        namespace: String,
+        manifestYaml: String,
+    ): Result<String> = Result.Success(manifestYaml)
+
     override fun getPodLogs(
         rawKubeconfig: String,
         namespace: String,

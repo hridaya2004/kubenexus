@@ -39,6 +39,15 @@ interface PodRepository {
      * DNS-1123 label; callers validate UX-side, the API server has final say.
      */
     suspend fun createNamespace(clusterId: String?, name: String): Result<Unit>
+
+    /**
+     * Creates the Pod described by [manifestYaml] (the exact text the user
+     * reviewed). The reviewed manifest carries its own namespace in
+     * metadata.namespace, so none is passed separately. The manifest may be
+     * YAML or JSON.
+     */
+    suspend fun createPodFromManifest(clusterId: String?, manifestYaml: String): Result<Unit>
+
     suspend fun getPodLogs(
         clusterId: String?,
         namespace: String,

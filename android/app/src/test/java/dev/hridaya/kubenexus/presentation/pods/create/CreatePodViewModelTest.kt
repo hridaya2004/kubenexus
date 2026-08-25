@@ -1,4 +1,4 @@
-package dev.hridaya.kubenexus.presentation.deployments
+package dev.hridaya.kubenexus.presentation.pods.create
 
 import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
@@ -9,10 +9,9 @@ import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.TerminalSession
-import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
-import dev.hridaya.kubenexus.domain.usecase.CreateDeploymentUseCase
 import dev.hridaya.kubenexus.domain.usecase.CreateNamespaceUseCase
+import dev.hridaya.kubenexus.domain.usecase.CreatePodUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,7 +38,7 @@ import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class CreateDeploymentViewModelTest {
+class CreatePodViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val testDispatcherProvider = object : DispatcherProvider {
@@ -49,13 +48,11 @@ class CreateDeploymentViewModelTest {
         override val unconfined: CoroutineDispatcher = testDispatcher
     }
 
-    private lateinit var fakeDeploymentRepository: FakeDeploymentRepository
     private lateinit var fakePodRepository: FakePodRepository
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        fakeDeploymentRepository = FakeDeploymentRepository()
         fakePodRepository = FakePodRepository()
     }
 
@@ -64,12 +61,12 @@ class CreateDeploymentViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun vmTest(block: suspend TestScope.(CreateDeploymentViewModel) -> Unit) = runTest(testDispatcher) {
-        val viewModel = CreateDeploymentViewModel(
+    private fun vmTest(block: suspend TestScope.(CreatePodViewModel) -> Unit) = runTest(testDispatcher) {
+        val viewModel = CreatePodViewModel(
             clusterId = "c-1",
             initialNamespace = "team-a",
             initialAvailableNamespaces = listOf("default", "team-a"),
-            createDeploymentUseCase = CreateDeploymentUseCase(fakeDeploymentRepository),
+            createPodUseCase = CreatePodUseCase(fakePodRepository),
             createNamespaceUseCase = CreateNamespaceUseCase(fakePodRepository),
             dispatcherProvider = testDispatcherProvider,
         )
@@ -80,11 +77,11 @@ class CreateDeploymentViewModelTest {
         }
     }
 
-    private fun fillValidForm(viewModel: CreateDeploymentViewModel) {
-        viewModel.onAction(CreateDeploymentUiAction.NameChanged("web-app"))
-        viewModel.onAction(CreateDeploymentUiAction.ImageChanged("nginx:1.27"))
-        viewModel.onAction(CreateDeploymentUiAction.ContainerPortChanged("8080"))
-        // replicas keeps its "1" default and namespace its "team-a" initial value.
+    private fun fillValidForm(viewModel: CreatePodViewModel) {
+        viewModel.onAction(CreatePodUiAction.NameChanged("web-app"))
+        viewModel.onAction(CreatePodUiAction.ImageChanged("nginx:1.27"))
+        viewModel.onAction(CreatePodUiAction.ContainerPortChanged("8080"))
+        // namespace keeps its "team-a" initial value.
     }
 
     @Test
@@ -92,90 +89,87 @@ class CreateDeploymentViewModelTest {
         fillValidForm(viewModel)
         assertTrue(viewModel.uiState.value.fieldErrors.isEmpty())
 
-        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+        viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
 
         val state = viewModel.uiState.value
-        assertEquals(CreateDeploymentStep.REVIEW, state.step)
+        assertEquals(CreatePodStep.REVIEW, state.step)
         assertNull(state.errorMessage)
         assertNotNull(state.generatedYaml)
         val yaml = state.generatedYaml!!
-        assertTrue(yaml.contains("kind: Deployment"))
+        assertTrue(yaml.contains("kind: Pod"))
         assertTrue(yaml.contains("name: web-app"))
         assertTrue(yaml.contains("namespace: team-a"))
         assertTrue(yaml.contains("image: nginx:1.27"))
-        assertTrue(yaml.contains("replicas: 1"))
         assertTrue(yaml.contains("containerPort: 8080"))
     }
 
     @Test
     fun `invalid draft surfaces field errors without clearing input`() = vmTest { viewModel ->
-        viewModel.onAction(CreateDeploymentUiAction.NameChanged("Invalid_Name"))
-        viewModel.onAction(CreateDeploymentUiAction.ImageChanged("nginx 1.27"))
-        viewModel.onAction(CreateDeploymentUiAction.ReplicasChanged("9999"))
-        viewModel.onAction(CreateDeploymentUiAction.ContainerPortChanged("abc"))
+        viewModel.onAction(CreatePodUiAction.NameChanged("Invalid_Name"))
+        viewModel.onAction(CreatePodUiAction.ImageChanged("nginx 1.27"))
+        viewModel.onAction(CreatePodUiAction.ContainerPortChanged("abc"))
 
         val state = viewModel.uiState.value
         assertEquals(
-            setOf("name", "image", "replicas", "containerPort"),
+            setOf("name", "image", "containerPort"),
             state.fieldErrors.keys,
         )
         // Every keystroke survived validation - input is never discarded.
         assertEquals("Invalid_Name", state.name)
         assertEquals("nginx 1.27", state.image)
-        assertEquals("9999", state.replicas)
         assertEquals("abc", state.containerPort)
         assertEquals("team-a", state.namespace)
 
         // Preview is blocked while the draft is invalid.
-        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
-        assertEquals(CreateDeploymentStep.FORM, viewModel.uiState.value.step)
+        viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
+        assertEquals(CreatePodStep.FORM, viewModel.uiState.value.step)
         assertNull(viewModel.uiState.value.generatedYaml)
         assertNotNull(viewModel.uiState.value.errorMessage)
 
         // Errors clear live as the user fixes the input.
-        viewModel.onAction(CreateDeploymentUiAction.NameChanged("web-app"))
+        viewModel.onAction(CreatePodUiAction.NameChanged("web-app"))
         assertFalse(viewModel.uiState.value.fieldErrors.containsKey("name"))
-        viewModel.onAction(CreateDeploymentUiAction.ReplicasChanged("3"))
-        assertFalse(viewModel.uiState.value.fieldErrors.containsKey("replicas"))
+        viewModel.onAction(CreatePodUiAction.ContainerPortChanged("8080"))
+        assertFalse(viewModel.uiState.value.fieldErrors.containsKey("containerPort"))
     }
 
     @Test
     fun `apply success emits created effect and applies the reviewed yaml`() = vmTest { viewModel ->
         fillValidForm(viewModel)
-        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+        viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
         val reviewedYaml = viewModel.uiState.value.reviewedYaml
         assertNotNull(reviewedYaml)
 
-        val effects = mutableListOf<CreateDeploymentUiEffect>()
+        val effects = mutableListOf<CreatePodUiEffect>()
         val collector = launch { viewModel.effects.collect { effects += it } }
         runCurrent()
 
-        viewModel.onAction(CreateDeploymentUiAction.ApplySubmitted)
+        viewModel.onAction(CreatePodUiAction.ApplySubmitted)
         advanceUntilIdle()
         collector.cancel()
 
-        assertEquals(listOf(CreateDeploymentUiEffect.Created("web-app")), effects)
-        assertEquals(1, fakeDeploymentRepository.appliedManifests.size)
-        val (clusterId, manifest) = fakeDeploymentRepository.appliedManifests.single()
+        assertEquals(listOf(CreatePodUiEffect.Created("web-app")), effects)
+        assertEquals(1, fakePodRepository.appliedManifests.size)
+        val (clusterId, manifest) = fakePodRepository.appliedManifests.single()
         assertEquals("c-1", clusterId)
         assertEquals(reviewedYaml, manifest)
         assertFalse(viewModel.uiState.value.isSubmitting)
-        assertEquals(CreateDeploymentStep.REVIEW, viewModel.uiState.value.step)
+        assertEquals(CreatePodStep.REVIEW, viewModel.uiState.value.step)
         assertNull(viewModel.uiState.value.errorMessage)
     }
 
     @Test
     fun `edited yaml is applied verbatim without regeneration`() = vmTest { viewModel ->
         fillValidForm(viewModel)
-        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+        viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
         val original = viewModel.uiState.value.reviewedYaml
         val edited = "$original# tuned by hand"
-        viewModel.onAction(CreateDeploymentUiAction.ReviewedYamlChanged(edited))
+        viewModel.onAction(CreatePodUiAction.ReviewedYamlChanged(edited))
 
-        viewModel.onAction(CreateDeploymentUiAction.ApplySubmitted)
+        viewModel.onAction(CreatePodUiAction.ApplySubmitted)
         advanceUntilIdle()
 
-        val (_, manifest) = fakeDeploymentRepository.appliedManifests.single()
+        val (_, manifest) = fakePodRepository.appliedManifests.single()
         assertEquals(edited, manifest)
         assertFalse(manifest == original)
     }
@@ -183,31 +177,31 @@ class CreateDeploymentViewModelTest {
     @Test
     fun `apply is blocked when the editor content is blank`() = vmTest { viewModel ->
         fillValidForm(viewModel)
-        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
-        viewModel.onAction(CreateDeploymentUiAction.ReviewedYamlChanged("   \n  "))
+        viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
+        viewModel.onAction(CreatePodUiAction.ReviewedYamlChanged("   \n  "))
 
-        viewModel.onAction(CreateDeploymentUiAction.ApplySubmitted)
+        viewModel.onAction(CreatePodUiAction.ApplySubmitted)
         advanceUntilIdle()
 
-        assertTrue(fakeDeploymentRepository.appliedManifests.isEmpty())
+        assertTrue(fakePodRepository.appliedManifests.isEmpty())
         assertFalse(viewModel.uiState.value.isSubmitting)
     }
 
     @Test
     fun `apply failure keeps review step edits and shows friendly error`() = vmTest { viewModel ->
-        fakeDeploymentRepository.applyError =
-            AppError.Unknown(message = "forbidden: deployments is forbidden")
+        fakePodRepository.applyError =
+            AppError.Unknown(message = "forbidden: pods is forbidden")
         fillValidForm(viewModel)
-        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+        viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
         val edited = viewModel.uiState.value.reviewedYaml + "\n# keep this edit"
-        viewModel.onAction(CreateDeploymentUiAction.ReviewedYamlChanged(edited))
+        viewModel.onAction(CreatePodUiAction.ReviewedYamlChanged(edited))
 
-        viewModel.onAction(CreateDeploymentUiAction.ApplySubmitted)
+        viewModel.onAction(CreatePodUiAction.ApplySubmitted)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
         // Still on review with every edit preserved for another attempt.
-        assertEquals(CreateDeploymentStep.REVIEW, state.step)
+        assertEquals(CreatePodStep.REVIEW, state.step)
         assertEquals(edited, state.reviewedYaml)
         assertEquals("web-app", state.name)
         assertEquals("nginx:1.27", state.image)
@@ -215,40 +209,40 @@ class CreateDeploymentViewModelTest {
         assertEquals("team-a", state.namespace)
         assertFalse(state.isSubmitting)
         assertEquals(
-            "Couldn't create the deployment. Please try again in a moment.",
+            "Couldn't create the pod. Please try again in a moment.",
             state.errorMessage,
         )
     }
 
     @Test
     fun `new namespace name validates live`() = vmTest { viewModel ->
-        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("Team_A"))
+        viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("Team_A"))
         assertEquals(
             "Use lowercase letters, numbers, and hyphens. It must start and end with a letter or number.",
             viewModel.uiState.value.newNamespaceError,
         )
 
-        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("-leading"))
+        viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("-leading"))
         assertNotNull(viewModel.uiState.value.newNamespaceError)
 
-        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("a".repeat(64)))
+        viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("a".repeat(64)))
         assertEquals("Must be 63 characters or fewer", viewModel.uiState.value.newNamespaceError)
 
-        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("team-b"))
+        viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("team-b"))
         assertNull(viewModel.uiState.value.newNamespaceError)
     }
 
     @Test
     fun `namespace creation success appends selects and emits effect`() = vmTest { viewModel ->
-        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceClicked)
+        viewModel.onAction(CreatePodUiAction.CreateNamespaceClicked)
         assertTrue(viewModel.uiState.value.showCreateNamespaceDialog)
-        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("team-b"))
+        viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("team-b"))
 
-        val effects = mutableListOf<CreateDeploymentUiEffect>()
+        val effects = mutableListOf<CreatePodUiEffect>()
         val collector = launch { viewModel.effects.collect { effects += it } }
         runCurrent()
 
-        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceSubmitted)
+        viewModel.onAction(CreatePodUiAction.CreateNamespaceSubmitted)
         advanceUntilIdle()
         collector.cancel()
 
@@ -257,17 +251,17 @@ class CreateDeploymentViewModelTest {
         assertFalse(state.isCreatingNamespace)
         assertEquals(listOf("default", "team-a", "team-b"), state.availableNamespaces)
         assertEquals("team-b", state.namespace)
-        assertEquals(listOf(CreateDeploymentUiEffect.NamespaceCreated), effects)
+        assertEquals(listOf(CreatePodUiEffect.NamespaceCreated), effects)
         assertEquals(listOf("c-1" to "team-b"), fakePodRepository.createdNamespaces)
     }
 
     @Test
     fun `namespace creation failure keeps dialog input and shows friendly message`() = vmTest { viewModel ->
         fakePodRepository.createError = AppError.Unknown(message = "already exists")
-        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceClicked)
-        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("team-b"))
+        viewModel.onAction(CreatePodUiAction.CreateNamespaceClicked)
+        viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("team-b"))
 
-        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceSubmitted)
+        viewModel.onAction(CreatePodUiAction.CreateNamespaceSubmitted)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -282,29 +276,10 @@ class CreateDeploymentViewModelTest {
     }
 }
 
-private class FakeDeploymentRepository : DeploymentRepository {
+/** Only [createNamespace] and [createPodFromManifest] are exercised here; everything else is inert. */
+private class FakePodRepository : PodRepository {
     var applyError: AppError? = null
     val appliedManifests = mutableListOf<Pair<String?, String>>()
-
-    override suspend fun createFromManifest(
-        clusterId: String?,
-        manifestYaml: String,
-    ): Result<Unit> {
-        appliedManifests += clusterId to manifestYaml
-        val error = applyError ?: return Result.Success(Unit)
-        return Result.Error(error)
-    }
-
-    override suspend fun getDeployments(
-        clusterId: String?,
-        namespace: String?,
-    ): Result<List<dev.hridaya.kubenexus.domain.model.DeploymentSummary>> {
-        return Result.Success(emptyList())
-    }
-}
-
-/** Only [createNamespace] is exercised here; everything else is inert. */
-private class FakePodRepository : PodRepository {
     var createError: AppError? = null
     val createdNamespaces = mutableListOf<Pair<String?, String>>()
 
@@ -317,7 +292,11 @@ private class FakePodRepository : PodRepository {
     override suspend fun createPodFromManifest(
         clusterId: String?,
         manifestYaml: String,
-    ): Result<Unit> = Result.Success(Unit)
+    ): Result<Unit> {
+        appliedManifests += clusterId to manifestYaml
+        val error = applyError ?: return Result.Success(Unit)
+        return Result.Error(error)
+    }
 
     override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
         flowOf(emptyList())

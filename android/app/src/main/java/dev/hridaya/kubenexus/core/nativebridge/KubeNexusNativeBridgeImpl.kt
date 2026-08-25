@@ -299,6 +299,15 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             clientFor(rawKubeconfig).createResource(deploymentsResource, namespace, manifestYaml)
         }
 
+    override fun createPod(
+        rawKubeconfig: String,
+        namespace: String,
+        manifestYaml: String,
+    ): Result<String> =
+        nativeCatching("Failed to create pod from native client") {
+            clientFor(rawKubeconfig).createResource(podsResource, namespace, manifestYaml)
+        }
+
     override fun getPodLogs(
         rawKubeconfig: String,
         namespace: String,

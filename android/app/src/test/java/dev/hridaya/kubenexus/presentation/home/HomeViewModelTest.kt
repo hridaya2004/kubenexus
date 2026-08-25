@@ -536,6 +536,10 @@ class HomeViewModelTest {
             return Result.Success(Unit)
         }
 
+        override suspend fun createNamespace(
+            clusterId: String?,
+            name: String,
+        ): Result<Unit> = Result.Success(Unit)
 
         override suspend fun getPodLogs(
             clusterId: String?,

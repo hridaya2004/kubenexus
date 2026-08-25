@@ -9,6 +9,7 @@ import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.core.security.NoOpKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
+import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -50,6 +51,32 @@ class DeploymentRepositoryImpl @Inject constructor(
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
             Log.e(TAG, "Failed to create deployment for cluster '$clusterId': $sanitizedMsg", t)
             Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create deployment" }))
+        }
+    }
+
+    override suspend fun getDeployments(
+        clusterId: String?,
+        namespace: String?,
+    ): Result<List<DeploymentSummary>> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.listDeployments(decryptedKubeconfig, namespace)
+            if (nativeResult.isSuccess) {
+                Result.Success(nativeResult.getOrThrow())
+            } else {
+                val ex = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to load deployments" }))
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to load deployments for cluster '$clusterId': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to load deployments" }))
         }
     }
 }

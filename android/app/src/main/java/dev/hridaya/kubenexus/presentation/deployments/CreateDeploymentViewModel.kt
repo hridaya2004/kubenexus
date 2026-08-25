@@ -10,6 +10,7 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.DeploymentDraft
 import dev.hridaya.kubenexus.domain.usecase.CreateDeploymentUseCase
+import dev.hridaya.kubenexus.domain.usecase.CreateNamespaceUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +20,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Guided Deployment creation (issue #5). The cluster id and starting namespace
- * are supplied by the host ([dev.hridaya.kubenexus.presentation.main.MainScreen])
+ * Guided Deployment creation (issue #5). The cluster id, starting namespace and
+ * known namespaces are supplied by the host ([dev.hridaya.kubenexus.presentation.main.MainScreen])
  * from the Home state at creation time, mirroring the PodDetailViewModel
  * assisted pattern.
  */
@@ -28,7 +29,9 @@ import kotlinx.coroutines.launch
 class CreateDeploymentViewModel @AssistedInject constructor(
     @Assisted("clusterId") private val clusterId: String?,
     @Assisted("namespace") initialNamespace: String,
+    @Assisted("availableNamespaces") initialAvailableNamespaces: List<String>,
     private val createDeploymentUseCase: CreateDeploymentUseCase,
+    private val createNamespaceUseCase: CreateNamespaceUseCase,
     private val dispatcherProvider: DispatcherProvider,
 ) : ViewModel() {
 
@@ -37,12 +40,18 @@ class CreateDeploymentViewModel @AssistedInject constructor(
         fun create(
             @Assisted("clusterId") clusterId: String?,
             @Assisted("namespace") namespace: String,
+            @Assisted("availableNamespaces") availableNamespaces: List<String>,
         ): CreateDeploymentViewModel
     }
 
     private val _uiState = MutableStateFlow(
         validated(
-            CreateDeploymentUiState(namespace = initialNamespace.ifBlank { "default" }),
+            CreateDeploymentUiState(
+                namespace = initialNamespace.ifBlank { "default" },
+                availableNamespaces = initialAvailableNamespaces
+                    .filter { it.isNotBlank() && it != "All Namespaces" }
+                    .distinct(),
+            ),
         ),
     )
     val uiState: StateFlow<CreateDeploymentUiState> = _uiState.asStateFlow()
@@ -66,9 +75,38 @@ class CreateDeploymentViewModel @AssistedInject constructor(
 
             is CreateDeploymentUiAction.ApplySubmitted -> applyReviewedYaml()
 
+            is CreateDeploymentUiAction.ReviewedYamlChanged -> _uiState.update {
+                it.copy(reviewedYaml = action.value)
+            }
+
             is CreateDeploymentUiAction.DismissError -> _uiState.update {
                 it.copy(errorMessage = null)
             }
+
+            is CreateDeploymentUiAction.CreateNamespaceClicked -> _uiState.update {
+                it.copy(
+                    showCreateNamespaceDialog = true,
+                    newNamespaceName = "",
+                    newNamespaceError = null,
+                )
+            }
+
+            is CreateDeploymentUiAction.DismissCreateNamespaceClicked -> _uiState.update {
+                if (it.isCreatingNamespace) {
+                    it
+                } else {
+                    it.copy(showCreateNamespaceDialog = false, newNamespaceError = null)
+                }
+            }
+
+            is CreateDeploymentUiAction.NewNamespaceNameChanged -> _uiState.update {
+                it.copy(
+                    newNamespaceName = action.value,
+                    newNamespaceError = validateNewNamespaceName(action.value),
+                )
+            }
+
+            is CreateDeploymentUiAction.CreateNamespaceSubmitted -> createNamespace()
         }
     }
 
@@ -92,12 +130,13 @@ class CreateDeploymentViewModel @AssistedInject constructor(
                 it.copy(
                     step = CreateDeploymentStep.REVIEW,
                     generatedYaml = result.data,
+                    reviewedYaml = result.data,
                     errorMessage = null,
                 )
             }
 
             is Result.Error -> _uiState.update {
-                it.copy(errorMessage = result.error.message)
+                it.copy(errorMessage = PREVIEW_ERROR_MESSAGE)
             }
 
             is Result.Loading -> Unit
@@ -105,26 +144,65 @@ class CreateDeploymentViewModel @AssistedInject constructor(
     }
 
     /**
-     * Applies exactly the reviewed manifest — never regenerates from the form —
+     * Applies exactly what the editor shows — never regenerates from the form —
      * so the cluster can only receive what the user confirmed. On failure the
-     * REVIEW step, generated YAML and all form input are kept intact.
+     * REVIEW step, edited YAML and all form input are kept intact.
      */
     private fun applyReviewedYaml() {
         val state = _uiState.value
-        if (state.isSubmitting || state.generatedYaml == null) return
-        val reviewedYaml = state.generatedYaml ?: return
+        if (state.isSubmitting || state.reviewedYaml.isBlank()) return
+
         val deploymentName = state.name
 
         _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
         viewModelScope.launch(dispatcherProvider.io) {
-            when (val result = createDeploymentUseCase(clusterId, reviewedYaml)) {
+            when (val result = createDeploymentUseCase(clusterId, state.reviewedYaml)) {
                 is Result.Success -> {
                     _uiState.update { it.copy(isSubmitting = false) }
                     _effects.send(CreateDeploymentUiEffect.Created(deploymentName))
                 }
 
                 is Result.Error -> _uiState.update {
-                    it.copy(isSubmitting = false, errorMessage = result.error.message)
+                    it.copy(isSubmitting = false, errorMessage = APPLY_ERROR_MESSAGE)
+                }
+
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
+    private fun createNamespace() {
+        val state = _uiState.value
+        if (state.isCreatingNamespace) return
+        val name = state.newNamespaceName.trim()
+        validateNewNamespaceName(name)?.let { error ->
+            _uiState.update { it.copy(newNamespaceError = error) }
+            return
+        }
+
+        _uiState.update { it.copy(isCreatingNamespace = true, newNamespaceError = null) }
+        viewModelScope.launch(dispatcherProvider.io) {
+            when (createNamespaceUseCase(clusterId, name)) {
+                is Result.Success -> {
+                    // Append without refetching and land the draft in the new namespace.
+                    _uiState.update { current ->
+                        validated(
+                            current.copy(
+                                showCreateNamespaceDialog = false,
+                                newNamespaceName = "",
+                                newNamespaceError = null,
+                                isCreatingNamespace = false,
+                                availableNamespaces =
+                                (current.availableNamespaces + name).distinct(),
+                                namespace = name,
+                            ),
+                        )
+                    }
+                    _effects.send(CreateDeploymentUiEffect.NamespaceCreated)
+                }
+
+                is Result.Error -> _uiState.update {
+                    it.copy(isCreatingNamespace = false, newNamespaceError = NAMESPACE_ERROR_MESSAGE)
                 }
 
                 is Result.Loading -> Unit
@@ -161,5 +239,31 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             putAll(draft.validate())
         }
         return draft to errors
+    }
+
+    private companion object {
+        const val PREVIEW_ERROR_MESSAGE =
+            "Couldn't prepare the manifest preview. Please check your inputs and try again."
+        const val APPLY_ERROR_MESSAGE =
+            "Couldn't create the deployment. Please try again in a moment."
+        const val NAMESPACE_ERROR_MESSAGE =
+            "Couldn't create that namespace. The name may already be taken."
+
+        /** DNS-1123 label: lowercase alphanumerics and hyphens, no leading/trailing hyphen. */
+        val NEW_NAMESPACE_REGEX = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])$")
+
+        fun validateNewNamespaceName(value: String): String? {
+            val trimmed = value.trim()
+            return when {
+                trimmed.isEmpty() -> "Enter a namespace name"
+                trimmed.length > MAX_NAMESPACE_LENGTH -> "Must be 63 characters or fewer"
+                !NEW_NAMESPACE_REGEX.matches(trimmed) ->
+                    "Use lowercase letters, numbers, and hyphens. It must start and end with a letter or number."
+
+                else -> null
+            }
+        }
+
+        const val MAX_NAMESPACE_LENGTH = 63
     }
 }

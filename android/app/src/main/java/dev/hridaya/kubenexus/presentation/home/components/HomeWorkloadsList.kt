@@ -33,6 +33,7 @@ fun HomeWorkloadsList(
     lastRefreshedAt: Long?,
     totalPodsCount: Int,
     onNavigateToPods: () -> Unit,
+    onNavigateToDeployments: () -> Unit,
     onNoopAction: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,9 +104,7 @@ fun HomeWorkloadsList(
                 subtitle = "Declarative updates for Pods and ReplicaSets",
                 icon = Icons.Outlined.Apps,
                 badgeText = "Workload",
-                onClick = {
-                    onNoopAction("Deployment management coming soon")
-                },
+                onClick = onNavigateToDeployments,
             )
         }
 
@@ -132,6 +131,7 @@ private fun HomeWorkloadsListPreview() {
             lastRefreshedAt = System.currentTimeMillis(),
             totalPodsCount = 12,
             onNavigateToPods = {},
+            onNavigateToDeployments = {},
             onNoopAction = {},
         )
     }

@@ -23,6 +23,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentRoute
 import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentUiEffect
 import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentViewModel
+import dev.hridaya.kubenexus.presentation.deployments.DeploymentsRoute
+import dev.hridaya.kubenexus.presentation.deployments.DeploymentsViewModel
 import dev.hridaya.kubenexus.presentation.explore.ExploreRoute
 import dev.hridaya.kubenexus.presentation.explore.ExploreViewModel
 import dev.hridaya.kubenexus.presentation.home.HomeRoute
@@ -47,6 +49,7 @@ fun MainScreen(
     var currentDestination by rememberSaveable { mutableStateOf(Destination.Home) }
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
     var isViewingPods by rememberSaveable { mutableStateOf(false) }
+    var isViewingDeployments by rememberSaveable { mutableStateOf(false) }
     var isViewingLogcat by rememberSaveable { mutableStateOf(false) }
     var isCreatingDeployment by rememberSaveable { mutableStateOf(false) }
     var selectedPodName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -57,6 +60,7 @@ fun MainScreen(
             if (effect is HomeUiEffect.NavigateToHome) {
                 isManagingClusters = false
                 isViewingPods = false
+                isViewingDeployments = false
                 isViewingLogcat = false
                 isCreatingDeployment = false
                 selectedPodName = null
@@ -119,6 +123,26 @@ fun MainScreen(
             )
         }
 
+        isViewingDeployments -> {
+            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val deploymentsViewModel: DeploymentsViewModel = hiltViewModel(
+                key = "deployments_list",
+                creationCallback = { factory: DeploymentsViewModel.Factory ->
+                    factory.create(
+                        clusterId = homeUiState.activeCluster?.id,
+                        namespace = homeUiState.selectedNamespace
+                            .takeIf { it.isNotBlank() && it != "All Namespaces" },
+                    )
+                },
+            )
+            BackHandler { isViewingDeployments = false }
+            DeploymentsRoute(
+                viewModel = deploymentsViewModel,
+                onNavigateBack = { isViewingDeployments = false },
+                modifier = modifier,
+            )
+        }
+
         isViewingLogcat -> {
             val logcatViewModel: LogcatViewModel = hiltViewModel()
             BackHandler { isViewingLogcat = false }
@@ -140,26 +164,32 @@ fun MainScreen(
                         namespace = homeUiState.selectedNamespace
                             .takeIf { it.isNotBlank() && it != "All Namespaces" }
                             ?: "default",
+                        availableNamespaces = homeUiState.availableNamespaces,
                     )
                 },
             )
             LaunchedEffect(createDeploymentViewModel.effects) {
                 createDeploymentViewModel.effects.collect { effect ->
-                    if (effect is CreateDeploymentUiEffect.Created) {
-                        isCreatingDeployment = false
-                        Toast.makeText(
-                            context,
-                            "Deployment '${effect.deploymentName}' created successfully",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
+                    when (effect) {
+                        is CreateDeploymentUiEffect.Created -> {
+                            isCreatingDeployment = false
+                            Toast.makeText(
+                                context,
+                                "Deployment '${effect.deploymentName}' created successfully",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
+                        }
+
+                        is CreateDeploymentUiEffect.NamespaceCreated -> {
+                            Toast.makeText(context, "Namespace created", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }
             BackHandler { isCreatingDeployment = false }
             CreateDeploymentRoute(
                 viewModel = createDeploymentViewModel,
-                availableNamespaces = homeUiState.availableNamespaces.filterNot { it == "All Namespaces" },
                 onNavigateBack = { isCreatingDeployment = false },
                 modifier = modifier,
             )
@@ -205,6 +235,7 @@ fun MainScreen(
                                 viewModel = homeViewModel,
                                 onNavigateToManageClusters = { isManagingClusters = true },
                                 onNavigateToPods = { isViewingPods = true },
+                                onNavigateToDeployments = { isViewingDeployments = true },
                                 onNavigateToCreateDeployment = { isCreatingDeployment = true },
                             )
                         }

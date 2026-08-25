@@ -44,6 +44,7 @@ fun HomeRoute(
     viewModel: HomeViewModel,
     onNavigateToManageClusters: () -> Unit,
     onNavigateToPods: () -> Unit,
+    onNavigateToDeployments: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -67,6 +68,7 @@ fun HomeRoute(
         onAction = viewModel::onAction,
         onNavigateToManageClusters = onNavigateToManageClusters,
         onNavigateToPods = onNavigateToPods,
+        onNavigateToDeployments = onNavigateToDeployments,
         onNavigateToCreateDeployment = onNavigateToCreateDeployment,
         modifier = modifier,
     )
@@ -79,6 +81,7 @@ fun HomeScreen(
     onAction: (HomeUiAction) -> Unit,
     onNavigateToManageClusters: () -> Unit,
     onNavigateToPods: () -> Unit,
+    onNavigateToDeployments: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -147,6 +150,7 @@ fun HomeScreen(
                         lastRefreshedAt = uiState.lastRefreshedAt,
                         totalPodsCount = uiState.totalPodsCount,
                         onNavigateToPods = onNavigateToPods,
+                        onNavigateToDeployments = onNavigateToDeployments,
                         onNoopAction = { onAction(HomeUiAction.TriggerNoopAction(it)) },
                     )
                 }
@@ -239,6 +243,7 @@ private fun HomeScreenPreview() {
             onAction = {},
             onNavigateToManageClusters = {},
             onNavigateToPods = {},
+            onNavigateToDeployments = {},
             onNavigateToCreateDeployment = {},
         )
     }
@@ -256,6 +261,7 @@ private fun HomeScreenEmptyPreview() {
             onAction = {},
             onNavigateToManageClusters = {},
             onNavigateToPods = {},
+            onNavigateToDeployments = {},
             onNavigateToCreateDeployment = {},
         )
     }

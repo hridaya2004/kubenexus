@@ -1,7 +1,5 @@
 package dev.hridaya.kubenexus.presentation.deployments
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,19 +8,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -54,7 +55,6 @@ import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 @Composable
 fun CreateDeploymentRoute(
     viewModel: CreateDeploymentViewModel,
-    availableNamespaces: List<String>,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -62,7 +62,6 @@ fun CreateDeploymentRoute(
 
     CreateDeploymentScreen(
         uiState = uiState,
-        availableNamespaces = availableNamespaces,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
         modifier = modifier,
@@ -73,7 +72,6 @@ fun CreateDeploymentRoute(
 @Composable
 fun CreateDeploymentScreen(
     uiState: CreateDeploymentUiState,
-    availableNamespaces: List<String>,
     onAction: (CreateDeploymentUiAction) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -114,7 +112,6 @@ fun CreateDeploymentScreen(
             when (uiState.step) {
                 CreateDeploymentStep.FORM -> FormStepContent(
                     uiState = uiState,
-                    availableNamespaces = availableNamespaces,
                     onAction = onAction,
                 )
 
@@ -125,12 +122,22 @@ fun CreateDeploymentScreen(
             }
         }
     }
+
+    if (uiState.showCreateNamespaceDialog) {
+        CreateNamespaceDialog(
+            namespaceName = uiState.newNamespaceName,
+            errorMessage = uiState.newNamespaceError,
+            isCreating = uiState.isCreatingNamespace,
+            onNameChanged = { onAction(CreateDeploymentUiAction.NewNamespaceNameChanged(it)) },
+            onConfirm = { onAction(CreateDeploymentUiAction.CreateNamespaceSubmitted) },
+            onDismiss = { onAction(CreateDeploymentUiAction.DismissCreateNamespaceClicked) },
+        )
+    }
 }
 
 @Composable
 private fun FormStepContent(
     uiState: CreateDeploymentUiState,
-    availableNamespaces: List<String>,
     onAction: (CreateDeploymentUiAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -164,8 +171,9 @@ private fun FormStepContent(
         NamespacePicker(
             selectedNamespace = uiState.namespace,
             namespaceError = uiState.fieldErrors["namespace"],
-            availableNamespaces = availableNamespaces,
+            availableNamespaces = uiState.availableNamespaces,
             onSelectNamespace = { onAction(CreateDeploymentUiAction.NamespaceSelected(it)) },
+            onCreateNamespaceClick = { onAction(CreateDeploymentUiAction.CreateNamespaceClicked) },
         )
 
         val imageError = uiState.fieldErrors["image"]
@@ -237,6 +245,7 @@ private fun NamespacePicker(
     namespaceError: String?,
     availableNamespaces: List<String>,
     onSelectNamespace: (String) -> Unit,
+    onCreateNamespaceClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // The workload must land in one concrete namespace; keep the current value
@@ -278,6 +287,26 @@ private fun NamespacePicker(
                     ),
                 )
             }
+            item {
+                FilterChip(
+                    selected = false,
+                    onClick = onCreateNamespaceClick,
+                    label = { Text("Create new") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    shape = MaterialTheme.shapes.small,
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.primary,
+                        iconColor = MaterialTheme.colorScheme.primary,
+                    ),
+                )
+            }
         }
         namespaceError?.let { error ->
             Text(
@@ -287,6 +316,77 @@ private fun NamespacePicker(
             )
         }
     }
+}
+
+@Composable
+private fun CreateNamespaceDialog(
+    namespaceName: String,
+    errorMessage: String?,
+    isCreating: Boolean,
+    onNameChanged: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Create namespace",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = namespaceName,
+                onValueChange = onNameChanged,
+                label = { Text(text = "Namespace name") },
+                placeholder = { Text(text = "my-team") },
+                isError = errorMessage != null,
+                supportingText = errorMessage?.let { error ->
+                    { Text(text = error, color = MaterialTheme.colorScheme.error) }
+                },
+                singleLine = true,
+                enabled = !isCreating,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = !isCreating && namespaceName.isNotBlank(),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.height(48.dp),
+            ) {
+                if (isCreating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Creating",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                } else {
+                    Text(
+                        text = "Create",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isCreating,
+            ) {
+                Text(text = "Cancel")
+            }
+        },
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    )
 }
 
 @Composable
@@ -308,28 +408,23 @@ private fun ReviewStepContent(
             )
         }
 
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            SelectionContainer {
-                Box(
-                    modifier = Modifier
-                        .horizontalScroll(rememberScrollState())
-                        .padding(12.dp),
-                ) {
-                    Text(
-                        text = uiState.generatedYaml.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            }
-        }
+        Text(
+            text = "You can edit the manifest before applying it.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        OutlinedTextField(
+            value = uiState.reviewedYaml,
+            onValueChange = { onAction(CreateDeploymentUiAction.ReviewedYamlChanged(it)) },
+            textStyle = MaterialTheme.typography.bodySmall.copy(
+                fontFamily = FontFamily.Monospace,
+            ),
+            enabled = !uiState.isSubmitting,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 340.dp),
+        )
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -351,7 +446,7 @@ private fun ReviewStepContent(
 
             Button(
                 onClick = { onAction(CreateDeploymentUiAction.ApplySubmitted) },
-                enabled = !uiState.isSubmitting,
+                enabled = !uiState.isSubmitting && uiState.reviewedYaml.isNotBlank(),
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .weight(1f)
@@ -445,8 +540,8 @@ private fun CreateDeploymentFormPreview() {
                 name = "my-web-app",
                 namespace = "default",
                 image = "nginx:1.27",
+                availableNamespaces = listOf("default", "kube-system", "monitoring"),
             ),
-            availableNamespaces = listOf("default", "kube-system", "monitoring"),
             onAction = {},
             onNavigateBack = {},
         )
@@ -464,8 +559,9 @@ private fun CreateDeploymentReviewPreview() {
                 image = "nginx:1.27",
                 step = CreateDeploymentStep.REVIEW,
                 generatedYaml = DeploymentYamlPreviewSample,
+                reviewedYaml = DeploymentYamlPreviewSample,
+                availableNamespaces = listOf("default", "kube-system"),
             ),
-            availableNamespaces = listOf("default", "kube-system"),
             onAction = {},
             onNavigateBack = {},
         )

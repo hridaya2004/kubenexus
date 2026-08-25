@@ -33,6 +33,12 @@ interface PodRepository {
 
     suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit>
     suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit>
+
+    /**
+     * Creates an empty namespace with the given name. The name must be a valid
+     * DNS-1123 label; callers validate UX-side, the API server has final say.
+     */
+    suspend fun createNamespace(clusterId: String?, name: String): Result<Unit>
     suspend fun getPodLogs(
         clusterId: String?,
         namespace: String,

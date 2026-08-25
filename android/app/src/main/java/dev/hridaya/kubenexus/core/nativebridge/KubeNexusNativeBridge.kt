@@ -6,6 +6,7 @@ import client.ExecSession
 import client.LogCallback
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
@@ -58,6 +59,12 @@ interface KubeNexusNativeBridge {
     fun listNamespaces(rawKubeconfig: String): Result<List<Namespace>>
 
     /**
+     * Creates an empty namespace with [name]. The name must be a valid
+     * DNS-1123 label; callers validate UX-side, the API server has final say.
+     */
+    fun createNamespace(rawKubeconfig: String, name: String): Result<Unit>
+
+    /**
      * Deletes a namespace from native runtime.
      */
     fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit>
@@ -106,6 +113,15 @@ interface KubeNexusNativeBridge {
      * Deletes a pod from native runtime.
      */
     fun deletePod(rawKubeconfig: String, namespace: String, podName: String): Result<Unit>
+
+    /**
+     * Lists apps/v1 Deployments in [namespace], or across all namespaces when
+     * it is null or blank.
+     */
+    fun listDeployments(
+        rawKubeconfig: String,
+        namespace: String? = null,
+    ): Result<List<DeploymentSummary>>
 
     /**
      * Creates a new apps/v1 Deployment by applying [manifestYaml] (YAML or

@@ -4,13 +4,23 @@ import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.model.CommandExecResult
+import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.domain.model.PodDetails
+import dev.hridaya.kubenexus.domain.model.PodMetricSample
+import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
+import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.usecase.CreateDeploymentUseCase
+import dev.hridaya.kubenexus.domain.usecase.CreateNamespaceUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -40,18 +50,13 @@ class CreateDeploymentViewModelTest {
     }
 
     private lateinit var fakeDeploymentRepository: FakeDeploymentRepository
-    private lateinit var viewModel: CreateDeploymentViewModel
+    private lateinit var fakePodRepository: FakePodRepository
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         fakeDeploymentRepository = FakeDeploymentRepository()
-        viewModel = CreateDeploymentViewModel(
-            clusterId = "c-1",
-            initialNamespace = "team-a",
-            createDeploymentUseCase = CreateDeploymentUseCase(fakeDeploymentRepository),
-            dispatcherProvider = testDispatcherProvider,
-        )
+        fakePodRepository = FakePodRepository()
     }
 
     @After
@@ -59,15 +64,23 @@ class CreateDeploymentViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun vmTest(block: suspend TestScope.() -> Unit) = runTest(testDispatcher) {
+    private fun vmTest(block: suspend TestScope.(CreateDeploymentViewModel) -> Unit) = runTest(testDispatcher) {
+        val viewModel = CreateDeploymentViewModel(
+            clusterId = "c-1",
+            initialNamespace = "team-a",
+            initialAvailableNamespaces = listOf("default", "team-a"),
+            createDeploymentUseCase = CreateDeploymentUseCase(fakeDeploymentRepository),
+            createNamespaceUseCase = CreateNamespaceUseCase(fakePodRepository),
+            dispatcherProvider = testDispatcherProvider,
+        )
         try {
-            block()
+            block(viewModel)
         } finally {
             viewModel.viewModelScope.cancel()
         }
     }
 
-    private fun fillValidForm() {
+    private fun fillValidForm(viewModel: CreateDeploymentViewModel) {
         viewModel.onAction(CreateDeploymentUiAction.NameChanged("web-app"))
         viewModel.onAction(CreateDeploymentUiAction.ImageChanged("nginx:1.27"))
         viewModel.onAction(CreateDeploymentUiAction.ContainerPortChanged("8080"))
@@ -75,8 +88,8 @@ class CreateDeploymentViewModelTest {
     }
 
     @Test
-    fun `preview success moves to review step with generated yaml`() = vmTest {
-        fillValidForm()
+    fun `preview success moves to review step with generated yaml`() = vmTest { viewModel ->
+        fillValidForm(viewModel)
         assertTrue(viewModel.uiState.value.fieldErrors.isEmpty())
 
         viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
@@ -95,7 +108,7 @@ class CreateDeploymentViewModelTest {
     }
 
     @Test
-    fun `invalid draft surfaces field errors without clearing input`() = vmTest {
+    fun `invalid draft surfaces field errors without clearing input`() = vmTest { viewModel ->
         viewModel.onAction(CreateDeploymentUiAction.NameChanged("Invalid_Name"))
         viewModel.onAction(CreateDeploymentUiAction.ImageChanged("nginx 1.27"))
         viewModel.onAction(CreateDeploymentUiAction.ReplicasChanged("9999"))
@@ -127,10 +140,10 @@ class CreateDeploymentViewModelTest {
     }
 
     @Test
-    fun `apply success emits created effect and applies the reviewed yaml`() = vmTest {
-        fillValidForm()
+    fun `apply success emits created effect and applies the reviewed yaml`() = vmTest { viewModel ->
+        fillValidForm(viewModel)
         viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
-        val reviewedYaml = viewModel.uiState.value.generatedYaml
+        val reviewedYaml = viewModel.uiState.value.reviewedYaml
         assertNotNull(reviewedYaml)
 
         val effects = mutableListOf<CreateDeploymentUiEffect>()
@@ -152,27 +165,120 @@ class CreateDeploymentViewModelTest {
     }
 
     @Test
-    fun `apply failure keeps review step and input intact and shows error`() = vmTest {
+    fun `edited yaml is applied verbatim without regeneration`() = vmTest { viewModel ->
+        fillValidForm(viewModel)
+        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+        val original = viewModel.uiState.value.reviewedYaml
+        val edited = "$original# tuned by hand"
+        viewModel.onAction(CreateDeploymentUiAction.ReviewedYamlChanged(edited))
+
+        viewModel.onAction(CreateDeploymentUiAction.ApplySubmitted)
+        advanceUntilIdle()
+
+        val (_, manifest) = fakeDeploymentRepository.appliedManifests.single()
+        assertEquals(edited, manifest)
+        assertFalse(manifest == original)
+    }
+
+    @Test
+    fun `apply is blocked when the editor content is blank`() = vmTest { viewModel ->
+        fillValidForm(viewModel)
+        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+        viewModel.onAction(CreateDeploymentUiAction.ReviewedYamlChanged("   \n  "))
+
+        viewModel.onAction(CreateDeploymentUiAction.ApplySubmitted)
+        advanceUntilIdle()
+
+        assertTrue(fakeDeploymentRepository.appliedManifests.isEmpty())
+        assertFalse(viewModel.uiState.value.isSubmitting)
+    }
+
+    @Test
+    fun `apply failure keeps review step edits and shows friendly error`() = vmTest { viewModel ->
         fakeDeploymentRepository.applyError =
             AppError.Unknown(message = "forbidden: deployments is forbidden")
-        fillValidForm()
+        fillValidForm(viewModel)
         viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
-        val reviewedYaml = viewModel.uiState.value.generatedYaml
-        assertNotNull(reviewedYaml)
+        val edited = viewModel.uiState.value.reviewedYaml + "\n# keep this edit"
+        viewModel.onAction(CreateDeploymentUiAction.ReviewedYamlChanged(edited))
 
         viewModel.onAction(CreateDeploymentUiAction.ApplySubmitted)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        // Still on review with everything the user entered preserved.
+        // Still on review with every edit preserved for another attempt.
         assertEquals(CreateDeploymentStep.REVIEW, state.step)
-        assertEquals(reviewedYaml, state.generatedYaml)
+        assertEquals(edited, state.reviewedYaml)
         assertEquals("web-app", state.name)
         assertEquals("nginx:1.27", state.image)
         assertEquals("8080", state.containerPort)
         assertEquals("team-a", state.namespace)
         assertFalse(state.isSubmitting)
-        assertEquals("forbidden: deployments is forbidden", state.errorMessage)
+        assertEquals(
+            "Couldn't create the deployment. Please try again in a moment.",
+            state.errorMessage,
+        )
+    }
+
+    @Test
+    fun `new namespace name validates live`() = vmTest { viewModel ->
+        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("Team_A"))
+        assertEquals(
+            "Use lowercase letters, numbers, and hyphens. It must start and end with a letter or number.",
+            viewModel.uiState.value.newNamespaceError,
+        )
+
+        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("-leading"))
+        assertNotNull(viewModel.uiState.value.newNamespaceError)
+
+        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("a".repeat(64)))
+        assertEquals("Must be 63 characters or fewer", viewModel.uiState.value.newNamespaceError)
+
+        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("team-b"))
+        assertNull(viewModel.uiState.value.newNamespaceError)
+    }
+
+    @Test
+    fun `namespace creation success appends selects and emits effect`() = vmTest { viewModel ->
+        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceClicked)
+        assertTrue(viewModel.uiState.value.showCreateNamespaceDialog)
+        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("team-b"))
+
+        val effects = mutableListOf<CreateDeploymentUiEffect>()
+        val collector = launch { viewModel.effects.collect { effects += it } }
+        runCurrent()
+
+        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceSubmitted)
+        advanceUntilIdle()
+        collector.cancel()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.showCreateNamespaceDialog)
+        assertFalse(state.isCreatingNamespace)
+        assertEquals(listOf("default", "team-a", "team-b"), state.availableNamespaces)
+        assertEquals("team-b", state.namespace)
+        assertEquals(listOf(CreateDeploymentUiEffect.NamespaceCreated), effects)
+        assertEquals(listOf("c-1" to "team-b"), fakePodRepository.createdNamespaces)
+    }
+
+    @Test
+    fun `namespace creation failure keeps dialog input and shows friendly message`() = vmTest { viewModel ->
+        fakePodRepository.createError = AppError.Unknown(message = "already exists")
+        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceClicked)
+        viewModel.onAction(CreateDeploymentUiAction.NewNamespaceNameChanged("team-b"))
+
+        viewModel.onAction(CreateDeploymentUiAction.CreateNamespaceSubmitted)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.showCreateNamespaceDialog)
+        assertEquals("team-b", state.newNamespaceName)
+        assertFalse(state.isCreatingNamespace)
+        assertEquals(
+            "Couldn't create that namespace. The name may already be taken.",
+            state.newNamespaceError,
+        )
+        assertFalse(state.availableNamespaces.contains("team-b"))
     }
 }
 
@@ -188,4 +294,109 @@ private class FakeDeploymentRepository : DeploymentRepository {
         val error = applyError ?: return Result.Success(Unit)
         return Result.Error(error)
     }
+
+    override suspend fun getDeployments(
+        clusterId: String?,
+        namespace: String?,
+    ): Result<List<dev.hridaya.kubenexus.domain.model.DeploymentSummary>> {
+        return Result.Success(emptyList())
+    }
+}
+
+/** Only [createNamespace] is exercised here; everything else is inert. */
+private class FakePodRepository : PodRepository {
+    var createError: AppError? = null
+    val createdNamespaces = mutableListOf<Pair<String?, String>>()
+
+    override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> {
+        createdNamespaces += clusterId to name
+        val error = createError ?: return Result.Success(Unit)
+        return Result.Error(error)
+    }
+
+    override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
+        flowOf(emptyList())
+
+    override fun getNamespacesStream(clusterId: String?): Flow<List<String>> =
+        flowOf(emptyList())
+
+    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = flowOf(null)
+
+    override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> =
+        Result.Success(Unit)
+
+    override suspend fun describePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+    ): Result<PodDetails> = Result.Error(AppError.Unknown(message = "not used"))
+
+    override suspend fun getPodMetrics(
+        clusterId: String?,
+        namespace: String?,
+    ): Result<List<PodMetricSample>> = Result.Success(emptyList())
+
+    override suspend fun getSinglePodMetrics(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+    ): Result<PodMetricSample?> = Result.Success(null)
+
+    override suspend fun deletePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+    ): Result<Unit> = Result.Success(Unit)
+
+    override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> =
+        Result.Success(Unit)
+
+    override suspend fun getPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?,
+        tailLines: Long?,
+    ): Result<String> = Result.Success("")
+
+    override fun streamPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?,
+        tailLines: Long?,
+    ): Flow<String> = emptyFlow()
+
+    override suspend fun execCommand(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        command: String,
+        stdin: String,
+    ): Result<CommandExecResult> = Result.Error(AppError.Unknown(message = "not used"))
+
+    override suspend fun startTerminalSession(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        onStdout: (String) -> Unit,
+        onStderr: (String) -> Unit,
+        onError: (String) -> Unit,
+        onDone: () -> Unit,
+    ): Result<TerminalSession> = Result.Error(AppError.Unknown(message = "not used"))
+
+    override suspend fun startExecSession(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        command: String,
+        tty: Boolean,
+        onStdout: (String) -> Unit,
+        onStderr: (String) -> Unit,
+        onError: (String) -> Unit,
+        onDone: () -> Unit,
+    ): Result<TerminalSession> = Result.Error(AppError.Unknown(message = "not used"))
 }

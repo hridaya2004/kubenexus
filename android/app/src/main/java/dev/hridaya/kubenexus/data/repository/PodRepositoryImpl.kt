@@ -299,6 +299,32 @@ class PodRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun createNamespace(
+        clusterId: String?,
+        name: String,
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.createNamespace(decryptedKubeconfig, name)
+            if (nativeResult.isSuccess) {
+                Result.Success(Unit)
+            } else {
+                val error = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(error?.message)
+                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create namespace $name" }))
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to create namespace '$name': $sanitizedMsg", t)
+            Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create namespace '$name'" }))
+        }
+    }
+
     override suspend fun getPodLogs(
         clusterId: String?,
         namespace: String,

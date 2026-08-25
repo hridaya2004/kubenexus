@@ -6,7 +6,13 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
+import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
+import dev.hridaya.kubenexus.data.source.local.dao.PodDao
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
+import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
+import dev.hridaya.kubenexus.data.source.local.entity.PodEntity
+import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
+import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +37,7 @@ class DeploymentRepositoryImplTest {
     private lateinit var encryptor: AesGcmKubeconfigEncryptor
     private lateinit var recordingBridge: RecordingBridge
     private lateinit var repository: DeploymentRepositoryImpl
+    private lateinit var podRepository: PodRepositoryImpl
 
     private val sampleKubeconfig = """
         apiVersion: v1
@@ -75,6 +82,15 @@ class DeploymentRepositoryImplTest {
 
         repository = DeploymentRepositoryImpl(
             clusterDao = fakeDao,
+            nativeBridge = recordingBridge,
+            encryptor = encryptor,
+            dispatcherProvider = testDispatcherProvider,
+        )
+
+        podRepository = PodRepositoryImpl(
+            clusterDao = fakeDao,
+            podDao = NoOpPodDao(),
+            namespaceDao = NoOpNamespaceDao(),
             nativeBridge = recordingBridge,
             encryptor = encryptor,
             dispatcherProvider = testDispatcherProvider,
@@ -163,6 +179,114 @@ class DeploymentRepositoryImplTest {
         assertEquals("connection reset by peer", error.message)
     }
 
+    @Test
+    fun `getDeployments fails when no cluster is selected`() = runTest(testDispatcher) {
+        val result = repository.getDeployments(clusterId = null, namespace = "default")
+
+        assertTrue(result is Result.Error)
+        assertEquals(
+            "No cluster selected",
+            (result as Result.Error).error.message,
+        )
+    }
+
+    @Test
+    fun `getDeployments fails when cluster id is unknown`() = runTest(testDispatcher) {
+        val result = repository.getDeployments(clusterId = "c-missing", namespace = "default")
+
+        assertTrue(result is Result.Error)
+        assertTrue((result as Result.Error).error is AppError.NotFound)
+        assertEquals(
+            "Cluster 'c-missing' not found",
+            result.error.message,
+        )
+    }
+
+    @Test
+    fun `getDeployments maps summaries and passes namespace verbatim`() = runTest(testDispatcher) {
+        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+        val summary = DeploymentSummary(
+            id = "web_nginx",
+            name = "nginx",
+            namespace = "web",
+            desiredReplicas = 3,
+            readyReplicas = 3,
+            availableReplicas = 3,
+            images = listOf("nginx:1.25"),
+            creationTimestampMillis = 1000L,
+        )
+        recordingBridge.listResultToReturn = Result.Success(listOf(summary))
+
+        // A blank namespace means all namespaces and must reach the bridge as-is.
+        val result = repository.getDeployments(clusterId = "c-1", namespace = "")
+
+        assertTrue(result is Result.Success)
+        assertEquals(listOf(summary), (result as Result.Success).data)
+        assertEquals(sampleKubeconfig, recordingBridge.capturedKubeconfig)
+        assertEquals("", recordingBridge.capturedListNamespace)
+    }
+
+    @Test
+    fun `getDeployments surfaces sanitized bridge error messages`() = runTest(testDispatcher) {
+        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+        recordingBridge.listResultToReturn = Result.Error(
+            AppError.Unknown("deployments.apps denied: token: secret-token-12345 rejected"),
+        )
+
+        val result = repository.getDeployments(clusterId = "c-1", namespace = "web")
+
+        assertTrue(result is Result.Error)
+        val error = (result as Result.Error).error
+        assertTrue(error is AppError.Network)
+        assertEquals(
+            "deployments.apps denied: token: [REDACTED] rejected",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `createNamespace fails when no cluster is selected`() = runTest(testDispatcher) {
+        val result = podRepository.createNamespace(clusterId = null, name = "team-a")
+
+        assertTrue(result is Result.Error)
+        assertEquals(
+            "No cluster selected",
+            (result as Result.Error).error.message,
+        )
+    }
+
+    @Test
+    fun `createNamespace passes decrypted kubeconfig and name to the bridge`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+
+            val result = podRepository.createNamespace(clusterId = "c-1", name = "team-a")
+
+            assertTrue(result is Result.Success)
+            assertEquals(Unit, (result as Result.Success).data)
+            // The bridge must receive the decrypted plaintext, never the stored ciphertext.
+            assertEquals(sampleKubeconfig, recordingBridge.capturedCreateNamespaceKubeconfig)
+            assertEquals("team-a", recordingBridge.capturedCreateNamespaceName)
+        }
+
+    @Test
+    fun `createNamespace surfaces sanitized bridge error messages`() = runTest(testDispatcher) {
+        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+        recordingBridge.createNamespaceResultToReturn = Result.Error(
+            AppError.Unknown("namespaces denied: token: secret-token-12345 rejected"),
+        )
+
+        val result = podRepository.createNamespace(clusterId = "c-1", name = "team-a")
+
+        assertTrue(result is Result.Error)
+        val error = (result as Result.Error).error
+        assertTrue(error is AppError.Network)
+        assertEquals(
+            "namespaces denied: token: [REDACTED] rejected",
+            error.message,
+        )
+    }
+
     private fun seedCluster(id: String, rawKubeconfig: String) {
         fakeDao.clusters[id] = ClusterEntity(
             id = id,
@@ -180,13 +304,21 @@ class DeploymentRepositoryImplTest {
     }
 
     /**
-     * Records every [createDeployment] argument so tests can assert exactly what
-     * crossed the bridge, then returns the preconfigured outcome.
+     * Records every [createDeployment], [listDeployments] and [createNamespace]
+     * argument so tests can assert exactly what crossed the bridge, then returns
+     * the preconfigured outcome.
      */
     private class RecordingBridge : FakeKubeNexusNativeBridge() {
         var capturedKubeconfig: String? = null
         var capturedNamespace: String? = null
         var capturedManifest: String? = null
+
+        var capturedListNamespace: String? = null
+        var listResultToReturn: Result<List<DeploymentSummary>>? = null
+
+        var capturedCreateNamespaceKubeconfig: String? = null
+        var capturedCreateNamespaceName: String? = null
+        var createNamespaceResultToReturn: Result<Unit>? = null
 
         var resultToReturn: Result<String>? = null
         var errorToThrow: Throwable? = null
@@ -202,6 +334,65 @@ class DeploymentRepositoryImplTest {
             errorToThrow?.let { throw it }
             return resultToReturn ?: Result.Success(manifestYaml)
         }
+
+        override fun listDeployments(
+            rawKubeconfig: String,
+            namespace: String?,
+        ): Result<List<DeploymentSummary>> {
+            capturedKubeconfig = rawKubeconfig
+            capturedListNamespace = namespace
+            errorToThrow?.let { throw it }
+            return listResultToReturn ?: Result.Success(emptyList())
+        }
+
+        override fun createNamespace(rawKubeconfig: String, name: String): Result<Unit> {
+            capturedCreateNamespaceKubeconfig = rawKubeconfig
+            capturedCreateNamespaceName = name
+            errorToThrow?.let { throw it }
+            return createNamespaceResultToReturn ?: Result.Success(Unit)
+        }
+    }
+
+    private class NoOpPodDao : PodDao {
+        override fun getPodsStream(clusterId: String): Flow<List<PodEntity>> =
+            MutableStateFlow(emptyList())
+
+        override fun getPodsByNamespaceStream(clusterId: String, namespace: String): Flow<List<PodEntity>> =
+            MutableStateFlow(emptyList())
+
+        override suspend fun getPodIdsForCluster(clusterId: String): List<String> = emptyList()
+
+        override suspend fun getPodIdsForNamespace(clusterId: String, namespace: String): List<String> =
+            emptyList()
+
+        override suspend fun getPodsList(clusterId: String): List<PodEntity> = emptyList()
+
+        override suspend fun insertPods(pods: List<PodEntity>) = Unit
+
+        override suspend fun deletePodsForCluster(clusterId: String) = Unit
+
+        override suspend fun deletePodsForNamespace(clusterId: String, namespace: String) = Unit
+
+        override suspend fun deletePod(podId: String) = Unit
+
+        override suspend fun deletePodsByIds(ids: List<String>) = Unit
+
+        override fun getSyncMetadataStream(key: String): Flow<Long?> = MutableStateFlow(null)
+
+        override suspend fun getLastRefreshedTime(key: String): Long? = null
+
+        override suspend fun insertSyncMetadata(metadata: SyncMetadataEntity) = Unit
+    }
+
+    private class NoOpNamespaceDao : NamespaceDao {
+        override fun getNamespacesStream(clusterId: String): Flow<List<NamespaceEntity>> =
+            MutableStateFlow(emptyList())
+
+        override suspend fun insertNamespaces(namespaces: List<NamespaceEntity>) = Unit
+
+        override suspend fun deleteNamespacesForCluster(clusterId: String) = Unit
+
+        override suspend fun deleteNamespace(clusterId: String, name: String) = Unit
     }
 
     private class FakeClusterDao : ClusterDao() {

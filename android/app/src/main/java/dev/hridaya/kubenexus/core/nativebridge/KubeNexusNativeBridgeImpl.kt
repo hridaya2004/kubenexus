@@ -13,9 +13,11 @@ import client.LogCallback
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.common.util.K8sNames
 import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.data.mapper.toDetails
 import dev.hridaya.kubenexus.data.mapper.toDomain
+import dev.hridaya.kubenexus.data.source.remote.dto.DeploymentListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.EventListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.K8sJson
 import dev.hridaya.kubenexus.data.source.remote.dto.NamespaceListDto
@@ -23,8 +25,10 @@ import dev.hridaya.kubenexus.data.source.remote.dto.PodDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsListDto
+import dev.hridaya.kubenexus.data.source.remote.dto.toDomain
 import dev.hridaya.kubenexus.data.source.remote.dto.toSample
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
@@ -184,6 +188,25 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             K8sJson.decodeFromString<NamespaceListDto>(json).items.map { it.toDomain(now) }
         }
 
+    override fun createNamespace(rawKubeconfig: String, name: String): Result<Unit> {
+        // The name is interpolated into a YAML manifest, so the format guard is
+        // also injection defense, not just UX validation.
+        if (!K8sNames.isValidDnsLabel(name)) {
+            return Result.Error(
+                AppError.Validation("Namespace name must be a lowercase DNS label of up to 63 characters"),
+            )
+        }
+        val manifestYaml = """
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: $name
+        """.trimIndent()
+        return nativeCatching("Failed to create namespace from native client") {
+            clientFor(rawKubeconfig).createResource(namespacesResource, "", manifestYaml)
+        }
+    }
+
     override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> =
         nativeCatching("Failed to delete namespace '$namespace' from native client") {
             clientFor(rawKubeconfig).deleteResource(namespacesResource, "", namespace, null)
@@ -252,6 +275,19 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     ): Result<Unit> =
         nativeCatching("Failed to deletePod '$podName' from native client") {
             clientFor(rawKubeconfig).deleteResource(podsResource, namespace, podName, null)
+        }
+
+    override fun listDeployments(
+        rawKubeconfig: String,
+        namespace: String?,
+    ): Result<List<DeploymentSummary>> =
+        nativeCatching("Failed to list deployments from native client") {
+            val json = clientFor(rawKubeconfig).listJSON(
+                deploymentsResource,
+                normalizeNamespace(namespace),
+                null,
+            )
+            K8sJson.decodeFromString<DeploymentListDto>(json).items.map { it.toDomain() }
         }
 
     override fun createDeployment(

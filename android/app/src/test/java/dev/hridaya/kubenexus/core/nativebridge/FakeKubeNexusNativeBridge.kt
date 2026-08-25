@@ -7,6 +7,7 @@ import client.LogCallback
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
@@ -40,6 +41,14 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
         labelSelector: String,
         limit: Long,
     ): Result<List<Pod>> = Result.Success(emptyList())
+
+    override fun listDeployments(
+        rawKubeconfig: String,
+        namespace: String?,
+    ): Result<List<DeploymentSummary>> = Result.Success(emptyList())
+
+    override fun createNamespace(rawKubeconfig: String, name: String): Result<Unit> =
+        Result.Success(Unit)
 
     override fun listNamespaces(rawKubeconfig: String): Result<List<Namespace>> =
         Result.Success(emptyList())

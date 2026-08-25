@@ -249,6 +249,13 @@ class ClusterRepositoryImplTest {
             notifyChanges()
         }
 
+        override suspend fun deletePodsForCluster(id: String) = Unit
+        override suspend fun deleteNamespacesForCluster(id: String) = Unit
+        override suspend fun deleteAPIResourcesForCluster(id: String) = Unit
+        override suspend fun deleteExplainedResourcesForCluster(id: String) = Unit
+        override suspend fun deleteOpenApiSchemaForCluster(id: String) = Unit
+        override suspend fun deleteSyncMetadataForCluster(id: String) = Unit
+
         override suspend fun deactivateAllClusters() {
             storage.replaceAll { _, v -> v.copy(isActive = false) }
             notifyChanges()

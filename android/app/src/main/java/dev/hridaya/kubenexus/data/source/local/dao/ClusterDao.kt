@@ -33,6 +33,43 @@ abstract class ClusterDao {
     @Query("DELETE FROM clusters WHERE id = :id")
     abstract suspend fun deleteCluster(id: String)
 
+    @Query("DELETE FROM pods WHERE clusterId = :id")
+    abstract suspend fun deletePodsForCluster(id: String)
+
+    @Query("DELETE FROM namespaces WHERE clusterId = :id")
+    abstract suspend fun deleteNamespacesForCluster(id: String)
+
+    @Query("DELETE FROM api_resources WHERE clusterId = :id")
+    abstract suspend fun deleteAPIResourcesForCluster(id: String)
+
+    @Query("DELETE FROM explained_resources WHERE clusterId = :id")
+    abstract suspend fun deleteExplainedResourcesForCluster(id: String)
+
+    @Query("DELETE FROM open_api_schemas WHERE clusterId = :id")
+    abstract suspend fun deleteOpenApiSchemaForCluster(id: String)
+
+    @Query("DELETE FROM sync_metadata WHERE clusterId = :id")
+    abstract suspend fun deleteSyncMetadataForCluster(id: String)
+
+    /**
+     * Removes a cluster and everything cached against it.
+     *
+     * The child tables carry a plain `clusterId` column with no foreign key, so
+     * nothing cascades automatically. Deleting only the cluster row orphaned its
+     * cached data permanently; the OpenAPI schema blob in particular is the
+     * largest row in the database.
+     */
+    @Transaction
+    open suspend fun deleteClusterWithCachedData(id: String) {
+        deleteOpenApiSchemaForCluster(id)
+        deleteExplainedResourcesForCluster(id)
+        deleteAPIResourcesForCluster(id)
+        deleteNamespacesForCluster(id)
+        deletePodsForCluster(id)
+        deleteSyncMetadataForCluster(id)
+        deleteCluster(id)
+    }
+
     @Query("UPDATE clusters SET isActive = 0")
     abstract suspend fun deactivateAllClusters()
 

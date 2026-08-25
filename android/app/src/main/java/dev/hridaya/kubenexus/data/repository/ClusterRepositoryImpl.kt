@@ -119,7 +119,9 @@ class ClusterRepositoryImpl @Inject constructor(
     override suspend fun deleteCluster(id: String): Result<Unit> =
         withContext(dispatcherProvider.io) {
             try {
-                clusterDao.deleteCluster(id)
+                // Removes the cached pods, namespaces, discovery, explains and
+                // OpenAPI schema blob along with the cluster row.
+                clusterDao.deleteClusterWithCachedData(id)
                 Result.Success(Unit)
             } catch (t: Throwable) {
                 val sanitizedMsg = LogSanitizer.sanitize(t.message)

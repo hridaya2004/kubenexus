@@ -1,45 +1,93 @@
 package dev.hridaya.kubenexus.core.common.util
 
-import kotlin.math.pow
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.math.RoundingMode
 
 /**
- * Parses Kubernetes resource quantities ("100m", "2501k", "128Mi") into plain
- * numbers. CPU quantities resolve to cores; memory quantities to bytes.
+ * Parses Kubernetes resource quantities ("100m", "2501k", "128Mi", "1e3") into
+ * plain numbers. CPU quantities resolve to cores; memory quantities to bytes.
+ *
+ * Returns null rather than zero for anything it cannot parse. A silent zero is
+ * indistinguishable from genuine zero usage once it reaches a chart, so callers
+ * are forced to decide what an unparseable value means.
+ *
+ * Follows the quantity grammar in k8s.io/apimachinery/pkg/api/resource:
+ *
+ *     <quantity>        ::= <signedNumber><suffix>
+ *     <suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI>
+ *     <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei
+ *     <decimalSI>       ::= n | u | m | "" | k | M | G | T | P | E
+ *     <decimalExponent> ::= ("e" | "E") <signedNumber>
+ *
+ * BigDecimal is used throughout because Ei (2^60) exceeds the 53-bit mantissa of
+ * a Double and would otherwise be returned inexactly.
  */
 object QuantityParser {
 
-    private val CPU_SUFFIXES = mapOf(
-        "n" to 1e-9,
-        "u" to 1e-6,
-        "m" to 1e-3,
-        "" to 1.0,
-        "k" to 1e3,
+    // The exponent group is matched before the suffix group, which disambiguates
+    // "1E3" (one thousand) from "1E" (one exa) and "1Ei" (one exbibyte): the
+    // exponent form requires digits after the e/E.
+    private val QUANTITY =
+        Regex("""^([+-]?(?:\d+(?:\.\d+)?|\.\d+))([eE][+-]?\d+)?([A-Za-z]*)$""")
+
+    /** Powers of ten, keyed by decimal SI suffix. */
+    private val DECIMAL_SI = mapOf(
+        "n" to -9,
+        "u" to -6,
+        "m" to -3,
+        "k" to 3,
+        "M" to 6,
+        "G" to 9,
+        "T" to 12,
+        "P" to 15,
+        "E" to 18,
     )
 
-    private val BINARY_SUFFIXES = mapOf(
-        "" to 1.0,
-        "Ki" to 1024.0,
-        "Mi" to 1024.0.pow(2),
-        "Gi" to 1024.0.pow(3),
-        "Ti" to 1024.0.pow(4),
-        "k" to 1e3,
-        "K" to 1e3,
-        "M" to 1e6,
-        "G" to 1e9,
-        "T" to 1e12,
+    /** Powers of two, keyed by binary SI suffix. */
+    private val BINARY_SI = mapOf(
+        "Ki" to 10,
+        "Mi" to 20,
+        "Gi" to 30,
+        "Ti" to 40,
+        "Pi" to 50,
+        "Ei" to 60,
     )
 
-    fun parseCores(raw: String?): Double = parse(raw, CPU_SUFFIXES)
+    /** Returns CPU cores, or null when [raw] is absent or unparseable. */
+    fun parseCores(raw: String?): Double? = parse(raw)?.toDouble()
 
-    fun parseBytes(raw: String?): Long = parse(raw, BINARY_SUFFIXES).toLong()
+    /**
+     * Returns whole bytes, or null when [raw] is absent, unparseable, or larger
+     * than [Long] can represent. Fractional bytes are truncated.
+     */
+    fun parseBytes(raw: String?): Long? = parse(raw)?.let { value ->
+        try {
+            value.setScale(0, RoundingMode.DOWN).longValueExact()
+        } catch (_: ArithmeticException) {
+            null
+        }
+    }
 
-    private fun parse(raw: String?, suffixes: Map<String, Double>): Double {
-        if (raw.isNullOrBlank()) return 0.0
-        val value = raw.trim()
-        val splitAt = value.indexOfFirst { !it.isDigit() && it != '.' && it != '-' }
-        if (splitAt < 0) return value.toDoubleOrNull() ?: 0.0
-        val number = value.take(splitAt).toDoubleOrNull() ?: return 0.0
-        val multiplier = suffixes[value.substring(splitAt)] ?: return 0.0
-        return number * multiplier
+    private fun parse(raw: String?): BigDecimal? {
+        if (raw.isNullOrBlank()) return null
+        val match = QUANTITY.matchEntire(raw.trim()) ?: return null
+        val (numberPart, exponentPart, suffix) = match.destructured
+
+        var value = numberPart.toBigDecimalOrNull() ?: return null
+
+        if (exponentPart.isNotEmpty()) {
+            val exponent = exponentPart.drop(1).toIntOrNull() ?: return null
+            value = value.scaleByPowerOfTen(exponent)
+        }
+
+        return when {
+            suffix.isEmpty() -> value
+            BINARY_SI.containsKey(suffix) ->
+                value.multiply(BigDecimal(BigInteger.valueOf(2).pow(BINARY_SI.getValue(suffix))))
+            DECIMAL_SI.containsKey(suffix) ->
+                value.scaleByPowerOfTen(DECIMAL_SI.getValue(suffix))
+            else -> null
+        }
     }
 }

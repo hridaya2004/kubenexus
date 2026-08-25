@@ -30,14 +30,26 @@ data class PodMetricsListDto(
     val items: List<PodMetricsDto> = emptyList(),
 )
 
+/**
+ * Sums container usage into a single sample.
+ *
+ * Returns null when any container's usage cannot be parsed. A partial sum would
+ * be plotted as a real, lower-than-actual figure, which is worse than showing no
+ * point at all, so the whole sample is dropped instead.
+ */
 fun PodMetricsDto.toSample(): PodMetricSample? {
     if (metadata.name.isBlank()) return null
+    if (containers.isEmpty()) return null
+
     var cpuCores = 0.0
     var memoryBytes = 0L
     containers.forEach { container ->
-        cpuCores += QuantityParser.parseCores(container.usage.cpu)
-        memoryBytes += QuantityParser.parseBytes(container.usage.memory)
+        val cpu = QuantityParser.parseCores(container.usage.cpu) ?: return null
+        val memory = QuantityParser.parseBytes(container.usage.memory) ?: return null
+        cpuCores += cpu
+        memoryBytes += memory
     }
+
     return PodMetricSample(
         podName = metadata.name,
         timestampMillis = K8sTime.parseTimestampMillis(timestamp) ?: System.currentTimeMillis(),

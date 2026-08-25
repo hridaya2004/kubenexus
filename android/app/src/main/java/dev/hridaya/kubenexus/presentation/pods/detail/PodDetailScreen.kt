@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.ContainerDetail
 import dev.hridaya.kubenexus.domain.model.PodConditionDetail
@@ -69,6 +70,14 @@ fun PodDetailRoute(
                 is PodDetailUiEffect.NavigateBack -> onNavigateBack()
             }
         }
+    }
+
+    // Metrics polling is tied to the screen being visible. The ViewModel outlives
+    // the UI, so starting the poll loop in its init kept it running while the app
+    // was backgrounded.
+    LifecycleStartEffect(viewModel) {
+        viewModel.startMetricsPolling()
+        onStopOrDispose { viewModel.stopMetricsPolling() }
     }
 
     PodDetailScreen(

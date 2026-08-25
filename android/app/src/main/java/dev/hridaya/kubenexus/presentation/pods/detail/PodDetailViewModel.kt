@@ -38,6 +38,13 @@ import kotlinx.coroutines.launch
 
 private const val METRICS_POLL_INTERVAL_MS = 5_000L
 
+/**
+ * Backoff ceiling for a metrics endpoint that keeps failing. metrics-server is
+ * optional, so a cluster without it returns 404 on every poll; retrying at the
+ * normal cadence forever would waste battery and data for no possible benefit.
+ */
+private const val METRICS_MAX_BACKOFF_MS = 160_000L
+
 @HiltViewModel(assistedFactory = PodDetailViewModel.Factory::class)
 class PodDetailViewModel @AssistedInject constructor(
     @Assisted("podName") private val podName: String,
@@ -86,43 +93,64 @@ class PodDetailViewModel @AssistedInject constructor(
         terminalEngine.initialize(80, 24)
         observeNetwork()
         loadClusterAndDescribe()
-        startMetricsPolling()
     }
 
     /**
-     * Samples `kubectl top pods` every few seconds into a rolling buffer that
-     * covers the widest selectable range. Poll cadence is fixed; the dropdown
-     * only changes how much history the chart shows.
+     * Starts sampling pod usage into a rolling buffer covering the widest
+     * selectable range. Poll cadence is fixed; the dropdown only changes how much
+     * history the chart shows.
+     *
+     * Driven by the screen's lifecycle rather than started in `init`, because a
+     * ViewModel outlives the UI being visible: polling from `init` continued
+     * while the app sat in the background.
      */
-    private fun startMetricsPolling() {
+    fun startMetricsPolling() {
         if (metricsJob?.isActive == true) return
         metricsJob = viewModelScope.launch(dispatcherProvider.io) {
+            var backoffMs = METRICS_POLL_INTERVAL_MS
             while (isActive) {
-                if (_uiState.value.isOnline && _uiState.value.podDetails != null) {
-                    fetchMetricsSample()
+                val shouldPoll = _uiState.value.isOnline && _uiState.value.podDetails != null
+                if (shouldPoll) {
+                    backoffMs = if (fetchMetricsSample()) {
+                        METRICS_POLL_INTERVAL_MS
+                    } else {
+                        (backoffMs * 2).coerceAtMost(METRICS_MAX_BACKOFF_MS)
+                    }
                 }
-                delay(METRICS_POLL_INTERVAL_MS)
+                delay(if (shouldPoll) backoffMs else METRICS_POLL_INTERVAL_MS)
             }
         }
     }
 
-    private suspend fun fetchMetricsSample() {
-        val clusterId = activeClusterId ?: return
-        when (val result = getPodMetricsUseCase(clusterId, namespace)) {
+    /** Suspends sampling while the screen is not visible. */
+    fun stopMetricsPolling() {
+        metricsJob?.cancel()
+        metricsJob = null
+    }
+
+    /** Returns true when the endpoint responded, regardless of whether it had a sample. */
+    private suspend fun fetchMetricsSample(): Boolean {
+        val clusterId = activeClusterId ?: return false
+        return when (val result = getPodMetricsUseCase.forPod(clusterId, namespace, podName)) {
             is Result.Success -> {
-                val sample = result.data.firstOrNull { it.podName == podName } ?: return
-                val cutoff = System.currentTimeMillis() - MetricsRange.MINUTES_5.durationMs
-                _uiState.update { state ->
-                    state.copy(
-                        isLoadingMetrics = false,
-                        metricsSamples = (state.metricsSamples + sample)
-                            .filter { it.timestampMillis >= cutoff }
-                            .sortedBy { it.timestampMillis },
-                    )
+                result.data?.let { sample ->
+                    val cutoff = System.currentTimeMillis() - MetricsRange.MINUTES_5.durationMs
+                    _uiState.update { state ->
+                        state.copy(
+                            metricsSamples = (state.metricsSamples + sample)
+                                .filter { it.timestampMillis >= cutoff }
+                                .sortedBy { it.timestampMillis },
+                        )
+                    }
                 }
+                _uiState.update { it.copy(isLoadingMetrics = false) }
+                true
             }
-            is Result.Error -> _uiState.update { it.copy(isLoadingMetrics = false) }
-            is Result.Loading -> Unit
+            is Result.Error -> {
+                _uiState.update { it.copy(isLoadingMetrics = false) }
+                false
+            }
+            is Result.Loading -> false
         }
     }
 

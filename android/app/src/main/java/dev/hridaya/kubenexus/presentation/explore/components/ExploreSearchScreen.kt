@@ -27,8 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -58,7 +56,6 @@ import androidx.compose.material3.CircularProgressIndicator
 @Composable
 fun ExploreSearchScreen(
     uiState: ExploreUiState,
-    snackbarHostState: SnackbarHostState,
     onAction: (ExploreUiAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -86,7 +83,6 @@ fun ExploreSearchScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Transparent,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -286,7 +282,6 @@ private fun ExploreSearchScreenPreview() {
                 filteredResources = listOf(sampleResource),
                 pagedResources = listOf(sampleResource),
             ),
-            snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
         )
     }

@@ -28,8 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -56,7 +54,6 @@ import androidx.compose.runtime.derivedStateOf
 @Composable
 fun ExploreListView(
     uiState: ExploreUiState,
-    snackbarHostState: SnackbarHostState,
     onAction: (ExploreUiAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -79,7 +76,6 @@ fun ExploreListView(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Transparent,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -298,7 +294,6 @@ private fun ExploreListViewPreview() {
                 filteredResources = listOf(sampleResource),
                 pagedResources = listOf(sampleResource),
             ),
-            snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
         )
     }

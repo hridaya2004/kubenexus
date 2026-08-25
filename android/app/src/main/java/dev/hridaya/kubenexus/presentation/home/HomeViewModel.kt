@@ -386,7 +386,7 @@ class HomeViewModel @Inject constructor(
                             clusterConnectionStatus = ClusterConnectionStatus.DISCONNECTED,
                         )
                     }
-                    _effects.send(HomeUiEffect.ShowSnackbar("Failed to fetch pods: ${result.error.message}"))
+                    _effects.send(HomeUiEffect.ShowToast("Couldn't load your pods right now. Check that the cluster is reachable and try again."))
                 }
 
                 is Result.Loading -> Unit
@@ -552,7 +552,7 @@ class HomeViewModel @Inject constructor(
                 }
 
                 is Result.Error -> {
-                    _effects.send(HomeUiEffect.ShowSnackbar("Failed to rename cluster: ${result.error.message}"))
+                    _effects.send(HomeUiEffect.ShowToast("Couldn't rename the cluster. Please try again."))
                 }
 
                 is Result.Loading -> Unit
@@ -564,11 +564,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(dispatcherProvider.main) {
             when (val result = deleteClusterUseCase(clusterId)) {
                 is Result.Success -> {
-                    _effects.send(HomeUiEffect.ShowSnackbar("Cluster removed."))
+                    _effects.send(HomeUiEffect.ShowToast("Cluster removed"))
                 }
 
                 is Result.Error -> {
-                    _effects.send(HomeUiEffect.ShowSnackbar("Failed to remove cluster: ${result.error.message}"))
+                    _effects.send(HomeUiEffect.ShowToast("Couldn't remove the cluster. Check your connection and try again."))
                 }
 
                 is Result.Loading -> Unit
@@ -592,7 +592,7 @@ class HomeViewModel @Inject constructor(
                     if (_selectedNamespace.value == namespace) {
                         _selectedNamespace.value = "All Namespaces"
                     }
-                    _effects.send(HomeUiEffect.ShowSnackbar("Namespace '$namespace' deleted successfully."))
+                    _effects.send(HomeUiEffect.ShowToast("Namespace deleted"))
                     performRefresh(
                         activeClusterId,
                         _selectedNamespace.value,
@@ -602,7 +602,7 @@ class HomeViewModel @Inject constructor(
 
                 is Result.Error -> {
                     _uiState.update { it.copy(isDeletingNamespace = false) }
-                    _effects.send(HomeUiEffect.ShowSnackbar("Failed to delete namespace '$namespace': ${result.error.message}"))
+                    _effects.send(HomeUiEffect.ShowToast("Couldn't delete this namespace. It may still contain workloads, or the cluster is unreachable."))
                 }
 
                 is Result.Loading -> Unit

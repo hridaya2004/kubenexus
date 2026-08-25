@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,8 +33,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,13 +67,12 @@ fun LogcatRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is LogcatUiEvent.ShowMessage -> {
-                    snackbarHostState.showSnackbar(event.message)
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
 
                 is LogcatUiEvent.ShareText -> {
@@ -100,7 +98,6 @@ fun LogcatRoute(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
-        snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
 }
@@ -111,7 +108,6 @@ fun LogcatScreen(
     onAction: (LogcatUiAction) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
@@ -151,7 +147,6 @@ fun LogcatScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             LogcatTopBar(
                 uiState = uiState,

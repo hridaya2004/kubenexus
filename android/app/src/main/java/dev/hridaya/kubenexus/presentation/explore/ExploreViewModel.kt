@@ -261,7 +261,7 @@ class ExploreViewModel @Inject constructor(
                     }
                     _events.send(
                         ExploreUiEvent.ShowMessage(
-                            result.error.message ?: "Failed to refresh API resources"
+                            "Couldn't refresh your resources. Check your connection and try again."
                         )
                     )
                 }
@@ -348,8 +348,7 @@ class ExploreViewModel @Inject constructor(
                     }
                     _events.send(
                         ExploreUiEvent.ShowMessage(
-                            result.error.message
-                                ?: "Failed to refresh explanation for ${resource.kind}",
+                            "Couldn't load details for ${resource.kind}. Please try again in a moment.",
                         ),
                     )
                 }

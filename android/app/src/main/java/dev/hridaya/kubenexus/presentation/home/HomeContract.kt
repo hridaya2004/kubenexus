@@ -83,6 +83,5 @@ sealed interface HomeUiAction {
 
 sealed interface HomeUiEffect {
     data class ShowToast(val message: String) : HomeUiEffect
-    data class ShowSnackbar(val message: String) : HomeUiEffect
     data object NavigateToHome : HomeUiEffect
 }

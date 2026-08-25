@@ -3,12 +3,11 @@ package dev.hridaya.kubenexus.presentation.explore
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,13 +26,12 @@ fun ExploreRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is ExploreUiEvent.ShowMessage -> {
-                    snackbarHostState.showSnackbar(event.message)
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
 
                 is ExploreUiEvent.CopyToClipboard -> {
@@ -60,7 +58,6 @@ fun ExploreRoute(
         uiState = uiState,
         onAction = viewModel::onAction,
         modifier = modifier,
-        snackbarHostState = snackbarHostState,
     )
 }
 
@@ -69,14 +66,12 @@ fun ExploreScreen(
     uiState: ExploreUiState,
     onAction: (ExploreUiAction) -> Unit,
     modifier: Modifier = Modifier,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     when {
         uiState.selectedResource != null -> {
             ExploreExplainDetailView(
                 resource = uiState.selectedResource,
                 uiState = uiState,
-                snackbarHostState = snackbarHostState,
                 onAction = onAction,
                 onNavigateBack = { onAction(ExploreUiAction.DismissExplain) },
                 modifier = modifier,
@@ -86,7 +81,6 @@ fun ExploreScreen(
         uiState.isSearchActive -> {
             ExploreSearchScreen(
                 uiState = uiState,
-                snackbarHostState = snackbarHostState,
                 onAction = onAction,
                 modifier = modifier,
             )
@@ -95,7 +89,6 @@ fun ExploreScreen(
         else -> {
             ExploreListView(
                 uiState = uiState,
-                snackbarHostState = snackbarHostState,
                 onAction = onAction,
                 modifier = modifier,
             )

@@ -39,14 +39,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,7 +65,6 @@ import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 fun ExploreExplainDetailView(
     resource: APIResource,
     uiState: ExploreUiState,
-    snackbarHostState: SnackbarHostState,
     onAction: (ExploreUiAction) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -77,7 +73,6 @@ fun ExploreExplainDetailView(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Transparent,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -94,7 +89,7 @@ fun ExploreExplainDetailView(
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clip = ClipData.newPlainText("Command", "kubectl explain ${resource.name}")
                                 clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "Copied: kubectl explain ${resource.name}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Command copied", Toast.LENGTH_SHORT).show()
                             },
                         )
                     }
@@ -393,7 +388,6 @@ private fun ExploreExplainDetailViewPreview() {
                     lastUpdated = System.currentTimeMillis(),
                 ),
             ),
-            snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
             onNavigateBack = {},
         )

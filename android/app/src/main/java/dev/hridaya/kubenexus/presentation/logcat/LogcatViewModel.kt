@@ -96,7 +96,7 @@ class LogcatViewModel @Inject constructor(
                             levelCounts = emptyMap(),
                         )
                     }
-                    _events.send(LogcatUiEvent.ShowMessage("Logcat buffer cleared"))
+                    _events.send(LogcatUiEvent.ShowMessage("Logs cleared"))
                 }
             }
 
@@ -110,7 +110,11 @@ class LogcatViewModel @Inject constructor(
 
                         is Result.Error -> {
                             _uiState.update { it.copy(isLoading = false) }
-                            _events.send(LogcatUiEvent.ShowMessage("Failed to dump logcat"))
+                            _events.send(
+                                LogcatUiEvent.ShowMessage(
+                                    "Couldn't export your logs right now. Please try again.",
+                                ),
+                            )
                         }
 
                         Result.Loading -> Unit

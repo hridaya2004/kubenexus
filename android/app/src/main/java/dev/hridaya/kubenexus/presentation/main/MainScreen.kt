@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.presentation.main
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,12 +16,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentRoute
+import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentUiEffect
+import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentViewModel
 import dev.hridaya.kubenexus.presentation.explore.ExploreRoute
 import dev.hridaya.kubenexus.presentation.explore.ExploreViewModel
 import dev.hridaya.kubenexus.presentation.home.HomeRoute
+import dev.hridaya.kubenexus.presentation.home.HomeUiAction
 import dev.hridaya.kubenexus.presentation.home.HomeUiEffect
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.home.ManageClustersScreen
@@ -42,6 +48,7 @@ fun MainScreen(
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
     var isViewingPods by rememberSaveable { mutableStateOf(false) }
     var isViewingLogcat by rememberSaveable { mutableStateOf(false) }
+    var isCreatingDeployment by rememberSaveable { mutableStateOf(false) }
     var selectedPodName by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPodNamespace by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -51,6 +58,7 @@ fun MainScreen(
                 isManagingClusters = false
                 isViewingPods = false
                 isViewingLogcat = false
+                isCreatingDeployment = false
                 selectedPodName = null
                 selectedPodNamespace = null
                 currentDestination = Destination.Home
@@ -121,6 +129,42 @@ fun MainScreen(
             )
         }
 
+        isCreatingDeployment -> {
+            val context = LocalContext.current
+            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val createDeploymentViewModel: CreateDeploymentViewModel = hiltViewModel(
+                key = "create_deployment",
+                creationCallback = { factory: CreateDeploymentViewModel.Factory ->
+                    factory.create(
+                        clusterId = homeUiState.activeCluster?.id,
+                        namespace = homeUiState.selectedNamespace
+                            .takeIf { it.isNotBlank() && it != "All Namespaces" }
+                            ?: "default",
+                    )
+                },
+            )
+            LaunchedEffect(createDeploymentViewModel.effects) {
+                createDeploymentViewModel.effects.collect { effect ->
+                    if (effect is CreateDeploymentUiEffect.Created) {
+                        isCreatingDeployment = false
+                        Toast.makeText(
+                            context,
+                            "Deployment '${effect.deploymentName}' created successfully",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
+                    }
+                }
+            }
+            BackHandler { isCreatingDeployment = false }
+            CreateDeploymentRoute(
+                viewModel = createDeploymentViewModel,
+                availableNamespaces = homeUiState.availableNamespaces.filterNot { it == "All Namespaces" },
+                onNavigateBack = { isCreatingDeployment = false },
+                modifier = modifier,
+            )
+        }
+
         else -> {
             NavigationSuiteScaffold(
                 navigationSuiteItems = {
@@ -161,6 +205,7 @@ fun MainScreen(
                                 viewModel = homeViewModel,
                                 onNavigateToManageClusters = { isManagingClusters = true },
                                 onNavigateToPods = { isViewingPods = true },
+                                onNavigateToCreateDeployment = { isCreatingDeployment = true },
                             )
                         }
 

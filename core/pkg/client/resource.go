@@ -2,12 +2,14 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 )
 
 // ListOptions mirrors metav1.ListOptions using only field types that Gomobile
@@ -228,6 +230,77 @@ func (c *Client) DeleteResource(gvr *GroupVersionResource, namespace, name strin
 		return fmt.Errorf("deleting %s %q: %w", resource.String(), name, err)
 	}
 	return nil
+}
+
+// CreateResource creates any object from a JSON or YAML manifest.
+// Pass an empty namespace to use the manifest's own metadata.namespace;
+// a non-empty namespace overrides it.
+func (c *Client) CreateResource(gvr *GroupVersionResource, namespace, manifest string) (string, error) {
+	if c == nil || c.dynamic == nil {
+		return "", fmt.Errorf("client is not configured")
+	}
+	resource, err := gvr.validate()
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(manifest) == "" {
+		return "", fmt.Errorf("manifest is required")
+	}
+
+	// YAMLToJSON also accepts pure JSON input, so both manifest flavors take
+	// the same path.
+	data, err := yaml.YAMLToJSON([]byte(manifest))
+	if err != nil {
+		return "", fmt.Errorf("parsing manifest: %w", err)
+	}
+	// Decoding through a plain map first lets us report missing apiVersion or
+	// kind ourselves: unstructured's own JSON decoding rejects those before we
+	// could phrase the error.
+	var content map[string]any
+	if err := json.Unmarshal(data, &content); err != nil {
+		return "", fmt.Errorf("decoding manifest: %w", err)
+	}
+	obj := &unstructured.Unstructured{Object: content}
+	if obj.GetAPIVersion() == "" {
+		return "", fmt.Errorf("manifest is missing apiVersion")
+	}
+	if obj.GetKind() == "" {
+		return "", fmt.Errorf("manifest is missing kind")
+	}
+	if obj.GetName() == "" {
+		return "", fmt.Errorf("manifest is missing metadata.name")
+	}
+
+	ns := strings.TrimSpace(namespace)
+	if ns != "" {
+		obj.SetNamespace(ns)
+	} else {
+		// Fall back to the manifest's own namespace; still empty means the
+		// object is cluster-scoped and the request uses the unnamespaced path.
+		ns = obj.GetNamespace()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	var created *unstructured.Unstructured
+	name := obj.GetName()
+	if ns == "" {
+		created, err = c.dynamic.Resource(resource).Create(ctx, obj, metav1.CreateOptions{})
+	} else {
+		created, err = c.dynamic.Resource(resource).Namespace(ns).Create(ctx, obj, metav1.CreateOptions{})
+	}
+	if err != nil {
+		return "", fmt.Errorf("creating %s %q: %w", resource.String(), name, err)
+	}
+
+	stripManagedFields(created)
+
+	data, err = created.MarshalJSON()
+	if err != nil {
+		return "", fmt.Errorf("marshaling %s %q: %w", resource.String(), name, err)
+	}
+	return string(data), nil
 }
 
 // Well-known resource identifiers, exposed so Android does not have to hardcode

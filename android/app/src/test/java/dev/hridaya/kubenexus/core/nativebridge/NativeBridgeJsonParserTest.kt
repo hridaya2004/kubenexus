@@ -2,6 +2,7 @@ package dev.hridaya.kubenexus.core.nativebridge
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -128,5 +129,57 @@ class NativeBridgeJsonParserTest {
             "Core pod.",
             parser.resolveResourceExplain(schema, "pod", "v1").description,
         )
+    }
+
+    // The repository parses the document once and reuses the definitions map for
+    // both the GVK lookup and the name-based fallback. These pin that the
+    // pre-parsed overloads behave identically to the String ones, since a
+    // multi-megabyte document was previously parsed up to four times per call.
+    @Test
+    fun `parseDefinitions returns the definitions map or null`() {
+        val schema = loadFixture("openapi-pod-schema.json")
+
+        val definitions = parser.parseDefinitions(schema)
+        assertNotNull(definitions)
+        assertTrue(definitions!!.has("io.k8s.api.core.v1.Pod"))
+
+        assertNull(parser.parseDefinitions(""))
+        assertNull(parser.parseDefinitions("   "))
+        assertNull(parser.parseDefinitions("""{"paths":{}}"""))
+    }
+
+    @Test
+    fun `pre-parsed findDefinitionByGVK matches the string overload`() {
+        val schema = loadFixture("openapi-pod-schema.json")
+        val definitions = parser.parseDefinitions(schema)!!
+
+        val fromString = parser.findDefinitionByGVK(schema, "", "v1", "Pod")
+        val fromParsed = parser.findDefinitionByGVK(definitions, "", "v1", "Pod")
+
+        assertNotNull(fromString)
+        assertEquals(fromString, fromParsed)
+        assertEquals("Pod", fromParsed!!.kind)
+    }
+
+    @Test
+    fun `pre-parsed findDefinition matches the string overload`() {
+        val schema = loadFixture("openapi-pod-schema.json")
+        val definitions = parser.parseDefinitions(schema)!!
+
+        val fromString = parser.findDefinition(schema, "pods", "v1")
+        val fromParsed = parser.findDefinition(definitions, "pods", "v1")
+
+        assertNotNull(fromString)
+        assertEquals(fromString, fromParsed)
+    }
+
+    @Test
+    fun `pre-parsed lookups agree on a miss`() {
+        val definitions = parser.parseDefinitions(loadFixture("openapi-pod-schema.json"))!!
+
+        assertNull(parser.findDefinitionByGVK(definitions, "acme.io", "v1", "Widget"))
+        assertNull(parser.findDefinition(definitions, "widgets", "acme.io/v1"))
+        // A blank kind cannot be resolved by GVK.
+        assertNull(parser.findDefinitionByGVK(definitions, "", "v1", ""))
     }
 }

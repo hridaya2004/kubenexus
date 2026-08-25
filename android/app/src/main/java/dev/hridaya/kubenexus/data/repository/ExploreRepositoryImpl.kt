@@ -153,10 +153,12 @@ class ExploreRepositoryImpl @Inject constructor(
             }
 
         fun locate(schemaJson: String?): ResourceExplain? {
-            schemaJson ?: return null
+            // Parsed once: the GVK lookup and the name-based fallback below would
+            // otherwise each re-parse a multi-megabyte document.
+            val definitions = schemaJson?.let { jsonParser.parseDefinitions(it) } ?: return null
             return resolvedGVK?.let {
-                jsonParser.findDefinitionByGVK(schemaJson, it.group, it.version, it.kind)
-            } ?: jsonParser.findDefinition(schemaJson, resourceOrKind, groupVersion)
+                jsonParser.findDefinitionByGVK(definitions, it.group, it.version, it.kind)
+            } ?: jsonParser.findDefinition(definitions, resourceOrKind, groupVersion)
         }
 
         var hadStoredSchema = false
@@ -184,7 +186,17 @@ class ExploreRepositoryImpl @Inject constructor(
         }
 
         if (explain == null) {
-            return@withContext Result.Error(AppError.NotFound("Documentation for $resourceOrKind not found"))
+            // The schema was retrieved but publishes no definition for this
+            // resource, which is the normal case for a CRD whose OpenAPI
+            // definitions the API server does not expose. Return the generic
+            // object shape, which states in its description that documentation
+            // was unavailable, rather than failing outright.
+            //
+            // Deliberately not persisted: caching a stub would shadow the real
+            // documentation if it later becomes available.
+            return@withContext Result.Success(
+                jsonParser.buildFallbackExplain(resourceOrKind, groupVersion),
+            )
         }
 
         explainedResourceDao.insertExplainedResource(

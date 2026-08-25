@@ -66,12 +66,28 @@ class NativeBridgeJsonParser @Inject constructor() {
     }
 
     /**
+     * Parses the `definitions` map out of an OpenAPI document.
+     *
+     * Exposed separately because the document is multi-megabyte and a caller
+     * attempting several lookups would otherwise re-parse it for each one.
+     */
+    fun parseDefinitions(schemaJson: String): JSONObject? {
+        if (schemaJson.isBlank()) return null
+        return JSONObject(schemaJson).optJSONObject("definitions")
+    }
+
+    /**
      * Returns null when the schema has no definition matching the resource or
      * kind, so callers can decide whether a fallback is worth persisting.
      */
-    fun findDefinition(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain? {
-        if (schemaJson.isBlank()) return null
-        val definitions = JSONObject(schemaJson).optJSONObject("definitions") ?: return null
+    fun findDefinition(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain? =
+        parseDefinitions(schemaJson)?.let { findDefinition(it, resourceOrKind, groupVersion) }
+
+    fun findDefinition(
+        definitions: JSONObject,
+        resourceOrKind: String,
+        groupVersion: String,
+    ): ResourceExplain? {
         val target = resourceOrKind.lowercase()
 
         // Sorted for deterministic match order across JVMs.
@@ -108,9 +124,16 @@ class NativeBridgeJsonParser @Inject constructor() {
         group: String,
         version: String,
         kind: String,
+    ): ResourceExplain? =
+        parseDefinitions(schemaJson)?.let { findDefinitionByGVK(it, group, version, kind) }
+
+    fun findDefinitionByGVK(
+        definitions: JSONObject,
+        group: String,
+        version: String,
+        kind: String,
     ): ResourceExplain? {
-        if (schemaJson.isBlank() || kind.isBlank()) return null
-        val definitions = JSONObject(schemaJson).optJSONObject("definitions") ?: return null
+        if (kind.isBlank()) return null
 
         for (key in definitions.sortedKeys()) {
             val definition = definitions.optJSONObject(key) ?: continue

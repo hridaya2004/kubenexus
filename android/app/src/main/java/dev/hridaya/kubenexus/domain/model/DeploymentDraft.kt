@@ -1,5 +1,7 @@
 package dev.hridaya.kubenexus.domain.model
 
+import dev.hridaya.kubenexus.core.common.util.K8sNames
+
 /**
  * User input for the guided Deployment creation flow (issue #5).
  *
@@ -23,7 +25,7 @@ data class DeploymentDraft(
             name.isBlank() -> errors["name"] = "Name is required"
             name.length > MAX_NAME_LENGTH ->
                 errors["name"] = "Must be $MAX_NAME_LENGTH characters or fewer"
-            !DEPLOYMENT_NAME_REGEX.matches(name) ->
+            !K8sNames.isValidDns1035Label(name) ->
                 errors["name"] = "Use lowercase letters, numbers and '-' (start with a letter)"
         }
 
@@ -31,7 +33,7 @@ data class DeploymentDraft(
             namespace.isBlank() -> errors["namespace"] = "Namespace is required"
             namespace.length > MAX_NAME_LENGTH ->
                 errors["namespace"] = "Must be $MAX_NAME_LENGTH characters or fewer"
-            !NAMESPACE_REGEX.matches(namespace) ->
+            !K8sNames.isValidDnsLabel(namespace) ->
                 errors["namespace"] = "Use lowercase letters, numbers and '-'"
         }
 
@@ -59,11 +61,5 @@ data class DeploymentDraft(
         const val MIN_PORT = 1
         const val MAX_PORT = 65535
         const val MAX_NAME_LENGTH = 63
-
-        // Deployment names are DNS-1035 labels in practice (start with a letter);
-        // namespaces are DNS-1123 labels (digits allowed after the first char rule
-        // relaxes to any alphanumeric).
-        private val DEPLOYMENT_NAME_REGEX = Regex("^[a-z]([-a-z0-9]*[a-z0-9])?$")
-        private val NAMESPACE_REGEX = Regex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
     }
 }

@@ -9,8 +9,17 @@ object K8sNames {
     const val MAX_LABEL_LENGTH = 63
 
     /** DNS-1123 label: lowercase alphanumerics and hyphens, no leading/trailing hyphen. */
-    private val DNS_1123_LABEL = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])$")
+    private val DNS_1123_LABEL = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
     fun isValidDnsLabel(value: String): Boolean =
         value.length <= MAX_LABEL_LENGTH && DNS_1123_LABEL.matches(value)
+
+    /**
+     * DNS-1035 labels are like DNS-1123 labels but must start with a letter,
+     * which is the shape Kubernetes requires for Service and Pod names.
+     */
+    private val DNS_1035_LABEL = Regex("^[a-z]([-a-z0-9]*[a-z0-9])?$")
+
+    fun isValidDns1035Label(value: String): Boolean =
+        value.length <= MAX_LABEL_LENGTH && DNS_1035_LABEL.matches(value)
 }

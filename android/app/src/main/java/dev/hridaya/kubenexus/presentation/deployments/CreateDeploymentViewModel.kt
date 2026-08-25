@@ -11,6 +11,7 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.DeploymentDraft
 import dev.hridaya.kubenexus.domain.usecase.CreateDeploymentUseCase
 import dev.hridaya.kubenexus.domain.usecase.CreateNamespaceUseCase
+import dev.hridaya.kubenexus.presentation.common.NamespaceNameValidator
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -102,7 +103,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             is CreateDeploymentUiAction.NewNamespaceNameChanged -> _uiState.update {
                 it.copy(
                     newNamespaceName = action.value,
-                    newNamespaceError = validateNewNamespaceName(action.value),
+                    newNamespaceError = NamespaceNameValidator.errorFor(action.value),
                 )
             }
 
@@ -175,7 +176,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
         val state = _uiState.value
         if (state.isCreatingNamespace) return
         val name = state.newNamespaceName.trim()
-        validateNewNamespaceName(name)?.let { error ->
+        NamespaceNameValidator.errorFor(name)?.let { error ->
             _uiState.update { it.copy(newNamespaceError = error) }
             return
         }
@@ -248,22 +249,5 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             "Couldn't create the deployment. Please try again in a moment."
         const val NAMESPACE_ERROR_MESSAGE =
             "Couldn't create that namespace. The name may already be taken."
-
-        /** DNS-1123 label: lowercase alphanumerics and hyphens, no leading/trailing hyphen. */
-        val NEW_NAMESPACE_REGEX = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])$")
-
-        fun validateNewNamespaceName(value: String): String? {
-            val trimmed = value.trim()
-            return when {
-                trimmed.isEmpty() -> "Enter a namespace name"
-                trimmed.length > MAX_NAMESPACE_LENGTH -> "Must be 63 characters or fewer"
-                !NEW_NAMESPACE_REGEX.matches(trimmed) ->
-                    "Use lowercase letters, numbers, and hyphens. It must start and end with a letter or number."
-
-                else -> null
-            }
-        }
-
-        const val MAX_NAMESPACE_LENGTH = 63
     }
 }

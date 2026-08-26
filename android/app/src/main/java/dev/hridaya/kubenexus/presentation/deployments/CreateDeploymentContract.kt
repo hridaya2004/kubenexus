@@ -43,6 +43,7 @@ sealed interface CreateDeploymentUiAction {
     data object DismissCreateNamespaceClicked : CreateDeploymentUiAction
     data class NewNamespaceNameChanged(val value: String) : CreateDeploymentUiAction
     data object CreateNamespaceSubmitted : CreateDeploymentUiAction
+    data object Reset : CreateDeploymentUiAction
 }
 
 sealed interface CreateDeploymentUiEffect {

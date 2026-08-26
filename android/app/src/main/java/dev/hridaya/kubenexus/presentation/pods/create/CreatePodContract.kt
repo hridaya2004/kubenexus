@@ -41,6 +41,7 @@ sealed interface CreatePodUiAction {
     data object DismissCreateNamespaceClicked : CreatePodUiAction
     data class NewNamespaceNameChanged(val value: String) : CreatePodUiAction
     data object CreateNamespaceSubmitted : CreatePodUiAction
+    data object Reset : CreatePodUiAction
 }
 
 sealed interface CreatePodUiEffect {

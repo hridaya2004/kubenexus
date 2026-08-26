@@ -45,6 +45,7 @@ sealed interface CreateServiceUiAction {
     data object DismissCreateNamespaceClicked : CreateServiceUiAction
     data class NewNamespaceNameChanged(val value: String) : CreateServiceUiAction
     data object CreateNamespaceSubmitted : CreateServiceUiAction
+    data object Reset : CreateServiceUiAction
 }
 
 sealed interface CreateServiceUiEffect {

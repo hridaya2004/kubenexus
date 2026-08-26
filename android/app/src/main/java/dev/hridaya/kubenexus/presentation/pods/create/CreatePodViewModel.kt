@@ -107,6 +107,15 @@ class CreatePodViewModel @AssistedInject constructor(
             }
 
             is CreatePodUiAction.CreateNamespaceSubmitted -> createNamespace()
+
+            is CreatePodUiAction.Reset -> _uiState.update { current ->
+                validated(
+                    CreatePodUiState(
+                        namespace = current.namespace,
+                        availableNamespaces = current.availableNamespaces,
+                    ),
+                )
+            }
         }
     }
 
@@ -158,7 +167,15 @@ class CreatePodViewModel @AssistedInject constructor(
         viewModelScope.launch(dispatcherProvider.io) {
             when (val result = createPodUseCase(clusterId, state.reviewedYaml)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(isSubmitting = false) }
+                    // Reset form state so reopening the dialog starts clean without stale data
+                    _uiState.update { current ->
+                        validated(
+                            CreatePodUiState(
+                                namespace = current.namespace,
+                                availableNamespaces = current.availableNamespaces,
+                            ),
+                        )
+                    }
                     _effects.send(CreatePodUiEffect.Created(podName))
                 }
 

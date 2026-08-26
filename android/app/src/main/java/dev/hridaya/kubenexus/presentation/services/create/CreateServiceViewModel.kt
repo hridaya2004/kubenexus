@@ -109,6 +109,15 @@ class CreateServiceViewModel @AssistedInject constructor(
             }
 
             is CreateServiceUiAction.CreateNamespaceSubmitted -> createNamespace()
+
+            is CreateServiceUiAction.Reset -> _uiState.update { current ->
+                validated(
+                    CreateServiceUiState(
+                        namespace = current.namespace,
+                        availableNamespaces = current.availableNamespaces,
+                    ),
+                )
+            }
         }
     }
 
@@ -160,7 +169,15 @@ class CreateServiceViewModel @AssistedInject constructor(
         viewModelScope.launch(dispatcherProvider.io) {
             when (val result = createServiceUseCase(clusterId, state.reviewedYaml)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(isSubmitting = false) }
+                    // Reset form state so reopening the dialog starts clean without stale data
+                    _uiState.update { current ->
+                        validated(
+                            CreateServiceUiState(
+                                namespace = current.namespace,
+                                availableNamespaces = current.availableNamespaces,
+                            ),
+                        )
+                    }
                     _effects.send(CreateServiceUiEffect.Created(serviceName))
                 }
 

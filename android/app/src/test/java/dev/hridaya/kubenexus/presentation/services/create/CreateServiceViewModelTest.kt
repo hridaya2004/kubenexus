@@ -179,8 +179,19 @@ class CreateServiceViewModelTest {
         assertEquals("c-1", clusterId)
         assertEquals(reviewedYaml, manifest)
         assertFalse(viewModel.uiState.value.isSubmitting)
-        assertEquals(CreateServiceStep.REVIEW, viewModel.uiState.value.step)
+        assertEquals(CreateServiceStep.FORM, viewModel.uiState.value.step)
+        assertEquals("", viewModel.uiState.value.name)
         assertNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `reset action clears form inputs to initial state`() = vmTest { viewModel ->
+        fillValidForm(viewModel)
+        viewModel.onAction(CreateServiceUiAction.Reset)
+        val state = viewModel.uiState.value
+        assertEquals("", state.name)
+        assertEquals("", state.port)
+        assertEquals(CreateServiceStep.FORM, state.step)
     }
 
     @Test

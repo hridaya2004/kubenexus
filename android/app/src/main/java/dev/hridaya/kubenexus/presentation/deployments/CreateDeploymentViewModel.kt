@@ -108,6 +108,15 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             }
 
             is CreateDeploymentUiAction.CreateNamespaceSubmitted -> createNamespace()
+
+            is CreateDeploymentUiAction.Reset -> _uiState.update { current ->
+                validated(
+                    CreateDeploymentUiState(
+                        namespace = current.namespace,
+                        availableNamespaces = current.availableNamespaces,
+                    ),
+                )
+            }
         }
     }
 
@@ -159,7 +168,15 @@ class CreateDeploymentViewModel @AssistedInject constructor(
         viewModelScope.launch(dispatcherProvider.io) {
             when (val result = createDeploymentUseCase(clusterId, state.reviewedYaml)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(isSubmitting = false) }
+                    // Reset form state so reopening the dialog starts clean without stale data
+                    _uiState.update { current ->
+                        validated(
+                            CreateDeploymentUiState(
+                                namespace = current.namespace,
+                                availableNamespaces = current.availableNamespaces,
+                            ),
+                        )
+                    }
                     _effects.send(CreateDeploymentUiEffect.Created(deploymentName))
                 }
 

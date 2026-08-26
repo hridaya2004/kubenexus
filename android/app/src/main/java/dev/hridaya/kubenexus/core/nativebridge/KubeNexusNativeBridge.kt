@@ -6,12 +6,15 @@ import client.ExecSession
 import client.LogCallback
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
+import dev.hridaya.kubenexus.domain.model.ServiceDetails
+import dev.hridaya.kubenexus.domain.model.ServiceSummary
 
 /**
  * Bridge interface defining the contract for interacting with the native Go
@@ -124,6 +127,36 @@ interface KubeNexusNativeBridge {
     ): Result<List<DeploymentSummary>>
 
     /**
+     * Describes one Deployment in detail, including its status conditions and
+     * events. Events are fetched separately and are non-fatal: a failure
+     * loading them must not lose the Deployment itself.
+     */
+    fun describeDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<DeploymentDetails>
+
+    /**
+     * Lists v1 Services in [namespace], or across all namespaces when it is
+     * null or blank.
+     */
+    fun listServices(
+        rawKubeconfig: String,
+        namespace: String? = null,
+    ): Result<List<ServiceSummary>>
+
+    /**
+     * Describes one Service in detail, including its ports and events. Events
+     * are fetched separately and are non-fatal, exactly as in [describePod].
+     */
+    fun describeService(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<ServiceDetails>
+
+    /**
      * Creates a new apps/v1 Deployment by applying [manifestYaml] (YAML or
      * JSON) and returns the created object verbatim as JSON.
      *
@@ -217,6 +250,34 @@ interface KubeNexusNativeBridge {
         tty: Boolean,
         callback: ExecCallback,
     ): Result<ExecSession>
+
+    /**
+     * Opens a port-forward tunnel localhost:[localPort] -> pod [remotePort] and
+     * returns its opaque handle id.
+     *
+     * Readiness is asynchronous: the Go core dials the pod in the background and
+     * reports progress through [listener]. Ports are bound as int32 on the Go
+     * side, which maps 1:1 onto Kotlin Int.
+     */
+    fun startPortForward(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        localPort: Int,
+        remotePort: Int,
+        listener: PortForwardListener,
+    ): Result<String>
+
+    /**
+     * Closes the tunnel behind [handleId]. Stopping an unknown or already
+     * closed handle succeeds rather than erroring, so callers can stop
+     * unconditionally during cleanup.
+     *
+     * Handle-based because a forward outlives any single client instance;
+     * the registry of live tunnels lives process-wide on the Go side, so this
+     * is a package-level call rather than a per-client method.
+     */
+    fun stopPortForward(handleId: String): Result<Unit>
 
     /**
      * Pings the Kubernetes cluster verifying connectivity and health endpoints (/readyz, /livez, /healthz, /version).

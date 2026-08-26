@@ -1,0 +1,82 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "web-frontend",
+    "namespace": "web",
+    "uid": "1b3d7f2a-9c41-4e8f-b0aa-5d2e6c7a1234",
+    "resourceVersion": "1048577",
+    "generation": 4,
+    "creationTimestamp": "2026-03-01T12:00:00Z",
+    "labels": {
+      "app": "web-frontend",
+      "tier": "frontend"
+    },
+    "annotations": {
+      "deployment.kubernetes.io/revision": "4",
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"apps/v1\"}"
+    }
+  },
+  "spec": {
+    "replicas": 3,
+    "minReadySeconds": 10,
+    "strategy": {
+      "type": "RollingUpdate",
+      "rollingUpdate": {
+        "maxUnavailable": "25%",
+        "maxSurge": "25%"
+      }
+    },
+    "selector": {
+      "matchLabels": {
+        "app": "web-frontend"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "web-frontend"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "nginx",
+            "image": "nginx:1.27.3"
+          },
+          {
+            "name": "log-sidecar",
+            "image": "busybox:1.36"
+          }
+        ]
+      }
+    }
+  },
+  "status": {
+    "observedGeneration": 4,
+    "replicas": 3,
+    "updatedReplicas": 3,
+    "readyReplicas": 3,
+    "availableReplicas": 3,
+    "conditions": [
+      {
+        "type": "Available",
+        "status": "True",
+        "observedGeneration": 4,
+        "lastUpdateTime": "2026-03-01T12:05:30Z",
+        "lastTransitionTime": "2026-03-01T12:05:30Z",
+        "reason": "MinimumReplicasAvailable",
+        "message": "Deployment has minimum availability."
+      },
+      {
+        "type": "Progressing",
+        "status": "True",
+        "observedGeneration": 4,
+        "lastUpdateTime": "2026-03-02T08:14:02Z",
+        "lastTransitionTime": "2026-03-01T12:00:45Z",
+        "reason": "NewReplicaSetAvailable",
+        "message": "ReplicaSet \"web-frontend-7d9f8c6b5\" has successfully progressed."
+      }
+    ]
+  }
+}

@@ -187,6 +187,7 @@ fun LogsTabContent(
             logs = uiState.logs,
             isStreaming = uiState.isStreamingLogs,
             onClearLogs = { onAction(PodDetailUiAction.ClearLogs) },
+            title = uiState.podName,
             modifier = Modifier.weight(1f),
         )
     }

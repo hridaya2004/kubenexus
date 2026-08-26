@@ -4,10 +4,12 @@ import android.content.Context
 import android.util.Log
 import client.Client
 import client.Client_
+import java.util.concurrent.atomic.AtomicReference
 import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.GroupVersionResource
+import client.PortForwardCallback
 import client.ListOptions
 import client.LogCallback
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -15,8 +17,12 @@ import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.common.util.K8sNames
 import dev.hridaya.kubenexus.core.security.LogSanitizer
+import dev.hridaya.kubenexus.data.mapper.toDeploymentDetails
 import dev.hridaya.kubenexus.data.mapper.toDetails
 import dev.hridaya.kubenexus.data.mapper.toDomain
+import dev.hridaya.kubenexus.data.mapper.toServiceDetails
+import dev.hridaya.kubenexus.data.mapper.toServiceSummary
+import dev.hridaya.kubenexus.data.source.remote.dto.DeploymentDto
 import dev.hridaya.kubenexus.data.source.remote.dto.DeploymentListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.EventListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.K8sJson
@@ -25,14 +31,19 @@ import dev.hridaya.kubenexus.data.source.remote.dto.PodDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsDto
 import dev.hridaya.kubenexus.data.source.remote.dto.PodMetricsListDto
+import dev.hridaya.kubenexus.data.source.remote.dto.ServiceDto
+import dev.hridaya.kubenexus.data.source.remote.dto.ServiceListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.toDomain
 import dev.hridaya.kubenexus.data.source.remote.dto.toSample
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
+import dev.hridaya.kubenexus.domain.model.ServiceDetails
+import dev.hridaya.kubenexus.domain.model.ServiceSummary
 
 import go.Seq
 import java.security.MessageDigest
@@ -67,6 +78,13 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
     }
 
     private var initialized = false
+
+    /**
+     * Most recently started port-forward client. Tunnels live in a process-wide
+     * Go registry, so any bound instance can stop them by handle; remembering
+     * one here spares every layer above from threading kubeconfig back down.
+     */
+    private val lastPortForwardClient = AtomicReference<Client_?>(null)
 
     /**
      * Cached Go clients keyed by a digest of the kubeconfig.
@@ -296,6 +314,73 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             K8sJson.decodeFromString<DeploymentListDto>(json).items.map { it.toDomain() }
         }
 
+    override fun describeDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<DeploymentDetails> =
+        nativeCatching("Failed to describeDeployment '$name' from native client") {
+            val nativeClient = clientFor(rawKubeconfig)
+            val deploymentJson = nativeClient.getJSON(deploymentsResource, namespace, name)
+            val deployment = K8sJson.decodeFromString<DeploymentDto>(deploymentJson)
+
+            // Events are a separate collection with a field selector. A failure
+            // here must not lose the Deployment itself, which is the primary
+            // payload — identical trade-off to describePod.
+            val events = try {
+                val eventsJson = nativeClient.eventsForJSON(namespace, "Deployment", name)
+                K8sJson.decodeFromString<EventListDto>(eventsJson).items
+            } catch (t: Throwable) {
+                Log.w(
+                    TAG,
+                    "Failed to load events for deployment '$name': ${LogSanitizer.sanitize(t.message)}",
+                )
+                emptyList()
+            }
+
+            deployment.toDeploymentDetails(events = events)
+        }
+
+    override fun listServices(
+        rawKubeconfig: String,
+        namespace: String?,
+    ): Result<List<ServiceSummary>> =
+        nativeCatching("Failed to list services from native client") {
+            val json = clientFor(rawKubeconfig).listJSON(
+                servicesResource,
+                normalizeNamespace(namespace),
+                null,
+            )
+            K8sJson.decodeFromString<ServiceListDto>(json).items.map { it.toServiceSummary() }
+        }
+
+    override fun describeService(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<ServiceDetails> =
+        nativeCatching("Failed to describeService '$name' from native client") {
+            val nativeClient = clientFor(rawKubeconfig)
+            val serviceJson = nativeClient.getJSON(servicesResource, namespace, name)
+            val service = K8sJson.decodeFromString<ServiceDto>(serviceJson)
+
+            // Events are a separate collection with a field selector. A failure
+            // here must not lose the Service itself, which is the primary
+            // payload — identical trade-off to describePod.
+            val events = try {
+                val eventsJson = nativeClient.eventsForJSON(namespace, "Service", name)
+                K8sJson.decodeFromString<EventListDto>(eventsJson).items
+            } catch (t: Throwable) {
+                Log.w(
+                    TAG,
+                    "Failed to load events for service '$name': ${LogSanitizer.sanitize(t.message)}",
+                )
+                emptyList()
+            }
+
+            service.toServiceDetails(events = events)
+        }
+
     override fun createDeployment(
         rawKubeconfig: String,
         namespace: String,
@@ -399,6 +484,52 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
         nativeCatching("Failed to start exec session for pod '$podName'") {
             clientFor(rawKubeconfig)
                 .startExecSession(namespace, podName, container, command, tty, callback)
+        }
+
+    override fun startPortForward(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        localPort: Int,
+        remotePort: Int,
+        listener: PortForwardListener,
+    ): Result<String> =
+        nativeCatching("Failed to start port-forward for pod '$podName'") {
+            // Wired like the exec family: the tunnel hangs off the cached
+            // client that holds the parsed kubeconfig and TLS config. Ports go
+            // in as Kotlin Int; the Go side declares them int32. The binding
+            // takes the kubeconfig explicitly even though the client already
+            // carries it, matching the generated Go signature.
+            val nativeClient = clientFor(rawKubeconfig)
+            // gomobile binds the Go interface as client.PortForwardCallback with
+            // camelCase methods; adapt our listener rather than leaking the
+            // binding type upward.
+            val callback = object : PortForwardCallback {
+                override fun portForwardReady(handleID: String?, localPort: Int) {
+                    listener.onPortForwardReady(handleID.orEmpty(), localPort)
+                }
+
+                override fun portForwardError(handleID: String?, message: String?) {
+                    listener.onPortForwardError(handleID.orEmpty(), message.orEmpty())
+                }
+
+                override fun portForwardStopped(handleID: String?, reason: String?) {
+                    listener.onPortForwardStopped(handleID.orEmpty(), reason.orEmpty())
+                }
+            }
+            nativeClient
+                .also { lastPortForwardClient.set(it) }
+                .startPortForward(rawKubeconfig, namespace, podName, localPort, remotePort, callback)
+        }
+
+    override fun stopPortForward(handleId: String): Result<Unit> =
+        nativeCatching("Failed to stop port-forward '$handleId'") {
+            // Tunnels are registered process-wide on the Go side, so ANY bound
+            // client can stop them by handle; remembering the most recent one
+            // spares every layer above from threading kubeconfig back down.
+            val client = lastPortForwardClient.get()
+                ?: return@nativeCatching
+            client.stopPortForward(handleId)
         }
 
     override fun ping(rawKubeconfig: String): Result<String> =

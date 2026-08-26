@@ -1,7 +1,9 @@
 package dev.hridaya.kubenexus.domain.repository
 
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
+import kotlinx.coroutines.flow.Flow
 
 interface DeploymentRepository {
 
@@ -16,4 +18,29 @@ interface DeploymentRepository {
      * [namespace] lists across all namespaces.
      */
     suspend fun getDeployments(clusterId: String?, namespace: String?): Result<List<DeploymentSummary>>
+
+    /**
+     * Cold stream of cached Deployments, refreshed by [syncDeployments].
+     *
+     * Offline-first: emits immediately from the Room cache and re-emits on every
+     * sync, so screens stay responsive without waiting on the cluster. A null
+     * or blank [namespace] (or "All Namespaces") streams the whole cluster.
+     */
+    fun getDeploymentsStream(clusterId: String?, namespace: String?): Flow<List<DeploymentSummary>>
+
+    /**
+     * Pulls the live Deployment list from the cluster and replaces the matching
+     * cache scope in one transaction. A null or blank [namespace] syncs all.
+     */
+    suspend fun syncDeployments(clusterId: String?, namespace: String?): Result<Unit>
+
+    /**
+     * Describes one Deployment, including its conditions and events. Events are
+     * best-effort: a failure loading them never fails the describe itself.
+     */
+    suspend fun getDeploymentDetails(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<DeploymentDetails>
 }

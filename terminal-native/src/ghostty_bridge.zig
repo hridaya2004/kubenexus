@@ -402,7 +402,7 @@ fn updateMetadata(terminal: *ChuchuTerminal) void {
     _ = updateString(&terminal.pwd, &terminal.pwd_len, &terminal.pwd_dirty, terminal.terminal.getPwd());
 }
 
-fn chuchuWritePty(handler: *ghostty.TerminalStream.Handler, data: [:0]const u8) void {
+fn chuchuWritePty(handler: *ghostty.TerminalStream.Handler, data: []const u8) void {
     const terminal = terminalFromHandler(handler);
     appendPtyWrite(terminal, data);
 }
@@ -508,6 +508,9 @@ export fn chuchu_create_terminal(cols: c.jint, rows: c.jint, max_scrollback: c.j
         .write_pty = chuchuWritePty,
         .bell = chuchuBell,
         .desktop_notification = null,
+        // Kitty drag-and-drop (OSC 72) and clipboard-read replies are not
+        // surfaced by this embedder yet; null keeps them silently ignored.
+        .drag_and_drop = null,
         .color_scheme = chuchuColorScheme,
         .device_attributes = chuchuDeviceAttributes,
         .enquiry = null,
@@ -516,6 +519,7 @@ export fn chuchu_create_terminal(cols: c.jint, rows: c.jint, max_scrollback: c.j
         .pwd_changed = chuchuPwdChanged,
         .progress_report = null,
         .clipboard_write = null,
+        .clipboard_read = null,
         .xtversion = chuchuXtversion,
     };
     terminal.stream_handler = .{

@@ -1,14 +1,6 @@
 package dev.hridaya.kubenexus.presentation.main
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,36 +8,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentRoute
-import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentUiEffect
-import dev.hridaya.kubenexus.presentation.deployments.CreateDeploymentViewModel
 import dev.hridaya.kubenexus.presentation.deployments.DeploymentsRoute
 import dev.hridaya.kubenexus.presentation.deployments.DeploymentsViewModel
-import dev.hridaya.kubenexus.presentation.explore.ExploreRoute
-import dev.hridaya.kubenexus.presentation.explore.ExploreViewModel
-import dev.hridaya.kubenexus.presentation.home.HomeRoute
-import dev.hridaya.kubenexus.presentation.home.HomeUiAction
+import dev.hridaya.kubenexus.presentation.deployments.detail.DeploymentDetailRoute
+import dev.hridaya.kubenexus.presentation.deployments.detail.DeploymentDetailViewModel
 import dev.hridaya.kubenexus.presentation.home.HomeUiEffect
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.home.ManageClustersScreen
 import dev.hridaya.kubenexus.presentation.logcat.LogcatRoute
 import dev.hridaya.kubenexus.presentation.logcat.LogcatViewModel
 import dev.hridaya.kubenexus.presentation.navigation.Destination
+import dev.hridaya.kubenexus.presentation.portforward.sessions.PortForwardSessionsViewModel
+import dev.hridaya.kubenexus.presentation.portforward.sessions.rememberPortForwardSessionsState
 import dev.hridaya.kubenexus.presentation.pods.PodsScreen
-import dev.hridaya.kubenexus.presentation.pods.create.CreatePodRoute
-import dev.hridaya.kubenexus.presentation.pods.create.CreatePodUiEffect
-import dev.hridaya.kubenexus.presentation.pods.create.CreatePodViewModel
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailRoute
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailViewModel
-import dev.hridaya.kubenexus.presentation.services.create.CreateServiceRoute
-import dev.hridaya.kubenexus.presentation.services.create.CreateServiceUiEffect
-import dev.hridaya.kubenexus.presentation.services.create.CreateServiceViewModel
-import dev.hridaya.kubenexus.presentation.settings.SettingsScreen
-import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.presentation.services.ServicesRoute
+import dev.hridaya.kubenexus.presentation.services.ServicesViewModel
+import dev.hridaya.kubenexus.presentation.services.detail.ServiceDetailRoute
+import dev.hridaya.kubenexus.presentation.services.detail.ServiceDetailViewModel
 
 @Composable
 fun MainScreen(
@@ -56,12 +39,20 @@ fun MainScreen(
     var isManagingClusters by rememberSaveable { mutableStateOf(false) }
     var isViewingPods by rememberSaveable { mutableStateOf(false) }
     var isViewingDeployments by rememberSaveable { mutableStateOf(false) }
+    var isViewingServices by rememberSaveable { mutableStateOf(false) }
     var isViewingLogcat by rememberSaveable { mutableStateOf(false) }
     var isCreatingDeployment by rememberSaveable { mutableStateOf(false) }
     var isCreatingPod by rememberSaveable { mutableStateOf(false) }
     var isCreatingService by rememberSaveable { mutableStateOf(false) }
     var selectedPodName by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPodNamespace by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedDeploymentName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedDeploymentNamespace by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedServiceName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedServiceNamespace by rememberSaveable { mutableStateOf<String?>(null) }
+    val portForwardSessionsViewModel: PortForwardSessionsViewModel = hiltViewModel()
+    val portForwardSessionsState by rememberPortForwardSessionsState(portForwardSessionsViewModel)
+    var showPortForwardSessions by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(homeViewModel.effects) {
         homeViewModel.effects.collect { effect ->
@@ -69,12 +60,18 @@ fun MainScreen(
                 isManagingClusters = false
                 isViewingPods = false
                 isViewingDeployments = false
+                isViewingServices = false
                 isViewingLogcat = false
                 isCreatingDeployment = false
                 isCreatingPod = false
                 isCreatingService = false
                 selectedPodName = null
                 selectedPodNamespace = null
+                selectedDeploymentName = null
+                selectedDeploymentNamespace = null
+                selectedServiceName = null
+                selectedServiceNamespace = null
+                showPortForwardSessions = false
                 currentDestination = Destination.Home
             }
         }
@@ -102,6 +99,58 @@ fun MainScreen(
                 onNavigateBack = {
                     selectedPodName = null
                     selectedPodNamespace = null
+                },
+                modifier = modifier,
+            )
+        }
+
+        selectedDeploymentName != null && selectedDeploymentNamespace != null -> {
+            val deploymentName = selectedDeploymentName!!
+            val deploymentNamespace = selectedDeploymentNamespace!!
+            val deploymentDetailViewModel: DeploymentDetailViewModel = hiltViewModel(
+                key = "deployment_detail_${deploymentNamespace}_$deploymentName",
+                creationCallback = { factory: DeploymentDetailViewModel.Factory ->
+                    factory.create(
+                        deploymentName = deploymentName,
+                        namespace = deploymentNamespace,
+                    )
+                },
+            )
+            BackHandler {
+                selectedDeploymentName = null
+                selectedDeploymentNamespace = null
+            }
+            DeploymentDetailRoute(
+                viewModel = deploymentDetailViewModel,
+                onNavigateBack = {
+                    selectedDeploymentName = null
+                    selectedDeploymentNamespace = null
+                },
+                modifier = modifier,
+            )
+        }
+
+        selectedServiceName != null && selectedServiceNamespace != null -> {
+            val serviceName = selectedServiceName!!
+            val serviceNamespace = selectedServiceNamespace!!
+            val serviceDetailViewModel: ServiceDetailViewModel = hiltViewModel(
+                key = "service_detail_${serviceNamespace}_$serviceName",
+                creationCallback = { factory: ServiceDetailViewModel.Factory ->
+                    factory.create(
+                        serviceName = serviceName,
+                        namespace = serviceNamespace,
+                    )
+                },
+            )
+            BackHandler {
+                selectedServiceName = null
+                selectedServiceNamespace = null
+            }
+            ServiceDetailRoute(
+                viewModel = serviceDetailViewModel,
+                onNavigateBack = {
+                    selectedServiceName = null
+                    selectedServiceNamespace = null
                 },
                 modifier = modifier,
             )
@@ -149,6 +198,34 @@ fun MainScreen(
             DeploymentsRoute(
                 viewModel = deploymentsViewModel,
                 onNavigateBack = { isViewingDeployments = false },
+                onDeploymentClick = { deployment ->
+                    selectedDeploymentName = deployment.name
+                    selectedDeploymentNamespace = deployment.namespace
+                },
+                modifier = modifier,
+            )
+        }
+
+        isViewingServices -> {
+            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val servicesViewModel: ServicesViewModel = hiltViewModel(
+                key = "services_list",
+                creationCallback = { factory: ServicesViewModel.Factory ->
+                    factory.create(
+                        clusterId = homeUiState.activeCluster?.id,
+                        namespace = homeUiState.selectedNamespace
+                            .takeIf { it.isNotBlank() && it != "All Namespaces" },
+                    )
+                },
+            )
+            BackHandler { isViewingServices = false }
+            ServicesRoute(
+                viewModel = servicesViewModel,
+                onNavigateBack = { isViewingServices = false },
+                onServiceClick = { service ->
+                    selectedServiceName = service.name
+                    selectedServiceNamespace = service.namespace
+                },
                 modifier = modifier,
             )
         }
@@ -163,223 +240,48 @@ fun MainScreen(
             )
         }
 
-        isCreatingDeployment -> {
-            val context = LocalContext.current
-            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
-            val createDeploymentViewModel: CreateDeploymentViewModel = hiltViewModel(
-                key = "create_deployment",
-                creationCallback = { factory: CreateDeploymentViewModel.Factory ->
-                    factory.create(
-                        clusterId = homeUiState.activeCluster?.id,
-                        namespace = homeUiState.selectedNamespace
-                            .takeIf { it.isNotBlank() && it != "All Namespaces" }
-                            ?: "default",
-                        availableNamespaces = homeUiState.availableNamespaces,
-                    )
-                },
-            )
-            LaunchedEffect(createDeploymentViewModel.effects) {
-                createDeploymentViewModel.effects.collect { effect ->
-                    when (effect) {
-                        is CreateDeploymentUiEffect.Created -> {
-                            isCreatingDeployment = false
-                            Toast.makeText(
-                                context,
-                                "Deployment '${effect.deploymentName}' created successfully",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
-                        }
+        isCreatingDeployment -> CreateDeploymentOverlay(
+            homeViewModel = homeViewModel,
+            onDismiss = { isCreatingDeployment = false },
+            modifier = modifier,
+        )
 
-                        is CreateDeploymentUiEffect.NamespaceCreated -> {
-                            Toast.makeText(context, "Namespace created", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-            BackHandler { isCreatingDeployment = false }
-            CreateDeploymentRoute(
-                viewModel = createDeploymentViewModel,
-                onNavigateBack = { isCreatingDeployment = false },
-                modifier = modifier,
-            )
-        }
+        isCreatingPod -> CreatePodOverlay(
+            homeViewModel = homeViewModel,
+            onDismiss = { isCreatingPod = false },
+            modifier = modifier,
+        )
 
-        isCreatingPod -> {
-            val context = LocalContext.current
-            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
-            val createPodViewModel: CreatePodViewModel = hiltViewModel(
-                key = "create_pod",
-                creationCallback = { factory: CreatePodViewModel.Factory ->
-                    factory.create(
-                        clusterId = homeUiState.activeCluster?.id,
-                        namespace = homeUiState.selectedNamespace
-                            .takeIf { it.isNotBlank() && it != "All Namespaces" }
-                            ?: "default",
-                        availableNamespaces = homeUiState.availableNamespaces,
-                    )
-                },
-            )
-            LaunchedEffect(createPodViewModel.effects) {
-                createPodViewModel.effects.collect { effect ->
-                    when (effect) {
-                        is CreatePodUiEffect.Created -> {
-                            isCreatingPod = false
-                            Toast.makeText(
-                                context,
-                                "Pod '${effect.podName}' created successfully",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
-                        }
-
-                        is CreatePodUiEffect.NamespaceCreated -> {
-                            Toast.makeText(context, "Namespace created", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-            BackHandler { isCreatingPod = false }
-            CreatePodRoute(
-                viewModel = createPodViewModel,
-                onNavigateBack = { isCreatingPod = false },
-                modifier = modifier,
-            )
-        }
-
-        isCreatingService -> {
-            val context = LocalContext.current
-            val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
-            val createServiceViewModel: CreateServiceViewModel = hiltViewModel(
-                key = "create_service",
-                creationCallback = { factory: CreateServiceViewModel.Factory ->
-                    factory.create(
-                        clusterId = homeUiState.activeCluster?.id,
-                        namespace = homeUiState.selectedNamespace
-                            .takeIf { it.isNotBlank() && it != "All Namespaces" }
-                            ?: "default",
-                        availableNamespaces = homeUiState.availableNamespaces,
-                    )
-                },
-            )
-            LaunchedEffect(createServiceViewModel.effects) {
-                createServiceViewModel.effects.collect { effect ->
-                    when (effect) {
-                        is CreateServiceUiEffect.Created -> {
-                            isCreatingService = false
-                            Toast.makeText(
-                                context,
-                                "Service '${effect.serviceName}' created successfully",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            homeViewModel.onAction(HomeUiAction.RefreshWorkloads)
-                        }
-
-                        is CreateServiceUiEffect.NamespaceCreated -> {
-                            Toast.makeText(context, "Namespace created", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-            BackHandler { isCreatingService = false }
-            CreateServiceRoute(
-                viewModel = createServiceViewModel,
-                onNavigateBack = { isCreatingService = false },
-                modifier = modifier,
-            )
-        }
+        isCreatingService -> CreateServiceOverlay(
+            homeViewModel = homeViewModel,
+            onDismiss = { isCreatingService = false },
+            modifier = modifier,
+        )
 
         else -> {
-            NavigationSuiteScaffold(
-                navigationSuiteItems = {
-                    Destination.topLevelDestinations.forEach { destination ->
-                        item(
-                            selected = currentDestination == destination,
-                            onClick = { currentDestination = destination },
-                            icon = {
-                                BadgedBox(
-                                    badge = {
-                                        destination.badgeCount?.let { count ->
-                                            Badge {
-                                                Text(text = "$count")
-                                            }
-                                        }
-                                    },
-                                ) {
-                                    Icon(
-                                        imageVector = if (currentDestination == destination) destination.selectedIcon else destination.unselectedIcon,
-                                        contentDescription = destination.title,
-                                    )
-                                }
-                            },
-                            label = {
-                                Text(text = destination.title)
-                            },
-                        )
-                    }
-                },
-                modifier = modifier.fillMaxSize(),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    when (currentDestination) {
-                        Destination.Home -> {
-                            HomeRoute(
-                                viewModel = homeViewModel,
-                                onNavigateToManageClusters = { isManagingClusters = true },
-                                onNavigateToPods = { isViewingPods = true },
-                                onNavigateToDeployments = { isViewingDeployments = true },
-                                onNavigateToCreatePod = { isCreatingPod = true },
-                                onNavigateToCreateDeployment = { isCreatingDeployment = true },
-                                onNavigateToCreateService = { isCreatingService = true },
-                            )
-                        }
-
-                        Destination.Explore -> {
-                            val exploreViewModel: ExploreViewModel = hiltViewModel()
-                            ExploreRoute(
-                                viewModel = exploreViewModel,
-                            )
-                        }
-
-
-                        Destination.Settings -> {
-                            SettingsScreen(
-                                onNavigateToLogcat = { isViewingLogcat = true },
-                            )
-                        }
-                    }
-                }
-            }
+            MainTopLevelScaffold(
+                homeViewModel = homeViewModel,
+                currentDestination = currentDestination,
+                onSelectDestination = { currentDestination = it },
+                onNavigateToManageClusters = { isManagingClusters = true },
+                onNavigateToPods = { isViewingPods = true },
+                onNavigateToDeployments = { isViewingDeployments = true },
+                onNavigateToServices = { isViewingServices = true },
+                onNavigateToCreatePod = { isCreatingPod = true },
+                onNavigateToCreateDeployment = { isCreatingDeployment = true },
+                onNavigateToCreateService = { isCreatingService = true },
+                onNavigateToLogcat = { isViewingLogcat = true },
+                activeForwardCount = portForwardSessionsState.activeCount,
+                onOpenPortForwardSessions = { showPortForwardSessions = true },
+                modifier = modifier,
+            )
         }
+    }
+
+    if (showPortForwardSessions) {
+        MainPortForwardSessionsEntry(
+            onDismiss = { showPortForwardSessions = false },
+        )
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun MainScreenNavigationPreview() {
-    KubeNexusTheme {
-        NavigationSuiteScaffold(
-            navigationSuiteItems = {
-                Destination.topLevelDestinations.forEach { destination ->
-                    item(
-                        selected = destination == Destination.Home,
-                        onClick = {},
-                        icon = {
-                            Icon(
-                                imageVector = destination.selectedIcon,
-                                contentDescription = destination.title,
-                            )
-                        },
-                        label = {
-                            Text(text = destination.title)
-                        },
-                    )
-                }
-            },
-        ) {
-            Box(modifier = Modifier.fillMaxSize())
-        }
-    }
-}

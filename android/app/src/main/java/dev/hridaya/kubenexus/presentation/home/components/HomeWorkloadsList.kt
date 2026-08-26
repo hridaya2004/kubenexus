@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Widgets
@@ -34,6 +35,7 @@ fun HomeWorkloadsList(
     totalPodsCount: Int,
     onNavigateToPods: () -> Unit,
     onNavigateToDeployments: () -> Unit,
+    onNavigateToServices: () -> Unit,
     onNoopAction: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -110,6 +112,16 @@ fun HomeWorkloadsList(
 
         item {
             ResourcePreferenceCard(
+                title = "Services",
+                subtitle = "Stable network endpoints for Pods",
+                icon = Icons.Outlined.Dns,
+                badgeText = "Networking",
+                onClick = onNavigateToServices,
+            )
+        }
+
+        item {
+            ResourcePreferenceCard(
                 title = "ReplicaSets",
                 subtitle = "Maintain stable set of replica Pods",
                 icon = Icons.Outlined.Widgets,
@@ -132,6 +144,7 @@ private fun HomeWorkloadsListPreview() {
             totalPodsCount = 12,
             onNavigateToPods = {},
             onNavigateToDeployments = {},
+            onNavigateToServices = {},
             onNoopAction = {},
         )
     }

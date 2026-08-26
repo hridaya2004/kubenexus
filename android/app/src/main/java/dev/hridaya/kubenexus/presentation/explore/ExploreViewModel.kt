@@ -80,10 +80,12 @@ class ExploreViewModel @Inject constructor(
                     )
                 }
 
-                // Always take cluster as true source: sync fresh discovery from remote cluster
+                // Cache-first: only fetch from remote cluster if local cache is empty on initial observation
                 if (!hasCheckedEmptyForCluster) {
                     hasCheckedEmptyForCluster = true
-                    refreshResources(clusterId)
+                    if (list.isEmpty()) {
+                        refreshResources(clusterId)
+                    }
                 }
             }
         }

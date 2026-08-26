@@ -7,11 +7,14 @@ import client.LogCallback
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
+import dev.hridaya.kubenexus.domain.model.ServiceDetails
+import dev.hridaya.kubenexus.domain.model.ServiceSummary
 
 /**
  * Reusable test double for [KubeNexusNativeBridge].
@@ -76,6 +79,23 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
         namespace: String,
         podName: String,
     ): Result<PodDetails> = Result.Error(AppError.NotFound("Pod '$podName' not found"))
+
+    override fun describeDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<DeploymentDetails> = Result.Error(AppError.NotFound("Deployment '$name' not found"))
+
+    override fun listServices(
+        rawKubeconfig: String,
+        namespace: String?,
+    ): Result<List<ServiceSummary>> = Result.Success(emptyList())
+
+    override fun describeService(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<ServiceDetails> = Result.Error(AppError.NotFound("Service '$name' not found"))
 
     override fun deletePod(
         rawKubeconfig: String,
@@ -144,6 +164,17 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
         tty: Boolean,
         callback: ExecCallback,
     ): Result<ExecSession> = Result.Error(AppError.Unknown("exec unavailable on the JVM"))
+
+    override fun startPortForward(
+        rawKubeconfig: String,
+        namespace: String,
+        podName: String,
+        localPort: Int,
+        remotePort: Int,
+        listener: PortForwardListener,
+    ): Result<String> = Result.Error(AppError.Unknown("port-forward unavailable on the JVM"))
+
+    override fun stopPortForward(handleId: String): Result<Unit> = Result.Success(Unit)
 
     override fun ping(rawKubeconfig: String): Result<String> =
         Result.Success("Cluster ready & healthy (Kubernetes v1.30.0)")

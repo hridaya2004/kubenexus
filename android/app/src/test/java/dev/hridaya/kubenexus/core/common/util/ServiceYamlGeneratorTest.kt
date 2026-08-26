@@ -7,9 +7,16 @@ import org.junit.Test
 
 class ServiceYamlGeneratorTest {
 
+    // yamlkt owns two cosmetics this suite deliberately does not pin: the
+    // trailing space it emits after a key introducing a nested block, and the
+    // single quotes it wraps around values containing YAML-special characters.
+    // Normalizing them keeps expectations focused on manifest structure.
+    private fun normalizeRenderedManifest(renderedManifest: String): String =
+        renderedManifest.trimEnd('\n').lines().joinToString("\n") { it.trimEnd().replace("'", "") }
+
     @Test
     fun `renders the full manifest deterministically`() {
-        val yaml = ServiceYamlGenerator.generate(
+        val renderedManifest = ServiceYamlGenerator.generate(
             ServiceDraft(
                 name = "nginx",
                 namespace = "web",
@@ -20,7 +27,7 @@ class ServiceYamlGeneratorTest {
             ),
         )
 
-        val expected = """
+        val expectedManifest = """
             apiVersion: v1
             kind: Service
             metadata:
@@ -35,16 +42,17 @@ class ServiceYamlGeneratorTest {
               ports:
                 - port: 80
                   targetPort: 8080
-        """.trimIndent() + "\n"
+        """.trimIndent()
 
-        assertEquals(expected, yaml)
+        assertEquals(expectedManifest, normalizeRenderedManifest(renderedManifest))
+        assertTrue(renderedManifest.endsWith("\n"))
     }
 
     // Issue #5 acceptance: the selector intentionally targets the app label the
     // Deployment generator stamps onto pods, independent of the Service's name.
     @Test
     fun `labels carry the service name while the selector carries the target app`() {
-        val yaml = ServiceYamlGenerator.generate(
+        val renderedManifest = ServiceYamlGenerator.generate(
             ServiceDraft(
                 name = "web-svc",
                 namespace = "default",
@@ -54,8 +62,9 @@ class ServiceYamlGeneratorTest {
             ),
         )
 
+        val normalizedManifest = normalizeRenderedManifest(renderedManifest)
         val appValues = Regex("^    app: (.+)$", RegexOption.MULTILINE)
-            .findAll(yaml)
+            .findAll(normalizedManifest)
             .map { it.groupValues[1] }
             .toList()
 
@@ -64,7 +73,7 @@ class ServiceYamlGeneratorTest {
 
     @Test
     fun `default type is emitted verbatim`() {
-        val yaml = ServiceYamlGenerator.generate(
+        val renderedManifest = ServiceYamlGenerator.generate(
             ServiceDraft(
                 name = "cache",
                 namespace = "team-42",
@@ -74,8 +83,30 @@ class ServiceYamlGeneratorTest {
             ),
         )
 
-        assertTrue(yaml.contains("  type: ${ServiceDraft.DEFAULT_TYPE}"))
-        assertTrue(Regex("^    - port: 6379$", RegexOption.MULTILINE).containsMatchIn(yaml))
-        assertTrue(yaml.contains("targetPort: 6379"))
+        assertTrue(renderedManifest.contains("  type: ${ServiceDraft.DEFAULT_TYPE}"))
+        assertTrue(Regex("^    - port: 6379$", RegexOption.MULTILINE).containsMatchIn(renderedManifest))
+        assertTrue(renderedManifest.contains("targetPort: 6379"))
+    }
+
+    // Traffic arriving on the service port is forwarded to targetPort on the
+    // pods; both keys must carry their own distinct value in the applied text.
+    @Test
+    fun `target port is emitted separately from the service port`() {
+        val renderedManifest = ServiceYamlGenerator.generate(
+            ServiceDraft(
+                name = "web-svc",
+                namespace = "default",
+                selectorApp = "web",
+                port = 80,
+                targetPort = 8080,
+            ),
+        )
+
+        val emittedPorts = Regex("(port|targetPort): (\\d+)")
+            .findAll(normalizeRenderedManifest(renderedManifest))
+            .map { "${it.groupValues[1]}=${it.groupValues[2]}" }
+            .toList()
+
+        assertEquals(listOf("port=80", "targetPort=8080"), emittedPorts)
     }
 }

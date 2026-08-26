@@ -167,7 +167,32 @@ class ExploreViewModelTest {
         }
 
     @Test
-    fun `observing active cluster always fetches API resources from remote true source`() =
+    fun `empty room cache fetches api resources exactly once on first observation`() =
+        runTest(testDispatcher) {
+            val testCluster = Cluster(
+                id = "c1",
+                name = "prod-cluster",
+                serverUrl = "https://127.0.0.1:6443",
+                contextName = "prod",
+                namespace = "default",
+                rawKubeconfig = "yaml",
+                isActive = true,
+                status = ClusterStatus.CONNECTED,
+            )
+            fakeExploreRepository.setResources(emptyList())
+            fakeClusterRepository.setClusters(listOf(testCluster))
+            advanceUntilIdle()
+
+            // Nothing cached yet: one network fill-in is allowed.
+            assertEquals(1, fakeExploreRepository.fetchCount)
+
+            // Re-emissions of the same cluster must stay on Room only.
+            advanceUntilIdle()
+            assertEquals(1, fakeExploreRepository.fetchCount)
+        }
+
+    @Test
+    fun `cached api resources render from room without any remote fetch`() =
         runTest(testDispatcher) {
             val testCluster = Cluster(
                 id = "c1",
@@ -182,8 +207,8 @@ class ExploreViewModelTest {
             fakeClusterRepository.setClusters(listOf(testCluster))
             advanceUntilIdle()
 
-            // Always syncs with remote true source on active cluster
-            assertEquals(1, fakeExploreRepository.fetchCount)
+            // Cache already holds the resource list: zero bridge calls.
+            assertEquals(0, fakeExploreRepository.fetchCount)
             assertEquals(3, viewModel.uiState.value.resources.size)
         }
 
@@ -203,12 +228,14 @@ class ExploreViewModelTest {
             fakeClusterRepository.setClusters(listOf(testCluster))
             advanceUntilIdle()
 
-            assertEquals(1, fakeExploreRepository.fetchCount)
+            // Cached start: observing never touched the network.
+            assertEquals(0, fakeExploreRepository.fetchCount)
 
             viewModel.onAction(ExploreUiAction.Refresh)
             advanceUntilIdle()
 
-            assertEquals(2, fakeExploreRepository.fetchCount)
+            // Only the explicit user action goes remote.
+            assertEquals(1, fakeExploreRepository.fetchCount)
         }
 
     @Test

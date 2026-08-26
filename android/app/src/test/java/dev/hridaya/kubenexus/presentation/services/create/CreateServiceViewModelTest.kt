@@ -99,7 +99,9 @@ class CreateServiceViewModelTest {
         assertEquals(CreateServiceStep.REVIEW, state.step)
         assertNull(state.errorMessage)
         assertNotNull(state.generatedYaml)
-        val yaml = state.generatedYaml!!
+        // yamlkt single-quotes values containing '-', ':' or '/'; stripping the
+        // quotes keeps these assertions about manifest content, not cosmetics.
+        val yaml = state.generatedYaml!!.replace("'", "")
         assertTrue(yaml.contains("kind: Service"))
         assertTrue(yaml.contains("name: web-app"))
         assertTrue(yaml.contains("namespace: team-a"))
@@ -312,6 +314,25 @@ private class FakeServiceRepository : ServiceRepository {
         appliedManifests += clusterId to manifestYaml
         val error = applyError ?: return Result.Success(Unit)
         return Result.Error(error)
+    }
+
+    override fun getServicesStream(
+        clusterId: String?,
+        namespace: String?,
+    ): Flow<List<dev.hridaya.kubenexus.domain.model.ServiceSummary>> {
+        return kotlinx.coroutines.flow.flowOf(emptyList())
+    }
+
+    override suspend fun syncServices(clusterId: String?, namespace: String?): Result<Unit> {
+        return Result.Success(Unit)
+    }
+
+    override suspend fun getServiceDetails(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<dev.hridaya.kubenexus.domain.model.ServiceDetails> {
+        return Result.Error(AppError.NotFound("Not exercised in this test"))
     }
 }
 

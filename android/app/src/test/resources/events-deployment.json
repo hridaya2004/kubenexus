@@ -1,0 +1,47 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "metadata": {
+    "resourceVersion": "1050000"
+  },
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "web-frontend.18ab77c9d1",
+        "namespace": "web"
+      },
+      "involvedObject": {
+        "kind": "Deployment",
+        "name": "web-frontend",
+        "namespace": "web"
+      },
+      "reason": "ScalingReplicaSet",
+      "message": "Scaled up replica set web-frontend-7d9f8c6b5 to 3",
+      "type": "Normal",
+      "count": 1,
+      "firstTimestamp": "2026-03-01T12:00:20Z",
+      "lastTimestamp": "2026-03-01T12:00:20Z"
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "web-frontend.18ab77e55f",
+        "namespace": "web"
+      },
+      "involvedObject": {
+        "kind": "Deployment",
+        "name": "web-frontend",
+        "namespace": "web"
+      },
+      "reason": "ScalingReplicaSet",
+      "message": "Scaled down replica set web-frontend-5c4b3a2d1 from 3 to 0",
+      "type": "Normal",
+      "count": 3,
+      "eventTime": "2026-03-02T08:13:40Z",
+      "lastTimestamp": "2026-03-02T08:13:59Z"
+    }
+  ]
+}

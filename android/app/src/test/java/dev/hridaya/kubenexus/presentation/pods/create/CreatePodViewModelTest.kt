@@ -95,7 +95,9 @@ class CreatePodViewModelTest {
         assertEquals(CreatePodStep.REVIEW, state.step)
         assertNull(state.errorMessage)
         assertNotNull(state.generatedYaml)
-        val yaml = state.generatedYaml!!
+        // yamlkt single-quotes values containing '-', ':' or '/'; stripping the
+        // quotes keeps these assertions about manifest content, not cosmetics.
+        val yaml = state.generatedYaml!!.replace("'", "")
         assertTrue(yaml.contains("kind: Pod"))
         assertTrue(yaml.contains("name: web-app"))
         assertTrue(yaml.contains("namespace: team-a"))

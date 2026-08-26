@@ -11,21 +11,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -49,6 +44,7 @@ import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTermin
 import dev.hridaya.kubenexus.presentation.pods.detail.components.DeletePodConfirmDialog
 import dev.hridaya.kubenexus.presentation.pods.detail.components.DescribeTabContent
 import dev.hridaya.kubenexus.presentation.pods.detail.components.LogsTabContent
+import dev.hridaya.kubenexus.presentation.pods.detail.components.PodDetailTopBar
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
@@ -101,23 +97,9 @@ fun PodDetailScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = uiState.podName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            PodDetailTopBar(
+                podName = uiState.podName,
+                onNavigateBack = onNavigateBack,
             )
         },
     ) { innerPadding ->
@@ -127,6 +109,7 @@ fun PodDetailScreen(
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
+
             PrimaryTabRow(
                 selectedTabIndex = uiState.selectedTab.ordinal,
                 containerColor = Color.Transparent,

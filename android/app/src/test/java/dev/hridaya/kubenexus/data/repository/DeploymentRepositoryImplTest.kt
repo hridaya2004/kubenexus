@@ -6,19 +6,24 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
+import dev.hridaya.kubenexus.data.source.local.dao.DeploymentDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
+import dev.hridaya.kubenexus.data.source.local.entity.DeploymentEntity
 import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.PodEntity
 import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -34,6 +39,7 @@ class DeploymentRepositoryImplTest {
     }
 
     private lateinit var fakeDao: FakeClusterDao
+    private lateinit var deploymentDao: RecordingDeploymentDao
     private lateinit var encryptor: AesGcmKubeconfigEncryptor
     private lateinit var recordingBridge: RecordingBridge
     private lateinit var repository: DeploymentRepositoryImpl
@@ -79,9 +85,11 @@ class DeploymentRepositoryImplTest {
         val secretKey = AesGcmKubeconfigEncryptor.generateKey()
         encryptor = AesGcmKubeconfigEncryptor(secretKey)
         recordingBridge = RecordingBridge()
+        deploymentDao = RecordingDeploymentDao()
 
         repository = DeploymentRepositoryImpl(
             clusterDao = fakeDao,
+            deploymentDao = deploymentDao,
             nativeBridge = recordingBridge,
             encryptor = encryptor,
             dispatcherProvider = testDispatcherProvider,
@@ -245,6 +253,151 @@ class DeploymentRepositoryImplTest {
     }
 
     @Test
+    fun `syncDeployments fails when no cluster is selected`() = runTest(testDispatcher) {
+        val result = repository.syncDeployments(clusterId = null, namespace = "default")
+
+        assertTrue(result is Result.Error)
+        assertEquals(
+            "No active cluster specified",
+            (result as Result.Error).error.message,
+        )
+    }
+
+    @Test
+    fun `syncDeployments caches summaries and records the deployments sync key`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+            recordingBridge.listResultToReturn = Result.Success(
+                listOf(
+                    DeploymentSummary(
+                        id = "web_nginx",
+                        name = "nginx",
+                        namespace = "web",
+                        desiredReplicas = 2,
+                        readyReplicas = 2,
+                        availableReplicas = 2,
+                        images = listOf("nginx:1.25", "sidecar:1.0"),
+                        creationTimestampMillis = 1000L,
+                    ),
+                ),
+            )
+
+            // "All Namespaces" is the UI's no-filter sentinel and must sync the
+            // whole cluster, reaching the bridge as null.
+            val result = repository.syncDeployments(clusterId = "c-1", namespace = "All Namespaces")
+
+            assertTrue(result is Result.Success)
+            assertEquals(null, recordingBridge.capturedListNamespace)
+
+            // Entity ids are clusterId-qualified so two clusters cannot collide.
+            assertEquals(listOf("c-1_web_nginx"), deploymentDao.syncedIds.single())
+            // The DAO sees the normalized null scope, matching what was fetched.
+            assertNull(deploymentDao.syncedNamespaces.single())
+
+            val metadata = deploymentDao.syncedMetadata.single()
+            assertEquals("c-1_deployments", metadata.key)
+            assertEquals("c-1", metadata.clusterId)
+            assertEquals("deployments", metadata.resourceType)
+        }
+
+    @Test
+    fun `syncDeployments scopes a named namespace to that namespace only`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+
+            val result = repository.syncDeployments(clusterId = "c-1", namespace = "web")
+
+            assertTrue(result is Result.Success)
+            assertEquals("web", recordingBridge.capturedListNamespace)
+            assertEquals(listOf("web"), deploymentDao.namespaceLookups)
+        }
+
+    @Test
+    fun `getDeploymentsStream maps cached entities and picks the whole-cluster query`() =
+        runTest(testDispatcher) {
+            deploymentDao.rows.value = listOf(
+                DeploymentEntity(
+                    id = "c-1_web_nginx",
+                    clusterId = "c-1",
+                    name = "nginx",
+                    namespace = "web",
+                    desiredReplicas = 2,
+                    readyReplicas = 1,
+                    availableReplicas = 1,
+                    updatedReplicas = 0,
+                    creationTimestampMillis = 1000L,
+                    images = "nginx:1.25,sidecar:1.0",
+                ),
+            )
+
+            val summaries = repository.getDeploymentsStream(clusterId = "c-1", namespace = null).first()
+
+            assertEquals(DeploymentDaoVariant.CLUSTER, deploymentDao.lastStreamVariant)
+            assertEquals(1, summaries.size)
+            // Comma-joined storage round-trips into a real image list.
+            assertEquals(listOf("nginx:1.25", "sidecar:1.0"), summaries.single().images)
+        }
+
+    @Test
+    fun `getDeploymentsStream routes a named namespace to the scoped query`() =
+        runTest(testDispatcher) {
+            repository.getDeploymentsStream(clusterId = "c-1", namespace = "web").first()
+
+            assertEquals(DeploymentDaoVariant.NAMESPACE, deploymentDao.lastStreamVariant)
+        }
+
+    @Test
+    fun `getDeploymentDetails passes decrypted kubeconfig and returns details`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+            val expected = DeploymentDetails(
+                name = "nginx",
+                namespace = "web",
+                creationTimestampMillis = 1000L,
+                desiredReplicas = 2,
+                readyReplicas = 2,
+                availableReplicas = 2,
+                updatedReplicas = 2,
+                strategyType = null,
+                minReadySeconds = null,
+                selectorMatchLabels = emptyMap(),
+                labels = emptyMap(),
+                annotations = emptyMap(),
+                conditions = emptyList(),
+                images = listOf("nginx:1.25"),
+                events = emptyList(),
+            )
+            recordingBridge.describeResultToReturn = Result.Success(expected)
+
+            val result = repository.getDeploymentDetails(clusterId = "c-1", namespace = "web", name = "nginx")
+
+            assertTrue(result is Result.Success)
+            assertEquals(expected, (result as Result.Success).data)
+            assertEquals(sampleKubeconfig, recordingBridge.capturedKubeconfig)
+            assertEquals("web", recordingBridge.capturedDescribeNamespace)
+            assertEquals("nginx", recordingBridge.capturedDescribeName)
+        }
+
+    @Test
+    fun `getDeploymentDetails surfaces sanitized bridge error messages`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+            recordingBridge.describeResultToReturn = Result.Error(
+                AppError.Unknown("describe denied: token: secret-token-12345 rejected"),
+            )
+
+            val result = repository.getDeploymentDetails(clusterId = "c-1", namespace = "web", name = "nginx")
+
+            assertTrue(result is Result.Error)
+            val error = (result as Result.Error).error
+            assertTrue(error is AppError.Network)
+            assertEquals(
+                "describe denied: token: [REDACTED] rejected",
+                error.message,
+            )
+        }
+
+    @Test
     fun `createNamespace fails when no cluster is selected`() = runTest(testDispatcher) {
         val result = podRepository.createNamespace(clusterId = null, name = "team-a")
 
@@ -304,9 +457,9 @@ class DeploymentRepositoryImplTest {
     }
 
     /**
-     * Records every [createDeployment], [listDeployments] and [createNamespace]
-     * argument so tests can assert exactly what crossed the bridge, then returns
-     * the preconfigured outcome.
+     * Records every [createDeployment], [listDeployments], [describeDeployment]
+     * and [createNamespace] argument so tests can assert exactly what crossed
+     * the bridge, then returns the preconfigured outcome.
      */
     private class RecordingBridge : FakeKubeNexusNativeBridge() {
         var capturedKubeconfig: String? = null
@@ -315,6 +468,10 @@ class DeploymentRepositoryImplTest {
 
         var capturedListNamespace: String? = null
         var listResultToReturn: Result<List<DeploymentSummary>>? = null
+
+        var capturedDescribeNamespace: String? = null
+        var capturedDescribeName: String? = null
+        var describeResultToReturn: Result<DeploymentDetails>? = null
 
         var capturedCreateNamespaceKubeconfig: String? = null
         var capturedCreateNamespaceName: String? = null
@@ -345,11 +502,95 @@ class DeploymentRepositoryImplTest {
             return listResultToReturn ?: Result.Success(emptyList())
         }
 
+        override fun describeDeployment(
+            rawKubeconfig: String,
+            namespace: String,
+            name: String,
+        ): Result<DeploymentDetails> {
+            capturedKubeconfig = rawKubeconfig
+            capturedDescribeNamespace = namespace
+            capturedDescribeName = name
+            errorToThrow?.let { throw it }
+            return describeResultToReturn
+                ?: Result.Error(AppError.NotFound("Deployment '$name' not found"))
+        }
+
         override fun createNamespace(rawKubeconfig: String, name: String): Result<Unit> {
             capturedCreateNamespaceKubeconfig = rawKubeconfig
             capturedCreateNamespaceName = name
             errorToThrow?.let { throw it }
             return createNamespaceResultToReturn ?: Result.Success(Unit)
+        }
+    }
+
+    /** Which stream query the repository picked, so namespace scoping is observable. */
+    private enum class DeploymentDaoVariant { CLUSTER, NAMESPACE }
+
+    /**
+     * In-memory [DeploymentDao]. The @Transaction default methods run for real,
+     * so sync tests exercise the actual delete/upsert/metadata sequence through
+     * these recorded primitives.
+     */
+    private class RecordingDeploymentDao : DeploymentDao {
+        val rows = MutableStateFlow<List<DeploymentEntity>>(emptyList())
+        var lastStreamVariant: DeploymentDaoVariant? = null
+
+        val namespaceLookups = mutableListOf<String>()
+        val syncedIds = mutableListOf<List<String>>()
+        val syncedNamespaces = mutableListOf<String?>()
+        val syncedMetadata = mutableListOf<SyncMetadataEntity>()
+
+        private val storedIds = mutableSetOf<String>()
+
+        override suspend fun syncDeployments(
+            clusterId: String,
+            namespace: String?,
+            deployments: List<DeploymentEntity>,
+            timestamp: Long,
+            chunkSize: Int,
+        ) {
+            // Record the requested scope, then let the real @Transaction body run.
+            syncedNamespaces.add(namespace)
+            syncedIds.add(deployments.map { it.id })
+            super.syncDeployments(clusterId, namespace, deployments, timestamp, chunkSize)
+        }
+
+        override fun getDeploymentsStream(clusterId: String): Flow<List<DeploymentEntity>> {
+            lastStreamVariant = DeploymentDaoVariant.CLUSTER
+            return rows
+        }
+
+        override fun getDeploymentsByNamespaceStream(clusterId: String, namespace: String): Flow<List<DeploymentEntity>> {
+            lastStreamVariant = DeploymentDaoVariant.NAMESPACE
+            return rows
+        }
+
+        override suspend fun getDeploymentIdsForCluster(clusterId: String): List<String> =
+            storedIds.toList()
+
+        override suspend fun getDeploymentIdsForNamespace(clusterId: String, namespace: String): List<String> {
+            namespaceLookups.add(namespace)
+            return storedIds.filter { it.endsWith("_${namespace}") }
+        }
+
+        override suspend fun insertDeployments(deployments: List<DeploymentEntity>) {
+            deployments.forEach { entity ->
+                storedIds.add(entity.id)
+                rows.value = rows.value.filterNot { it.id == entity.id } + entity
+            }
+        }
+
+        override suspend fun deleteDeploymentsByIds(ids: List<String>) {
+            storedIds.removeAll(ids.toSet())
+            rows.value = rows.value.filterNot { it.id in ids }
+        }
+
+        override fun getSyncMetadataStream(key: String): Flow<Long?> = MutableStateFlow(null)
+
+        override suspend fun getLastRefreshedTime(key: String): Long? = null
+
+        override suspend fun insertSyncMetadata(metadata: SyncMetadataEntity) {
+            syncedMetadata.add(metadata)
         }
     }
 

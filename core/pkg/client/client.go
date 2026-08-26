@@ -39,11 +39,12 @@ func defaultExecutorFactory(config *rest.Config, method string, u *url.URL) (rem
 // deletes go through dynamic, which returns unstructured objects that can be
 // handed to Android as verbatim JSON.
 type Client struct {
-	clientset       *kubernetes.Clientset
-	dynamic         dynamic.Interface
-	config          *rest.Config
-	timeout         time.Duration
-	executorFactory executorFactoryFunc
+	clientset                *kubernetes.Clientset
+	dynamic                  dynamic.Interface
+	config                   *rest.Config
+	timeout                  time.Duration
+	executorFactory          executorFactoryFunc
+	portForwardDialerFactory portForwardDialerFactoryFunc
 }
 
 // NewClient creates a Client from raw kubeconfig YAML string.
@@ -99,11 +100,12 @@ func newClientFromConfig(config *rest.Config, timeout time.Duration) (*Client, e
 	}
 
 	return &Client{
-		clientset:       clientset,
-		dynamic:         dyn,
-		config:          config,
-		timeout:         timeout,
-		executorFactory: defaultExecutorFactory,
+		clientset:                clientset,
+		dynamic:                  dyn,
+		config:                   config,
+		timeout:                  timeout,
+		executorFactory:          defaultExecutorFactory,
+		portForwardDialerFactory: defaultPortForwardDialerFactory,
 	}, nil
 }
 

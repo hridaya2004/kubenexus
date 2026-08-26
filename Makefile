@@ -32,8 +32,12 @@ help: ## Display this help message
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-$(AAR_TARGET):
-	@echo "kubenexus.aar not found. Building Go core native bridge..."
+# Rebuild whenever any Go source changes - without these prerequisites Make
+# happily serves a stale AAR after core edits (bit us 2026-08-26).
+GO_CORE_SOURCES := $(shell find $(CORE_DIR) -name '*.go' -not -name '*_test.go' 2>/dev/null)
+
+$(AAR_TARGET): $(GO_CORE_SOURCES)
+	@echo "kubenexus.aar missing or Go core changed. Building Go core native bridge..."
 	$(MAKE) go-core
 
 $(GHOSTTY_SO_TARGET):

@@ -98,7 +98,9 @@ class CreateDeploymentViewModelTest {
         assertEquals(CreateDeploymentStep.REVIEW, state.step)
         assertNull(state.errorMessage)
         assertNotNull(state.generatedYaml)
-        val yaml = state.generatedYaml!!
+        // yamlkt single-quotes values containing '-', ':' or '/'; stripping the
+        // quotes keeps these assertions about manifest content, not cosmetics.
+        val yaml = state.generatedYaml!!.replace("'", "")
         assertTrue(yaml.contains("kind: Deployment"))
         assertTrue(yaml.contains("name: web-app"))
         assertTrue(yaml.contains("namespace: team-a"))
@@ -300,6 +302,28 @@ private class FakeDeploymentRepository : DeploymentRepository {
         namespace: String?,
     ): Result<List<dev.hridaya.kubenexus.domain.model.DeploymentSummary>> {
         return Result.Success(emptyList())
+    }
+
+    override fun getDeploymentsStream(
+        clusterId: String?,
+        namespace: String?,
+    ): Flow<List<dev.hridaya.kubenexus.domain.model.DeploymentSummary>> {
+        return kotlinx.coroutines.flow.flowOf(emptyList())
+    }
+
+    override suspend fun syncDeployments(
+        clusterId: String?,
+        namespace: String?,
+    ): Result<Unit> {
+        return Result.Success(Unit)
+    }
+
+    override suspend fun getDeploymentDetails(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<dev.hridaya.kubenexus.domain.model.DeploymentDetails> {
+        return Result.Error(AppError.NotFound("Not exercised in this test"))
     }
 }
 

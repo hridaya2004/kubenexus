@@ -15,6 +15,7 @@ import dev.hridaya.kubenexus.data.repository.DeploymentRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ExploreRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.LogcatRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.PodRepositoryImpl
+import dev.hridaya.kubenexus.data.repository.PortForwardRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ServiceRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ThemePreferencesRepositoryImpl
 import dev.hridaya.kubenexus.data.source.local.DefaultLogcatLocalDataSource
@@ -26,6 +27,7 @@ import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
 import dev.hridaya.kubenexus.domain.repository.ExploreRepository
 import dev.hridaya.kubenexus.domain.repository.LogcatRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
+import dev.hridaya.kubenexus.domain.repository.PortForwardRepository
 import dev.hridaya.kubenexus.domain.repository.ServiceRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import javax.inject.Singleton
@@ -57,6 +59,12 @@ abstract class RepositoryModule {
     abstract fun bindServiceRepository(
         impl: ServiceRepositoryImpl
     ): ServiceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPortForwardRepository(
+        impl: PortForwardRepositoryImpl
+    ): PortForwardRepository
 
     @Binds
     @Singleton

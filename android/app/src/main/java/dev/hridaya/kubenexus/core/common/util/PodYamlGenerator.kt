@@ -8,28 +8,38 @@ import dev.hridaya.kubenexus.domain.model.PodDraft
  *
  * The generated text is exactly what gets applied: the user reviews this
  * string, and the same string is sent through the bridge, so what is shown is
- * never out of sync with what is created. The [PodDraft.containerPort] is
- * omittable because a bare container needs no port mapping at all; a zero
- * means "no ports block" rather than port zero, so the block is left out of
- * the reviewed text entirely instead of being emitted with a placeholder.
+ * never out of sync with what is created. The manifest is assembled as an
+ * ordered structure and serialized by yamlkt's dynamic block-style encoder,
+ * which preserves key order instead of relying on hand-appended lines. The
+ * [PodDraft.containerPort] is omittable because a bare container needs no port
+ * mapping at all; a zero means "no ports block" rather than port zero, so the
+ * block is left out of the reviewed text entirely instead of being emitted
+ * with a placeholder.
  */
 object PodYamlGenerator {
 
-    fun generate(draft: PodDraft): String = buildString {
-        appendLine("apiVersion: v1")
-        appendLine("kind: Pod")
-        appendLine("metadata:")
-        appendLine("  name: ${draft.name}")
-        appendLine("  namespace: ${draft.namespace}")
-        appendLine("  labels:")
-        appendLine("    app: ${draft.name}")
-        appendLine("spec:")
-        appendLine("  containers:")
-        appendLine("    - name: ${draft.name}")
-        appendLine("      image: ${draft.image}")
+    fun generate(draft: PodDraft): String {
+        val containerSpec = linkedMapOf<String, Any>(
+            "name" to draft.name,
+            "image" to draft.image,
+        )
         if (draft.containerPort > 0) {
-            appendLine("      ports:")
-            appendLine("        - containerPort: ${draft.containerPort}")
+            containerSpec["ports"] = listOf(linkedMapOf("containerPort" to draft.containerPort))
         }
+
+        val podManifest = linkedMapOf<String, Any>(
+            "apiVersion" to "v1",
+            "kind" to "Pod",
+            "metadata" to linkedMapOf(
+                "name" to draft.name,
+                "namespace" to draft.namespace,
+                "labels" to linkedMapOf("app" to draft.name),
+            ),
+            "spec" to linkedMapOf(
+                "containers" to listOf(containerSpec),
+            ),
+        )
+
+        return renderK8sManifest(podManifest)
     }
 }

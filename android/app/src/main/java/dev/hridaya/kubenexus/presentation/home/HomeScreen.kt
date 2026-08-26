@@ -37,6 +37,10 @@ import dev.hridaya.kubenexus.presentation.home.components.EmptyClustersView
 import dev.hridaya.kubenexus.presentation.home.components.ErrorDialog
 import dev.hridaya.kubenexus.presentation.home.components.FabActionBottomSheet
 import dev.hridaya.kubenexus.presentation.home.components.HomeWorkloadsList
+import androidx.compose.material.icons.outlined.SettingsEthernet
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.IconButton
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
@@ -45,10 +49,13 @@ fun HomeRoute(
     onNavigateToManageClusters: () -> Unit,
     onNavigateToPods: () -> Unit,
     onNavigateToDeployments: () -> Unit,
+    onNavigateToServices: () -> Unit,
     onNavigateToCreatePod: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
     onNavigateToCreateService: () -> Unit,
     modifier: Modifier = Modifier,
+    activePortForwardCount: Int = 0,
+    onOpenPortForwardSessions: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -71,9 +78,12 @@ fun HomeRoute(
         onNavigateToManageClusters = onNavigateToManageClusters,
         onNavigateToPods = onNavigateToPods,
         onNavigateToDeployments = onNavigateToDeployments,
+        onNavigateToServices = onNavigateToServices,
         onNavigateToCreatePod = onNavigateToCreatePod,
         onNavigateToCreateDeployment = onNavigateToCreateDeployment,
         onNavigateToCreateService = onNavigateToCreateService,
+        activePortForwardCount = activePortForwardCount,
+        onOpenPortForwardSessions = onOpenPortForwardSessions,
         modifier = modifier,
     )
 }
@@ -86,10 +96,13 @@ fun HomeScreen(
     onNavigateToManageClusters: () -> Unit,
     onNavigateToPods: () -> Unit,
     onNavigateToDeployments: () -> Unit,
+    onNavigateToServices: () -> Unit,
     onNavigateToCreatePod: () -> Unit,
     onNavigateToCreateDeployment: () -> Unit,
     onNavigateToCreateService: () -> Unit,
     modifier: Modifier = Modifier,
+    activePortForwardCount: Int = 0,
+    onOpenPortForwardSessions: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -111,6 +124,24 @@ fun HomeScreen(
                             connectionStatus = uiState.clusterConnectionStatus,
                             onClick = { onAction(HomeUiAction.OpenClusterDrawer) },
                         )
+                    }
+                },
+                actions = {
+                    if (activePortForwardCount > 0) {
+                        IconButton(onClick = onOpenPortForwardSessions) {
+                            BadgedBox(
+                                badge = {
+                                    Badge {
+                                        Text(text = "$activePortForwardCount")
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.SettingsEthernet,
+                                    contentDescription = "Active port forward sessions ($activePortForwardCount)",
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -157,6 +188,7 @@ fun HomeScreen(
                         totalPodsCount = uiState.totalPodsCount,
                         onNavigateToPods = onNavigateToPods,
                         onNavigateToDeployments = onNavigateToDeployments,
+                        onNavigateToServices = onNavigateToServices,
                         onNoopAction = { onAction(HomeUiAction.TriggerNoopAction(it)) },
                     )
                 }
@@ -250,6 +282,7 @@ private fun HomeScreenPreview() {
             onNavigateToManageClusters = {},
             onNavigateToPods = {},
             onNavigateToDeployments = {},
+            onNavigateToServices = {},
             onNavigateToCreatePod = {},
             onNavigateToCreateDeployment = {},
             onNavigateToCreateService = {},
@@ -270,6 +303,7 @@ private fun HomeScreenEmptyPreview() {
             onNavigateToManageClusters = {},
             onNavigateToPods = {},
             onNavigateToDeployments = {},
+            onNavigateToServices = {},
             onNavigateToCreatePod = {},
             onNavigateToCreateDeployment = {},
             onNavigateToCreateService = {},

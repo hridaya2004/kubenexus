@@ -8,16 +8,20 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
+import dev.hridaya.kubenexus.data.source.local.dao.DeploymentDao
 import dev.hridaya.kubenexus.data.source.local.dao.ExplainedResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
 import dev.hridaya.kubenexus.data.source.local.dao.OpenApiSchemaDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
+import dev.hridaya.kubenexus.data.source.local.dao.ServiceDao
 import dev.hridaya.kubenexus.data.source.local.entity.APIResourceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
+import dev.hridaya.kubenexus.data.source.local.entity.DeploymentEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ExplainedResourceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.OpenApiSchemaEntity
 import dev.hridaya.kubenexus.data.source.local.entity.PodEntity
+import dev.hridaya.kubenexus.data.source.local.entity.ServiceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
 
 @Database(
@@ -29,8 +33,10 @@ import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
         APIResourceEntity::class,
         ExplainedResourceEntity::class,
         OpenApiSchemaEntity::class,
+        DeploymentEntity::class,
+        ServiceEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
     // AutoMigration(5, 6) is not possible: schema JSON was never exported for
     // v5. From here on, exported schemas let future bumps declare auto-migrations.
@@ -44,6 +50,8 @@ abstract class KubeNexusDatabase : RoomDatabase() {
     abstract fun apiResourceDao(): APIResourceDao
     abstract fun explainedResourceDao(): ExplainedResourceDao
     abstract fun openApiSchemaDao(): OpenApiSchemaDao
+    abstract fun deploymentDao(): DeploymentDao
+    abstract fun serviceDao(): ServiceDao
 
     companion object {
         const val DATABASE_NAME = "kubenexus.db"
@@ -164,6 +172,71 @@ abstract class KubeNexusDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Introduces the offline-first Deployment and Service caches.
+         *
+         * Both tables are new, so nothing is migrated — only created. The
+         * column lists must match what Room derives from [DeploymentEntity]
+         * and [ServiceEntity] exactly (types, nullability, order), because
+         * Room validates the migrated schema against the exported 7.json.
+         * Cached rows start empty and are repopulated by the first sync.
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `deployments` (
+                        `id` TEXT NOT NULL,
+                        `clusterId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `namespace` TEXT NOT NULL,
+                        `desiredReplicas` INTEGER NOT NULL,
+                        `readyReplicas` INTEGER NOT NULL,
+                        `availableReplicas` INTEGER NOT NULL,
+                        `updatedReplicas` INTEGER NOT NULL,
+                        `creationTimestampMillis` INTEGER,
+                        `images` TEXT NOT NULL,
+                        `lastUpdated` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_deployments_clusterId_namespace` " +
+                        "ON `deployments` (`clusterId`, `namespace`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_deployments_clusterId_name` " +
+                        "ON `deployments` (`clusterId`, `name`)",
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `services` (
+                        `id` TEXT NOT NULL,
+                        `clusterId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `namespace` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `clusterIp` TEXT NOT NULL,
+                        `ports` TEXT NOT NULL,
+                        `creationTimestampMillis` INTEGER,
+                        `lastUpdated` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_services_clusterId_namespace` " +
+                        "ON `services` (`clusterId`, `namespace`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_services_clusterId_name` " +
+                        "ON `services` (`clusterId`, `name`)",
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: KubeNexusDatabase? = null
 
@@ -174,7 +247,14 @@ abstract class KubeNexusDatabase : RoomDatabase() {
                     KubeNexusDatabase::class.java,
                     DATABASE_NAME,
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6,
+                        MIGRATION_6_7,
+                    )
                     .build()
                     .also { INSTANCE = it }
             }

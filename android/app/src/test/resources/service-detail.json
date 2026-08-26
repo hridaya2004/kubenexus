@@ -1,0 +1,57 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "web-frontend",
+    "namespace": "web",
+    "uid": "8f2c1d3e-7a64-49b5-92cc-0e1f2a3b4c5d",
+    "resourceVersion": "1049001",
+    "creationTimestamp": "2026-03-01T12:01:10Z",
+    "labels": {
+      "app": "web-frontend",
+      "tier": "frontend"
+    },
+    "annotations": {
+      "cloud.google.com/load-balancer-type": "External"
+    }
+  },
+  "spec": {
+    "type": "LoadBalancer",
+    "clusterIP": "10.96.44.17",
+    "clusterIPs": [
+      "10.96.44.17"
+    ],
+    "externalIPs": [
+      "203.0.113.7"
+    ],
+    "selector": {
+      "app": "web-frontend",
+      "tier": "frontend"
+    },
+    "ports": [
+      {
+        "name": "http",
+        "protocol": "TCP",
+        "port": 80,
+        "targetPort": 8080,
+        "nodePort": 30080
+      },
+      {
+        "name": "https",
+        "protocol": "TCP",
+        "port": 443,
+        "targetPort": "https-port",
+        "nodePort": 30443
+      }
+    ]
+  },
+  "status": {
+    "loadBalancer": {
+      "ingress": [
+        {
+          "ip": "198.51.100.4"
+        }
+      ]
+    }
+  }
+}

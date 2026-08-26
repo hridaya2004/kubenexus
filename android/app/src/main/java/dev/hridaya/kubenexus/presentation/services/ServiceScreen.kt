@@ -122,7 +122,7 @@ fun ServicesScreen(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
+            isRefreshing = false,
             onRefresh = { onAction(ServicesUiAction.Refresh) },
             modifier = Modifier
                 .fillMaxSize()

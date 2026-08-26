@@ -6,6 +6,8 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
@@ -18,9 +20,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Shows one Service by fetching its details fresh on every entry and refresh.
- * Unlike the services list this is deliberately not offline-first: a describe
- * that fails surfaces the distinct error state instead of stale cached data.
+ * Network-first detail screen for one Service (mirroring PodDetailViewModel).
+ *
+ * Fetches fresh describe and service details over the network on every entry and refresh.
+ * Automatically re-fetches when network connectivity is restored.
  */
 @HiltViewModel(assistedFactory = ServiceDetailViewModel.Factory::class)
 class ServiceDetailViewModel @AssistedInject constructor(
@@ -28,6 +31,8 @@ class ServiceDetailViewModel @AssistedInject constructor(
     @Assisted("namespace") private val namespace: String,
     private val getServiceDetailsUseCase: GetServiceDetailsUseCase,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
+    private val networkMonitor: NetworkMonitor? = null,
+    private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -45,6 +50,25 @@ class ServiceDetailViewModel @AssistedInject constructor(
         ),
     )
     val uiState: StateFlow<ServiceDetailUiState> = _uiState.asStateFlow()
+
+    private var wasOffline = false
+
+    init {
+        observeNetwork()
+    }
+
+    private fun observeNetwork() {
+        val monitor = networkMonitor ?: return
+        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        viewModelScope.launch(dispatcher) {
+            monitor.isOnline.collect { online ->
+                if (online && wasOffline) {
+                    load()
+                }
+                wasOffline = !online
+            }
+        }
+    }
 
     fun onAction(action: ServiceDetailUiAction) {
         when (action) {

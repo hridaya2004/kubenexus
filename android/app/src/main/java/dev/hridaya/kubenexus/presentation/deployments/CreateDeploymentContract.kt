@@ -25,6 +25,7 @@ data class CreateDeploymentUiState(
     /** Exactly what the editor shows; Apply sends this text verbatim. */
     val reviewedYaml: String = "",
     val isSubmitting: Boolean = false,
+    val hasSubmitted: Boolean = false,
     val errorMessage: String? = null,
 )
 

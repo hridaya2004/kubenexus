@@ -89,6 +89,21 @@ class CreateServiceViewModelTest {
     }
 
     @Test
+    fun `initial form state does not show required field errors before submit`() = vmTest { viewModel ->
+        val state = viewModel.uiState.value
+        assertTrue(state.fieldErrors.isEmpty())
+        assertNull(state.errorMessage)
+
+        viewModel.onAction(CreateServiceUiAction.PreviewSubmitted)
+        val submittedState = viewModel.uiState.value
+        assertTrue(submittedState.fieldErrors.containsKey("name"))
+        assertTrue(submittedState.fieldErrors.containsKey("selectorApp"))
+        assertTrue(submittedState.fieldErrors.containsKey("port"))
+        assertTrue(submittedState.fieldErrors.containsKey("targetPort"))
+        assertNotNull(submittedState.errorMessage)
+    }
+
+    @Test
     fun `preview success moves to review step with generated service yaml`() = vmTest { viewModel ->
         fillValidForm(viewModel)
         assertTrue(viewModel.uiState.value.fieldErrors.isEmpty())

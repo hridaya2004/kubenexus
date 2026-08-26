@@ -184,11 +184,12 @@ fun MainScreen(
 
         isViewingDeployments -> {
             val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val clusterId = homeUiState.activeCluster?.id
             val deploymentsViewModel: DeploymentsViewModel = hiltViewModel(
-                key = "deployments_list",
+                key = "deployments_list_${clusterId.orEmpty()}",
                 creationCallback = { factory: DeploymentsViewModel.Factory ->
                     factory.create(
-                        clusterId = homeUiState.activeCluster?.id,
+                        clusterId = clusterId,
                         namespace = homeUiState.selectedNamespace
                             .takeIf { it.isNotBlank() && it != "All Namespaces" },
                     )
@@ -208,11 +209,12 @@ fun MainScreen(
 
         isViewingServices -> {
             val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val clusterId = homeUiState.activeCluster?.id
             val servicesViewModel: ServicesViewModel = hiltViewModel(
-                key = "services_list",
+                key = "services_list_${clusterId.orEmpty()}",
                 creationCallback = { factory: ServicesViewModel.Factory ->
                     factory.create(
-                        clusterId = homeUiState.activeCluster?.id,
+                        clusterId = clusterId,
                         namespace = homeUiState.selectedNamespace
                             .takeIf { it.isNotBlank() && it != "All Namespaces" },
                     )

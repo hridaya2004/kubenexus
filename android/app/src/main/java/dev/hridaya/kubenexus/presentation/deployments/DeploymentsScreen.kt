@@ -113,7 +113,7 @@ fun DeploymentsScreen(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = uiState.isSyncing,
+            isRefreshing = false,
             onRefresh = { onAction(DeploymentsUiAction.Refresh) },
             modifier = Modifier
                 .fillMaxSize()

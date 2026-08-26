@@ -130,13 +130,19 @@ class CreateServiceViewModel @AssistedInject constructor(
     }
 
     private fun previewYaml() {
-        val state = _uiState.value
-        if (state.fieldErrors.isNotEmpty()) {
-            _uiState.update { it.copy(errorMessage = "Fix the highlighted fields to continue") }
+        val (draft, fullErrors) = draftWithErrors(_uiState.value, includeRequired = true)
+        if (fullErrors.isNotEmpty()) {
+            _uiState.update {
+                it.copy(
+                    hasSubmitted = true,
+                    fieldErrors = fullErrors,
+                    errorMessage = "Fix the highlighted fields to continue",
+                )
+            }
             return
         }
-        val draft = buildDraft(state)
-        when (val result = createServiceUseCase.previewYaml(draft)) {
+        val draftValid = buildDraft(state = _uiState.value)
+        when (val result = createServiceUseCase.previewYaml(draftValid)) {
             is Result.Success -> _uiState.update {
                 it.copy(
                     step = CreateServiceStep.REVIEW,
@@ -230,7 +236,7 @@ class CreateServiceViewModel @AssistedInject constructor(
     }
 
     private fun validated(state: CreateServiceUiState): CreateServiceUiState {
-        return state.copy(fieldErrors = draftWithErrors(state).second)
+        return state.copy(fieldErrors = draftWithErrors(state, includeRequired = state.hasSubmitted).second)
     }
 
     private fun buildDraft(state: CreateServiceUiState): ServiceDraft {
@@ -238,7 +244,10 @@ class CreateServiceViewModel @AssistedInject constructor(
     }
 
     /** Parses the ports safely; unparseable text becomes field errors instead of a crash. */
-    private fun draftWithErrors(state: CreateServiceUiState): Pair<ServiceDraft, Map<String, String>> {
+    private fun draftWithErrors(
+        state: CreateServiceUiState,
+        includeRequired: Boolean = state.hasSubmitted,
+    ): Pair<ServiceDraft, Map<String, String>> {
         val parsedPort = state.port.trim().toIntOrNull()
         val parsedTargetPort = state.targetPort.trim().toIntOrNull()
         val draft = ServiceDraft(
@@ -249,7 +258,7 @@ class CreateServiceViewModel @AssistedInject constructor(
             targetPort = parsedTargetPort ?: ServiceDraft.DEFAULT_PORT,
             serviceType = state.serviceType,
         )
-        val errors = buildMap {
+        val allErrors = buildMap {
             if (state.port.isNotBlank() && parsedPort == null) {
                 put("port", "Port must be a whole number")
             }
@@ -257,6 +266,20 @@ class CreateServiceViewModel @AssistedInject constructor(
                 put("targetPort", "Target port must be a whole number")
             }
             putAll(draft.validate())
+        }
+        val errors = if (includeRequired) {
+            allErrors
+        } else {
+            allErrors.filter { (field, _) ->
+                when (field) {
+                    "name" -> state.name.isNotBlank()
+                    "selectorApp" -> state.selectorApp.isNotBlank()
+                    "namespace" -> state.namespace.isNotBlank()
+                    "port" -> state.port.isNotBlank()
+                    "targetPort" -> state.targetPort.isNotBlank()
+                    else -> true
+                }
+            }
         }
         return draft to errors
     }

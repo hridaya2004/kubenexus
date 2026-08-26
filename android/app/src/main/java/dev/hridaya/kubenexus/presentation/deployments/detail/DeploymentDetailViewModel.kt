@@ -6,6 +6,8 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentDetailsUseCase
@@ -18,15 +20,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Shows one Deployment. The summary card keeps resolving through the
- * list-and-select path ([GetDeploymentsUseCase]) so it renders instantly;
- * describe-deployment data loads separately via [GetDeploymentDetailsUseCase]
- * (always over the network, never cached) into an independent
- * [DeploymentDetailUiState.detailsErrorMessage], so a slow or failing describe
- * never takes down the overview.
+ * Network-first detail screen for one Deployment (mirroring PodDetailViewModel).
  *
- * Neither section loads from init: [DeploymentDetailRoute]'s
- * LifecycleStartEffect triggers both on every lifecycle start.
+ * Describes the deployment directly over the network on every entry and refresh.
+ * Automatically re-fetches when network connectivity is restored.
  */
 @HiltViewModel(assistedFactory = DeploymentDetailViewModel.Factory::class)
 class DeploymentDetailViewModel @AssistedInject constructor(
@@ -35,6 +32,8 @@ class DeploymentDetailViewModel @AssistedInject constructor(
     private val getDeploymentsUseCase: GetDeploymentsUseCase,
     private val getDeploymentDetailsUseCase: GetDeploymentDetailsUseCase,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
+    private val networkMonitor: NetworkMonitor? = null,
+    private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -52,6 +51,25 @@ class DeploymentDetailViewModel @AssistedInject constructor(
         ),
     )
     val uiState: StateFlow<DeploymentDetailUiState> = _uiState.asStateFlow()
+
+    private var wasOffline = false
+
+    init {
+        observeNetwork()
+    }
+
+    private fun observeNetwork() {
+        val monitor = networkMonitor ?: return
+        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        viewModelScope.launch(dispatcher) {
+            monitor.isOnline.collect { online ->
+                if (online && wasOffline) {
+                    load()
+                }
+                wasOffline = !online
+            }
+        }
+    }
 
     fun onAction(action: DeploymentDetailUiAction) {
         when (action) {

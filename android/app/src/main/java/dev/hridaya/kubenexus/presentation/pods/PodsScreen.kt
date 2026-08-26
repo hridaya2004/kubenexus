@@ -76,19 +76,10 @@ fun PodsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Pods",
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                        uiState.activeCluster?.let { cluster ->
-                            Text(
-                                text = "Cluster: ${cluster.name}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Pods",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {

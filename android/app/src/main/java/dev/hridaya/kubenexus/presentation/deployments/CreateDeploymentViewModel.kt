@@ -129,13 +129,19 @@ class CreateDeploymentViewModel @AssistedInject constructor(
     }
 
     private fun previewYaml() {
-        val state = _uiState.value
-        if (state.fieldErrors.isNotEmpty()) {
-            _uiState.update { it.copy(errorMessage = "Fix the highlighted fields to continue") }
+        val (draft, fullErrors) = draftWithErrors(_uiState.value, includeRequired = true)
+        if (fullErrors.isNotEmpty()) {
+            _uiState.update {
+                it.copy(
+                    hasSubmitted = true,
+                    fieldErrors = fullErrors,
+                    errorMessage = "Fix the highlighted fields to continue",
+                )
+            }
             return
         }
-        val draft = buildDraft(state)
-        when (val result = createDeploymentUseCase.previewYaml(draft)) {
+        val draftValid = buildDraft(state = _uiState.value)
+        when (val result = createDeploymentUseCase.previewYaml(draftValid)) {
             is Result.Success -> _uiState.update {
                 it.copy(
                     step = CreateDeploymentStep.REVIEW,
@@ -229,7 +235,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
     }
 
     private fun validated(state: CreateDeploymentUiState): CreateDeploymentUiState {
-        return state.copy(fieldErrors = draftWithErrors(state).second)
+        return state.copy(fieldErrors = draftWithErrors(state, includeRequired = state.hasSubmitted).second)
     }
 
     private fun buildDraft(state: CreateDeploymentUiState): DeploymentDraft {
@@ -237,7 +243,10 @@ class CreateDeploymentViewModel @AssistedInject constructor(
     }
 
     /** Parses replicas/port safely; unparseable text becomes a field error instead of a crash. */
-    private fun draftWithErrors(state: CreateDeploymentUiState): Pair<DeploymentDraft, Map<String, String>> {
+    private fun draftWithErrors(
+        state: CreateDeploymentUiState,
+        includeRequired: Boolean = state.hasSubmitted,
+    ): Pair<DeploymentDraft, Map<String, String>> {
         val parsedReplicas = state.replicas.trim().toIntOrNull()
         val parsedContainerPort = state.containerPort.trim().toIntOrNull()
         val draft = DeploymentDraft(
@@ -247,7 +256,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             replicas = parsedReplicas ?: DeploymentDraft.DEFAULT_REPLICAS,
             containerPort = parsedContainerPort ?: DeploymentDraft.DEFAULT_CONTAINER_PORT,
         )
-        val errors = buildMap {
+        val allErrors = buildMap {
             if (state.replicas.isNotBlank() && parsedReplicas == null) {
                 put("replicas", "Replicas must be a whole number")
             }
@@ -255,6 +264,18 @@ class CreateDeploymentViewModel @AssistedInject constructor(
                 put("containerPort", "Port must be a whole number")
             }
             putAll(draft.validate())
+        }
+        val errors = if (includeRequired) {
+            allErrors
+        } else {
+            allErrors.filter { (field, _) ->
+                when (field) {
+                    "name" -> state.name.isNotBlank()
+                    "image" -> state.image.isNotBlank()
+                    "namespace" -> state.namespace.isNotBlank()
+                    else -> true
+                }
+            }
         }
         return draft to errors
     }

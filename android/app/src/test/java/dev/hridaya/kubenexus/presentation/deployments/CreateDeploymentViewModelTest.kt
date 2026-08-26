@@ -88,6 +88,19 @@ class CreateDeploymentViewModelTest {
     }
 
     @Test
+    fun `initial form state does not show required field errors before submit`() = vmTest { viewModel ->
+        val state = viewModel.uiState.value
+        assertTrue(state.fieldErrors.isEmpty())
+        assertNull(state.errorMessage)
+
+        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+        val submittedState = viewModel.uiState.value
+        assertTrue(submittedState.fieldErrors.containsKey("name"))
+        assertTrue(submittedState.fieldErrors.containsKey("image"))
+        assertNotNull(submittedState.errorMessage)
+    }
+
+    @Test
     fun `preview success moves to review step with generated yaml`() = vmTest { viewModel ->
         fillValidForm(viewModel)
         assertTrue(viewModel.uiState.value.fieldErrors.isEmpty())

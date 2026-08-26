@@ -93,8 +93,8 @@ fun ServicesScreen(
             uiState.services.filter { service ->
                 service.name.contains(query, ignoreCase = true) ||
                     service.namespace.contains(query, ignoreCase = true) ||
-                    (service.type?.contains(query, ignoreCase = true) == true) ||
-                    (service.clusterIP?.contains(query, ignoreCase = true) == true)
+                    service.type.contains(query, ignoreCase = true) ||
+                    service.clusterIP.contains(query, ignoreCase = true)
             }
         }
     }

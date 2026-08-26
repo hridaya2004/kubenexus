@@ -18,7 +18,7 @@ class NativeBridgeJsonParserTest {
     }
 
     private fun loadFixture(name: String): String =
-        javaClass.classLoader.getResourceAsStream(name)!!.bufferedReader().readText()
+        javaClass.classLoader?.getResourceAsStream(name)!!.bufferedReader().readText()
 
     @Test
     fun `parseAPIResources returns empty list for blank input`() {

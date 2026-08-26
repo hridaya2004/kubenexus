@@ -80,7 +80,7 @@ private fun ServicePortRow(
                 append(port.targetPort)
                 port.nodePort?.let { nodePort -> append(":$nodePort") }
                 append("/")
-                append(port.protocol ?: "TCP")
+                append(port.protocol.ifBlank { "TCP" })
             },
             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
             color = MaterialTheme.colorScheme.onSurface,

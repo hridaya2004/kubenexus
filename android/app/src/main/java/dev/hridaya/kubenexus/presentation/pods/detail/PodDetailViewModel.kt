@@ -879,7 +879,6 @@ class PodDetailViewModel @AssistedInject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopStreaming()
         stopTerminal()
         terminalEngine.destroy()

@@ -66,7 +66,7 @@ internal fun ServiceCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = service.clusterIP ?: "None",
+                    text = service.clusterIP.ifBlank { "None" },
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                     ),

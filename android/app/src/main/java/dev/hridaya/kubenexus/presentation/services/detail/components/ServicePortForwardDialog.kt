@@ -54,18 +54,32 @@ fun ServicePortForwardDialog(
     onDismiss: () -> Unit,
 ) {
     val ports = service.ports
+    val takenLocalPorts = uiState.activeForwards.map { it.localPort }.toSet()
     var selectedPort by remember(ports) {
         mutableStateOf(ports.firstOrNull()?.port)
     }
-    var localPortInput by remember(ports) { mutableStateOf("") }
+    var localPortInput by remember(ports) {
+        mutableStateOf(
+            ports.firstOrNull()?.port?.let { defaultLocalPort(it, takenLocalPorts).toString() }.orEmpty(),
+        )
+    }
+
+    var wasStarting by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isStarting, uiState.error, uiState.activeForwards.size) {
+        if (wasStarting && !uiState.isStarting && uiState.error == null) {
+            selectedPort?.let { port ->
+                localPortInput = defaultLocalPort(port, takenLocalPorts).toString()
+            }
+        }
+        wasStarting = uiState.isStarting
+    }
 
     LaunchedEffect(selectedPort) {
         selectedPort?.let { port ->
-            localPortInput = defaultLocalPort(port).toString()
+            localPortInput = defaultLocalPort(port, takenLocalPorts).toString()
         }
     }
 
-    val takenLocalPorts = uiState.activeForwards.map { it.localPort }.toSet()
     val localPortError = validateLocalPort(localPortInput, takenLocalPorts)
 
     AlertDialog(

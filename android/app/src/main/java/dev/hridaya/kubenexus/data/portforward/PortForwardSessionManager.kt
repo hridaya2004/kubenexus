@@ -29,9 +29,19 @@ class PortForwardSessionManager @Inject constructor(
     private val repository: PortForwardRepository,
     @param:ApplicationScope private val externalScope: CoroutineScope,
     private val dispatcherProvider: DispatcherProvider,
+    private val notificationManager: PortForwardNotificationManager? = null,
 ) {
     private val _sessions = MutableStateFlow<List<ActivePortForwardSession>>(emptyList())
     val sessions: StateFlow<List<ActivePortForwardSession>> = _sessions.asStateFlow()
+
+    init {
+        externalScope.launch(dispatcherProvider.io) {
+            _sessions.collect { list ->
+                val active = list.filter { it.isActive }
+                notificationManager?.updateNotification(active)
+            }
+        }
+    }
 
     private val internalListener = object : PortForwardListener {
         override fun onPortForwardReady(handleId: String, localPort: Int) {

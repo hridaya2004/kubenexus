@@ -68,9 +68,14 @@ private fun parsePodPortEntry(entry: String): Triple<Int?, Int, String?>? {
     return remote?.takeIf { it in 1..MAX_PORT }?.let { Triple(hostPort, it, protocol) }
 }
 
-/** Suggested local port: remote plus 2000, clamped into the usable range. */
-fun defaultLocalPort(remotePort: Int): Int =
-    (remotePort + 2000).coerceIn(MIN_LOCAL_PORT, MAX_PORT)
+/** Suggested local port: remote plus 2000, skipping any already taken local ports. */
+fun defaultLocalPort(remotePort: Int, takenPorts: Set<Int> = emptySet()): Int {
+    var candidate = (remotePort + 2000).coerceIn(MIN_LOCAL_PORT, MAX_PORT)
+    while (candidate in takenPorts && candidate < MAX_PORT) {
+        candidate++
+    }
+    return candidate
+}
 
 /**
  * Validates a local port text field. Returns null when acceptable, otherwise a

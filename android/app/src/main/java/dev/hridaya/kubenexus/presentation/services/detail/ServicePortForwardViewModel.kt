@@ -96,7 +96,7 @@ class ServicePortForwardViewModel @AssistedInject constructor(
 
         _uiState.update { it.copy(isStarting = true, error = null) }
 
-        viewModelScope.launch(dispatcherProvider.io) {
+        externalScope.launch(dispatcherProvider.io) {
             when (val targetResult = resolveServiceForwardTargetUseCase(kubeconfig, service, servicePort)) {
                 is Result.Success -> {
                     val target = targetResult.data
@@ -129,7 +129,7 @@ class ServicePortForwardViewModel @AssistedInject constructor(
     }
 
     fun stop(handleId: String) {
-        viewModelScope.launch(dispatcherProvider.io) {
+        externalScope.launch(dispatcherProvider.io) {
             sessionManager.stop(handleId)
         }
     }

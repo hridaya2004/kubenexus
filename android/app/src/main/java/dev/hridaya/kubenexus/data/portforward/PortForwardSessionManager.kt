@@ -1,5 +1,9 @@
 package dev.hridaya.kubenexus.data.portforward
 
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.ContextCompat
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.di.ApplicationScope
@@ -29,6 +33,7 @@ class PortForwardSessionManager @Inject constructor(
     private val repository: PortForwardRepository,
     @param:ApplicationScope private val externalScope: CoroutineScope,
     private val dispatcherProvider: DispatcherProvider,
+    @param:ApplicationContext private val context: Context? = null,
     private val notificationManager: PortForwardNotificationManager? = null,
 ) {
     private val _sessions = MutableStateFlow<List<ActivePortForwardSession>>(emptyList())
@@ -38,7 +43,20 @@ class PortForwardSessionManager @Inject constructor(
         externalScope.launch(dispatcherProvider.io) {
             _sessions.collect { list ->
                 val active = list.filter { it.isActive }
-                notificationManager?.updateNotification(active)
+                if (active.isNotEmpty()) {
+                    context?.let { ctx ->
+                        try {
+                            ContextCompat.startForegroundService(
+                                ctx,
+                                Intent(ctx, PortForwardService::class.java),
+                            )
+                        } catch (_: Exception) {
+                            // Foreground service launch exception fallback
+                        }
+                    }
+                } else {
+                    notificationManager?.dismissNotification()
+                }
             }
         }
     }

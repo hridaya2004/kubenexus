@@ -9,8 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@HiltAndroidApp(Application::class)
-class KubeNexusApp : Hilt_KubeNexusApp() {
+@HiltAndroidApp
+class KubeNexusApp : Application() {
 
     @Inject
     @ApplicationScope

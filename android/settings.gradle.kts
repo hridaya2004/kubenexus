@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Kube Nexus"
+rootProject.name = "KubeNexus"
 include(":app")
 include(":core")
 include(":domain")

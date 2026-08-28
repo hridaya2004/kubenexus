@@ -30,8 +30,8 @@ import dev.hridaya.kubenexus.domain.model.ThemeMode
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@AndroidEntryPoint(ComponentActivity::class)
-class MainActivity : Hilt_MainActivity() {
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var themePreferencesRepository: ThemePreferencesRepository

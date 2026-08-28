@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.presentation.services.detail.components
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import android.text.format.DateUtils
 import dev.hridaya.kubenexus.domain.model.K8sEventSummary
 
 @Composable

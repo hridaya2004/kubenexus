@@ -187,7 +187,9 @@ fun ManageClusterCard(
                                 onClick = {},
                                 shape = MaterialTheme.shapes.small,
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(
+                                        alpha = 0.5f
+                                    ),
                                     contentColor = MaterialTheme.colorScheme.error,
                                 ),
                                 modifier = Modifier.weight(1f),
@@ -199,7 +201,11 @@ fun ManageClusterCard(
                                     tint = MaterialTheme.colorScheme.error,
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Unhealthy", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                                Text(
+                                    "Unhealthy",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
 
@@ -215,7 +221,10 @@ fun ManageClusterCard(
                                     modifier = Modifier.size(16.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Test Connection", style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    "Test Connection",
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                             }
                         }
                     }

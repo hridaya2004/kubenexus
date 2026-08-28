@@ -3,8 +3,8 @@ package dev.hridaya.kubenexus.data.repository
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.data.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
+import dev.hridaya.kubenexus.data.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.DeploymentDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
@@ -330,7 +330,8 @@ class DeploymentRepositoryImplTest {
                 ),
             )
 
-            val summaries = repository.getDeploymentsStream(clusterId = "c-1", namespace = null).first()
+            val summaries =
+                repository.getDeploymentsStream(clusterId = "c-1", namespace = null).first()
 
             assertEquals(DeploymentDaoVariant.CLUSTER, deploymentDao.lastStreamVariant)
             assertEquals(1, summaries.size)
@@ -369,7 +370,11 @@ class DeploymentRepositoryImplTest {
             )
             recordingBridge.describeResultToReturn = Result.Success(expected)
 
-            val result = repository.getDeploymentDetails(clusterId = "c-1", namespace = "web", name = "nginx")
+            val result = repository.getDeploymentDetails(
+                clusterId = "c-1",
+                namespace = "web",
+                name = "nginx"
+            )
 
             assertTrue(result is Result.Success)
             assertEquals(expected, (result as Result.Success).data)
@@ -386,7 +391,11 @@ class DeploymentRepositoryImplTest {
                 AppError.Unknown("describe denied: token: secret-token-12345 rejected"),
             )
 
-            val result = repository.getDeploymentDetails(clusterId = "c-1", namespace = "web", name = "nginx")
+            val result = repository.getDeploymentDetails(
+                clusterId = "c-1",
+                namespace = "web",
+                name = "nginx"
+            )
 
             assertTrue(result is Result.Error)
             val error = (result as Result.Error).error
@@ -560,7 +569,10 @@ class DeploymentRepositoryImplTest {
             return rows
         }
 
-        override fun getDeploymentsByNamespaceStream(clusterId: String, namespace: String): Flow<List<DeploymentEntity>> {
+        override fun getDeploymentsByNamespaceStream(
+            clusterId: String,
+            namespace: String
+        ): Flow<List<DeploymentEntity>> {
             lastStreamVariant = DeploymentDaoVariant.NAMESPACE
             return rows
         }
@@ -568,7 +580,10 @@ class DeploymentRepositoryImplTest {
         override suspend fun getDeploymentIdsForCluster(clusterId: String): List<String> =
             storedIds.toList()
 
-        override suspend fun getDeploymentIdsForNamespace(clusterId: String, namespace: String): List<String> {
+        override suspend fun getDeploymentIdsForNamespace(
+            clusterId: String,
+            namespace: String
+        ): List<String> {
             namespaceLookups.add(namespace)
             return storedIds.filter { it.endsWith("_${namespace}") }
         }
@@ -598,12 +613,18 @@ class DeploymentRepositoryImplTest {
         override fun getPodsStream(clusterId: String): Flow<List<PodEntity>> =
             MutableStateFlow(emptyList())
 
-        override fun getPodsByNamespaceStream(clusterId: String, namespace: String): Flow<List<PodEntity>> =
+        override fun getPodsByNamespaceStream(
+            clusterId: String,
+            namespace: String
+        ): Flow<List<PodEntity>> =
             MutableStateFlow(emptyList())
 
         override suspend fun getPodIdsForCluster(clusterId: String): List<String> = emptyList()
 
-        override suspend fun getPodIdsForNamespace(clusterId: String, namespace: String): List<String> =
+        override suspend fun getPodIdsForNamespace(
+            clusterId: String,
+            namespace: String
+        ): List<String> =
             emptyList()
 
         override suspend fun getPodsList(clusterId: String): List<PodEntity> = emptyList()
@@ -681,7 +702,9 @@ class DeploymentRepositoryImplTest {
         }
 
         override suspend fun updateStatus(id: String, status: String, lastConnectedAt: Long?) {
-            clusters[id]?.let { clusters[id] = it.copy(status = status, lastConnectedAt = lastConnectedAt) }
+            clusters[id]?.let {
+                clusters[id] = it.copy(status = status, lastConnectedAt = lastConnectedAt)
+            }
         }
     }
 }

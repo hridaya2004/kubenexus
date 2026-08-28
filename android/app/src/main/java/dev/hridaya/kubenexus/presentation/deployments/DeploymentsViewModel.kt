@@ -149,7 +149,8 @@ class DeploymentsViewModel @AssistedInject constructor(
                     state.copy(isSyncing = true, errorMessage = null)
                 }
             }
-            when (val result = pushRemoteSnapshot(_uiState.value.selectedNamespace.toNamespaceArgument())) {
+            when (val result =
+                pushRemoteSnapshot(_uiState.value.selectedNamespace.toNamespaceArgument())) {
                 is Result.Success -> _uiState.update { state ->
                     state.copy(
                         isLoading = false,

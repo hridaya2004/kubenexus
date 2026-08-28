@@ -59,7 +59,12 @@ internal fun UsageChart(samples: List<PodMetricSample>, range: MetricsRange) {
         for (i in 0..2) {
             val fraction = i / 2f
             val gridLineY = padTop + height * (1f - fraction)
-            drawLine(gridColor, Offset(padLeft, gridLineY), Offset(padLeft + width, gridLineY), strokeWidth = 1f)
+            drawLine(
+                gridColor,
+                Offset(padLeft, gridLineY),
+                Offset(padLeft + width, gridLineY),
+                strokeWidth = 1f
+            )
 
             drawText(
                 textMeasurer = textMeasurer,

@@ -62,7 +62,9 @@ class DeploymentsViewModelTest {
                 getNamespacesUseCase = GetNamespacesUseCase(InertPodRepository),
                 syncDeploymentsUseCase = SyncDeploymentsUseCase(fakeRepository),
                 getDeploymentsStreamUseCase = GetDeploymentsStreamUseCase(fakeRepository),
-                getDeploymentsLastRefreshedUseCase = GetDeploymentsLastRefreshedUseCase(fakeRepository),
+                getDeploymentsLastRefreshedUseCase = GetDeploymentsLastRefreshedUseCase(
+                    fakeRepository
+                ),
             )
             try {
                 advanceUntilIdle()
@@ -98,21 +100,22 @@ class DeploymentsViewModelTest {
     }
 
     @Test
-    fun `sync failure with an empty cache surfaces friendly blocking error`() = vmTest { viewModel ->
-        fakeRepository.syncResult = Result.Error(AppError.Network(message = "dial tcp refused"))
-        advanceUntilIdle()
+    fun `sync failure with an empty cache surfaces friendly blocking error`() =
+        vmTest { viewModel ->
+            fakeRepository.syncResult = Result.Error(AppError.Network(message = "dial tcp refused"))
+            advanceUntilIdle()
 
-        viewModel.onAction(DeploymentsUiAction.Refresh)
-        advanceUntilIdle()
+            viewModel.onAction(DeploymentsUiAction.Refresh)
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertFalse(state.isLoading)
-        assertTrue(state.deployments.isEmpty())
-        assertEquals(
-            "Couldn't reach the cluster to sync deployments. Check your connection and try again.",
-            state.errorMessage,
-        )
-    }
+            val state = viewModel.uiState.value
+            assertFalse(state.isLoading)
+            assertTrue(state.deployments.isEmpty())
+            assertEquals(
+                "Couldn't reach the cluster to sync deployments. Check your connection and try again.",
+                state.errorMessage,
+            )
+        }
 
     @Test
     fun `retry after failure recovers the list`() = vmTest { viewModel ->
@@ -234,7 +237,10 @@ private class FakeDeploymentsRepository : DeploymentRepository {
     ): Result<dev.hridaya.kubenexus.domain.model.DeploymentDetails> =
         Result.Error(AppError.NotFound("Not exercised in this test"))
 
-    override suspend fun createFromManifest(clusterId: String?, manifestYaml: String): Result<Unit> {
+    override suspend fun createFromManifest(
+        clusterId: String?,
+        manifestYaml: String
+    ): Result<Unit> {
         throw UnsupportedOperationException("not used in this test")
     }
 }
@@ -244,7 +250,9 @@ private class FakeDeploymentsRepository : DeploymentRepository {
  * every other member stays inert so accidental use fails loudly.
  */
 private object InertPodRepository : PodRepository {
-    override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> = emptyFlow()
+    override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
+        emptyFlow()
+
     override fun getNamespacesStream(clusterId: String?): Flow<List<String>> = emptyFlow()
     override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = emptyFlow()
     override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> =
@@ -273,7 +281,11 @@ private object InertPodRepository : PodRepository {
         podName: String,
     ): Result<PodMetricSample?> = Result.Error(AppError.NotFound("inert"))
 
-    override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> =
+    override suspend fun deletePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<Unit> =
         Result.Success(Unit)
 
     override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> =
@@ -282,7 +294,10 @@ private object InertPodRepository : PodRepository {
     override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> =
         Result.Success(Unit)
 
-    override suspend fun createPodFromManifest(clusterId: String?, manifestYaml: String): Result<Unit> =
+    override suspend fun createPodFromManifest(
+        clusterId: String?,
+        manifestYaml: String
+    ): Result<Unit> =
         Result.Success(Unit)
 
     override suspend fun getPodLogs(

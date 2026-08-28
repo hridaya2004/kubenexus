@@ -197,7 +197,8 @@ class PodMapperTest {
             }
         """.trimIndent()
 
-        val namespaces = K8sJson.decodeFromString<NamespaceListDto>(json).items.map { it.toDomain() }
+        val namespaces =
+            K8sJson.decodeFromString<NamespaceListDto>(json).items.map { it.toDomain() }
 
         assertEquals(2, namespaces.size)
         assertEquals("Active", namespaces[0].status)

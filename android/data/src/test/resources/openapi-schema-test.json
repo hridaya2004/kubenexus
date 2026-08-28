@@ -1,12 +1,20 @@
 {
   "definitions": {
-    "io.k8s.api.core.v1.PodSpec": {"description": "Spec details."},
+    "io.k8s.api.core.v1.PodSpec": {
+      "description": "Spec details."
+    },
     "io.k8s.api.core.v1.Pod": {
       "x-kubernetes-group-version-kind": [
-        {"group": "", "version": "v1", "kind": "Pod"}
+        {
+          "group": "",
+          "version": "v1",
+          "kind": "Pod"
+        }
       ],
       "description": "Pod is a collection of containers",
-      "required": ["spec"],
+      "required": [
+        "spec"
+      ],
       "properties": {
         "spec": {
           "$ref": "#/definitions/io.k8s.api.core.v1.PodSpec",
@@ -16,21 +24,33 @@
     },
     "io.k8s.api.core.v1.Service": {
       "x-kubernetes-group-version-kind": [
-        {"group": "", "version": "v1", "kind": "Service"}
+        {
+          "group": "",
+          "version": "v1",
+          "kind": "Service"
+        }
       ],
       "description": "Service",
       "properties": {}
     },
     "io.k8s.api.apps.v1.Deployment": {
       "x-kubernetes-group-version-kind": [
-        {"group": "apps", "version": "v1", "kind": "Deployment"}
+        {
+          "group": "apps",
+          "version": "v1",
+          "kind": "Deployment"
+        }
       ],
       "description": "Deployment",
       "properties": {}
     },
     "io.kyverno.policy.v1.Policy": {
       "x-kubernetes-group-version-kind": [
-        {"group": "kyverno.io", "version": "v1", "kind": "Policy"}
+        {
+          "group": "kyverno.io",
+          "version": "v1",
+          "kind": "Policy"
+        }
       ],
       "description": "Kyverno policy rule set.",
       "properties": {

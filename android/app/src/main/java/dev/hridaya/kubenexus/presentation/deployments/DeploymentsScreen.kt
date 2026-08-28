@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
@@ -75,10 +74,15 @@ fun DeploymentsScreen(
             val query = searchQuery.trim()
             uiState.deployments.filter { deployment ->
                 deployment.name.contains(query, ignoreCase = true) ||
-                    deployment.namespace.contains(query, ignoreCase = true) ||
-                    deployment.images.any { image -> image.contains(query, ignoreCase = true) } ||
-                    "${deployment.readyReplicas}/${deployment.desiredReplicas}"
-                        .contains(query, ignoreCase = true)
+                        deployment.namespace.contains(query, ignoreCase = true) ||
+                        deployment.images.any { image ->
+                            image.contains(
+                                query,
+                                ignoreCase = true
+                            )
+                        } ||
+                        "${deployment.readyReplicas}/${deployment.desiredReplicas}"
+                            .contains(query, ignoreCase = true)
             }
         }
     }

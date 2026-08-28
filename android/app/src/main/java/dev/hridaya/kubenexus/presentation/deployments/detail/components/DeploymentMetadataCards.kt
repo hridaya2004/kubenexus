@@ -33,7 +33,11 @@ internal fun DeploymentAnnotationsCard(
     annotations: Map<String, String>,
     modifier: Modifier = Modifier,
 ) {
-    DeploymentKeyValueCard(title = "Annotations", entries = annotations.toList(), modifier = modifier)
+    DeploymentKeyValueCard(
+        title = "Annotations",
+        entries = annotations.toList(),
+        modifier = modifier
+    )
 }
 
 /**
@@ -49,7 +53,9 @@ private fun DeploymentKeyValueCard(
 ) {
     var showAllEntries by rememberSaveable { mutableStateOf(false) }
     val visibleEntries =
-        if (showAllEntries || entries.size <= MAX_VISIBLE_ENTRIES) entries else entries.take(MAX_VISIBLE_ENTRIES)
+        if (showAllEntries || entries.size <= MAX_VISIBLE_ENTRIES) entries else entries.take(
+            MAX_VISIBLE_ENTRIES
+        )
 
     Card(
         shape = MaterialTheme.shapes.medium,

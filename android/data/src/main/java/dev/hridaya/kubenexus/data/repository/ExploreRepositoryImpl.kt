@@ -4,13 +4,13 @@ import android.util.Log
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
-import dev.hridaya.kubenexus.data.nativebridge.NativeBridgeJsonParser
 import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.core.security.NoOpKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.mapper.toDomain
 import dev.hridaya.kubenexus.data.mapper.toEntity
+import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.data.nativebridge.NativeBridgeJsonParser
 import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ExplainedResourceDao
@@ -148,8 +148,8 @@ class ExploreRepositoryImpl @Inject constructor(
         val resolvedGVK = apiResourceDao.getAPIResourcesList(resolvedClusterId)
             .firstOrNull {
                 it.name.lowercase() == normalizedResourceOrKind ||
-                    it.kind.lowercase() == normalizedResourceOrKind ||
-                    it.singularName.lowercase() == normalizedResourceOrKind
+                        it.kind.lowercase() == normalizedResourceOrKind ||
+                        it.singularName.lowercase() == normalizedResourceOrKind
             }
 
         fun locate(schemaJson: String?): ResourceExplain? {
@@ -164,7 +164,8 @@ class ExploreRepositoryImpl @Inject constructor(
         var hadStoredSchema = false
         var schemaJson: String? = null
         if (!forceRefresh) {
-            schemaJson = openApiSchemaDao.getForCluster(resolvedClusterId)?.let { gunzip(it.schemaGzip) }
+            schemaJson =
+                openApiSchemaDao.getForCluster(resolvedClusterId)?.let { gunzip(it.schemaGzip) }
             hadStoredSchema = schemaJson != null
         }
         var explain = locate(schemaJson)
@@ -175,12 +176,14 @@ class ExploreRepositoryImpl @Inject constructor(
                     schemaJson = fetched.data
                     explain = locate(schemaJson)
                 }
+
                 is Result.Error -> if (!hadStoredSchema) {
                     val sanitizedMsg = LogSanitizer.sanitize(fetched.error.message)
                     return@withContext Result.Error(
                         AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch schema for $resourceOrKind" })
                     )
                 }
+
                 is Result.Loading -> Unit
             }
         }
@@ -224,10 +227,12 @@ class ExploreRepositoryImpl @Inject constructor(
                 )
                 Result.Success(nativeResult.data)
             }
+
             is Result.Error -> {
                 val sanitizedMsg = LogSanitizer.sanitize(nativeResult.error.message)
                 Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to fetch OpenAPI schema" }))
             }
+
             is Result.Loading -> Result.Error(AppError.Network("Schema fetch in progress"))
         }
     }

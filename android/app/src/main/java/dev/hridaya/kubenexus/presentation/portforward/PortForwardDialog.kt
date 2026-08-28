@@ -105,7 +105,13 @@ fun PortForwardDialog(
                     Spacer(modifier = Modifier.height(12.dp))
                     PortForwardSessionList(
                         forwards = uiState.activeForwards,
-                        onStopClick = { handleId -> onAction(PortForwardUiAction.StopForward(handleId)) },
+                        onStopClick = { handleId ->
+                            onAction(
+                                PortForwardUiAction.StopForward(
+                                    handleId
+                                )
+                            )
+                        },
                     )
                 }
             }
@@ -115,7 +121,12 @@ fun PortForwardDialog(
                 onClick = {
                     val remote = selectedRemote ?: return@Button
                     val local = localPortInput.trim().toIntOrNull() ?: return@Button
-                    onAction(PortForwardUiAction.StartForward(localPort = local, remotePort = remote))
+                    onAction(
+                        PortForwardUiAction.StartForward(
+                            localPort = local,
+                            remotePort = remote
+                        )
+                    )
                 },
                 enabled = selectedRemote != null && localPortError == null && !uiState.isStarting,
             ) {

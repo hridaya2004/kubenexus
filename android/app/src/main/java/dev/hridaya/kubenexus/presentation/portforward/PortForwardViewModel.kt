@@ -59,9 +59,9 @@ class PortForwardViewModel @AssistedInject constructor(
                 val podForwards = allSessions
                     .filter {
                         it.namespace == namespace &&
-                            (it.targetName == podName || it.podName == podName) &&
-                            it.kind == PortForwardTargetKind.Pod &&
-                            it.isActive
+                                (it.targetName == podName || it.podName == podName) &&
+                                it.kind == PortForwardTargetKind.Pod &&
+                                it.isActive
                     }
                     .map { session ->
                         ActivePortForward(

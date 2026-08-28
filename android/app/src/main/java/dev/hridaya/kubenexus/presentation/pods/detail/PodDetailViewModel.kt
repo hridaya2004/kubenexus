@@ -26,7 +26,6 @@ import dev.hridaya.kubenexus.presentation.pods.components.terminal.GhosttyTermin
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +33,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private const val METRICS_POLL_INTERVAL_MS = 5_000L
@@ -146,10 +146,12 @@ class PodDetailViewModel @AssistedInject constructor(
                 _uiState.update { it.copy(isLoadingMetrics = false) }
                 true
             }
+
             is Result.Error -> {
                 _uiState.update { it.copy(isLoadingMetrics = false) }
                 false
             }
+
             is Result.Loading -> false
         }
     }
@@ -220,8 +222,7 @@ class PodDetailViewModel @AssistedInject constructor(
             return
         }
         viewModelScope.launch(dispatcherProvider.io) {
-            val result = checkClusterHealthUseCase.checkHealth(clusterId)
-            val status = when (result) {
+            val status = when (val result = checkClusterHealthUseCase.checkHealth(clusterId)) {
                 is Result.Success -> {
                     if (result.data.livez && result.data.readyz) {
                         ClusterConnectionStatus.CONNECTED
@@ -229,6 +230,7 @@ class PodDetailViewModel @AssistedInject constructor(
                         ClusterConnectionStatus.DISCONNECTED
                     }
                 }
+
                 is Result.Error -> ClusterConnectionStatus.DISCONNECTED
                 is Result.Loading -> ClusterConnectionStatus.CONNECTING
             }
@@ -396,7 +398,8 @@ class PodDetailViewModel @AssistedInject constructor(
         _uiState.update { it.copy(isLoadingLogs = true) }
 
         viewModelScope.launch(dispatcherProvider.main) {
-            when (val result = getPodLogsUseCase(cid, namespace, podName, container, overrideTail)) {
+            when (val result =
+                getPodLogsUseCase(cid, namespace, podName, container, overrideTail)) {
                 is Result.Success -> {
                     val lines = result.data.lines()
                     _uiState.update {

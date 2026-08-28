@@ -36,8 +36,10 @@ internal fun Modifier.terminalGestures(
         if (gestureStartSnapshot != null && cellWidth > 0f && cellHeight > 0f &&
             gestureStartSnapshot.cols > 0 && gestureStartSnapshot.rows > 0
         ) {
-            val col = (down.position.x / cellWidth).toInt().coerceIn(0, gestureStartSnapshot.cols - 1)
-            val row = (down.position.y / cellHeight).toInt().coerceIn(0, gestureStartSnapshot.rows - 1)
+            val col =
+                (down.position.x / cellWidth).toInt().coerceIn(0, gestureStartSnapshot.cols - 1)
+            val row =
+                (down.position.y / cellHeight).toInt().coerceIn(0, gestureStartSnapshot.rows - 1)
             initialAnchor =
                 (row * gestureStartSnapshot.cols + col).coerceIn(
                     0,

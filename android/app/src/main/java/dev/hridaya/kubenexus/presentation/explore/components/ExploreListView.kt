@@ -83,7 +83,8 @@ fun ExploreListView(
                             text = "API Resources",
                             style = MaterialTheme.typography.titleLarge,
                         )
-                        val clusterText = uiState.activeCluster?.let { "Cluster: ${it.name}" } ?: "Offline Schema"
+                        val clusterText =
+                            uiState.activeCluster?.let { "Cluster: ${it.name}" } ?: "Offline Schema"
                         Text(
                             text = clusterText,
                             style = MaterialTheme.typography.bodySmall,
@@ -234,7 +235,9 @@ fun ExploreListView(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
-                            items(uiState.pagedResources, key = { "${it.groupVersion}/${it.name}" }) { resource ->
+                            items(
+                                uiState.pagedResources,
+                                key = { "${it.groupVersion}/${it.name}" }) { resource ->
                                 APIResourceCard(
                                     resource = resource,
                                     onClick = { onAction(ExploreUiAction.SelectResource(resource)) },

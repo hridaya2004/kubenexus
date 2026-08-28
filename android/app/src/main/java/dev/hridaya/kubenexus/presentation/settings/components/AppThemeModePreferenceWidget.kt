@@ -21,10 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.domain.model.ThemeMode
 import dev.hridaya.kubenexus.presentation.common.components.ConnectedButtonGroup
 import dev.hridaya.kubenexus.presentation.common.components.ConnectedButtonGroupDefaults
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
-import dev.hridaya.kubenexus.domain.model.ThemeMode
 
 @Composable
 fun AppThemeModePreferenceWidget(

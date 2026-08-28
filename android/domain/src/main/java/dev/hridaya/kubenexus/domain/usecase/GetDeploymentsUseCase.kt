@@ -10,7 +10,10 @@ class GetDeploymentsUseCase @Inject constructor(
     private val deploymentRepository: DeploymentRepository,
 ) {
 
-    suspend operator fun invoke(clusterId: String?, namespace: String?): Result<List<DeploymentSummary>> {
+    suspend operator fun invoke(
+        clusterId: String?,
+        namespace: String?
+    ): Result<List<DeploymentSummary>> {
         return deploymentRepository.getDeployments(clusterId, namespace)
     }
 }

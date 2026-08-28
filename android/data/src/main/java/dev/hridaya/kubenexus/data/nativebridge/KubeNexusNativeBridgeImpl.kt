@@ -4,21 +4,18 @@ import android.content.Context
 import android.util.Log
 import client.Client
 import client.Client_
-import java.util.concurrent.atomic.AtomicReference
 import client.ExecCallback
 import client.ExecResult
 import client.ExecSession
 import client.GroupVersionResource
-import client.PortForwardCallback
 import client.ListOptions
 import client.LogCallback
+import client.PortForwardCallback
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.common.util.K8sNames
 import dev.hridaya.kubenexus.core.security.LogSanitizer
-import dev.hridaya.kubenexus.domain.model.ClusterHealth
-import dev.hridaya.kubenexus.domain.model.PortForwardListener
 import dev.hridaya.kubenexus.data.mapper.toDeploymentDetails
 import dev.hridaya.kubenexus.data.mapper.toDetails
 import dev.hridaya.kubenexus.data.mapper.toDomain
@@ -38,17 +35,19 @@ import dev.hridaya.kubenexus.data.source.remote.dto.ServiceListDto
 import dev.hridaya.kubenexus.data.source.remote.dto.toDomain
 import dev.hridaya.kubenexus.data.source.remote.dto.toSample
 import dev.hridaya.kubenexus.domain.model.APIResource
+import dev.hridaya.kubenexus.domain.model.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Namespace
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
+import dev.hridaya.kubenexus.domain.model.PortForwardListener
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.model.ServiceSummary
-
 import go.Seq
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -521,7 +520,14 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             }
             nativeClient
                 .also { lastPortForwardClient.set(it) }
-                .startPortForward(rawKubeconfig, namespace, podName, localPort, remotePort, callback)
+                .startPortForward(
+                    rawKubeconfig,
+                    namespace,
+                    podName,
+                    localPort,
+                    remotePort,
+                    callback
+                )
         }
 
     override fun stopPortForward(handleId: String): Result<Unit> =

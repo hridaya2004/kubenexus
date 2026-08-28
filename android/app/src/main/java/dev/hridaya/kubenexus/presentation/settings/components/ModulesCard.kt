@@ -62,8 +62,14 @@ fun ModulesCard(
                 ModuleInfoItem(
                     module = module,
                     onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                        clipboard?.setPrimaryClip(ClipData.newPlainText("Commit SHA", module.commitSha))
+                        val clipboard =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        clipboard?.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "Commit SHA",
+                                module.commitSha
+                            )
+                        )
                         Toast.makeText(
                             context,
                             "Copied ${module.title} commit SHA (${module.commitSha})",

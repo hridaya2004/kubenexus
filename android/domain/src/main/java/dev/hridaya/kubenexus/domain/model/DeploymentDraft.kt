@@ -25,6 +25,7 @@ data class DeploymentDraft(
             name.isBlank() -> errors["name"] = "Name is required"
             name.length > MAX_NAME_LENGTH ->
                 errors["name"] = "Must be $MAX_NAME_LENGTH characters or fewer"
+
             !K8sNames.isValidDns1035Label(name) ->
                 errors["name"] = "Use lowercase letters, numbers and '-' (start with a letter)"
         }
@@ -33,6 +34,7 @@ data class DeploymentDraft(
             namespace.isBlank() -> errors["namespace"] = "Namespace is required"
             namespace.length > MAX_NAME_LENGTH ->
                 errors["namespace"] = "Must be $MAX_NAME_LENGTH characters or fewer"
+
             !K8sNames.isValidDnsLabel(namespace) ->
                 errors["namespace"] = "Use lowercase letters, numbers and '-'"
         }

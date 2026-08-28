@@ -148,9 +148,19 @@ fun ExploreExplainDetailView(
                                 FieldSearchBar(
                                     fieldSearchQuery = uiState.fieldSearchQuery,
                                     onQueryChange = { newFieldQuery ->
-                                        onAction(ExploreUiAction.UpdateFieldSearchQuery(newFieldQuery))
+                                        onAction(
+                                            ExploreUiAction.UpdateFieldSearchQuery(
+                                                newFieldQuery
+                                            )
+                                        )
                                     },
-                                    onClearQuery = { onAction(ExploreUiAction.UpdateFieldSearchQuery("")) },
+                                    onClearQuery = {
+                                        onAction(
+                                            ExploreUiAction.UpdateFieldSearchQuery(
+                                                ""
+                                            )
+                                        )
+                                    },
                                 )
                             }
 
@@ -174,7 +184,14 @@ fun ExploreExplainDetailView(
                                     ResourceFieldCard(
                                         field = field,
                                         resourceKind = resource.kind,
-                                        onCopy = { onAction(ExploreUiAction.CopyText("${resource.kind}.${field.name}", "Field")) },
+                                        onCopy = {
+                                            onAction(
+                                                ExploreUiAction.CopyText(
+                                                    "${resource.kind}.${field.name}",
+                                                    "Field"
+                                                )
+                                            )
+                                        },
                                     )
                                 }
                             }

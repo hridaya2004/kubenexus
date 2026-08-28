@@ -21,7 +21,6 @@ import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.PortForwardRepository
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.ResolveServiceForwardTargetUseCase
-import dev.hridaya.kubenexus.presentation.portforward.PortForwardStatus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,7 +35,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -73,8 +71,13 @@ class ServicePortForwardViewModelTest {
             serviceName = "web-svc",
             namespace = "default",
             sessionManager = sessionManager,
-            resolveServiceForwardTargetUseCase = ResolveServiceForwardTargetUseCase(fakePodRepository),
-            getActiveClusterUseCase = GetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
+            resolveServiceForwardTargetUseCase = ResolveServiceForwardTargetUseCase(
+                fakePodRepository
+            ),
+            getActiveClusterUseCase = GetActiveClusterUseCase(
+                fakeClusterRepository,
+                testDispatcherProvider
+            ),
             externalScope = TestScope(testDispatcher),
             dispatcherProvider = testDispatcherProvider,
         )
@@ -146,16 +149,48 @@ class ServicePortForwardViewModelTest {
         override fun getClustersStream(): Flow<List<Cluster>> = flowOf(listOf(activeCluster))
         override fun getActiveClusterStream(): Flow<Cluster?> = flowOf(activeCluster)
         override suspend fun getClusterById(id: String): Cluster = activeCluster
-        override suspend fun addCluster(kubeconfigRaw: String, customName: String?, setAsActive: Boolean): Result<Cluster> = Result.Success(activeCluster)
+        override suspend fun addCluster(
+            kubeconfigRaw: String,
+            customName: String?,
+            setAsActive: Boolean
+        ): Result<Cluster> = Result.Success(activeCluster)
+
         override suspend fun setActiveCluster(id: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun updateClusterName(id: String, newName: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun testConnection(kubeconfigRaw: String): Result<String> = Result.Success("OK")
+        override suspend fun updateClusterName(id: String, newName: String): Result<Unit> =
+            Result.Success(Unit)
+
+        override suspend fun testConnection(kubeconfigRaw: String): Result<String> =
+            Result.Success("OK")
+
         override suspend fun testClusterById(id: String): Result<String> = Result.Success("OK")
         override suspend fun checkClusterHealth(id: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, healthz = true, serverVersion = "1.30.0", statusMessage = "Ready"))
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    healthz = true,
+                    serverVersion = "1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
+
         override suspend fun checkClusterHealthByKubeconfig(kubeconfigRaw: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, healthz = true, serverVersion = "1.30.0", statusMessage = "Ready"))
-        override suspend fun updateClusterStatus(id: String, status: ClusterStatus, lastConnectedAt: Long?): Result<Unit> = Result.Success(Unit)
+            Result.Success(
+                ClusterHealth(
+                    livez = true,
+                    readyz = true,
+                    healthz = true,
+                    serverVersion = "1.30.0",
+                    statusMessage = "Ready"
+                )
+            )
+
+        override suspend fun updateClusterStatus(
+            id: String,
+            status: ClusterStatus,
+            lastConnectedAt: Long?
+        ): Result<Unit> = Result.Success(Unit)
+
         override suspend fun deleteCluster(id: String): Result<Unit> = Result.Success(Unit)
         override suspend fun migratePlaintextClusters(): Result<Int> = Result.Success(0)
     }
@@ -183,21 +218,99 @@ class ServicePortForwardViewModelTest {
             labelSelector: String,
         ): Result<List<Pod>> = Result.Success(podsToReturn)
 
-        override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> = flowOf(podsToReturn)
-        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> = flowOf(emptyList())
+        override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
+            flowOf(podsToReturn)
+
+        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> =
+            flowOf(emptyList())
+
         override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = flowOf(null)
-        override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> = Result.Success(Unit)
-        override suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails> = Result.Error(AppError.NotFound())
-        override suspend fun getPodMetrics(clusterId: String?, namespace: String?): Result<List<PodMetricSample>> = Result.Success(emptyList())
-        override suspend fun getSinglePodMetrics(clusterId: String?, namespace: String, podName: String): Result<PodMetricSample?> = Result.Success(null)
-        override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun createPodFromManifest(clusterId: String?, manifestYaml: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Result<String> = Result.Success("")
-        override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Flow<String> = flowOf("")
-        override suspend fun execCommand(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, stdin: String): Result<CommandExecResult> = Result.Error(AppError.NotFound())
-        override suspend fun startTerminalSession(clusterId: String?, namespace: String, podName: String, containerName: String, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<TerminalSession> = Result.Error(AppError.NotFound())
-        override suspend fun startExecSession(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, tty: Boolean, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<TerminalSession> = Result.Error(AppError.NotFound())
+        override suspend fun refreshWorkloads(
+            clusterId: String?,
+            namespace: String?
+        ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun describePod(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<PodDetails> = Result.Error(AppError.NotFound())
+
+        override suspend fun getPodMetrics(
+            clusterId: String?,
+            namespace: String?
+        ): Result<List<PodMetricSample>> = Result.Success(emptyList())
+
+        override suspend fun getSinglePodMetrics(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<PodMetricSample?> = Result.Success(null)
+
+        override suspend fun deletePod(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> =
+            Result.Success(Unit)
+
+        override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> =
+            Result.Success(Unit)
+
+        override suspend fun createPodFromManifest(
+            clusterId: String?,
+            manifestYaml: String
+        ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun getPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?,
+            tailLines: Long?
+        ): Result<String> = Result.Success("")
+
+        override fun streamPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?,
+            tailLines: Long?
+        ): Flow<String> = flowOf("")
+
+        override suspend fun execCommand(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            stdin: String
+        ): Result<CommandExecResult> = Result.Error(AppError.NotFound())
+
+        override suspend fun startTerminalSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<TerminalSession> = Result.Error(AppError.NotFound())
+
+        override suspend fun startExecSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            tty: Boolean,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<TerminalSession> = Result.Error(AppError.NotFound())
     }
 }

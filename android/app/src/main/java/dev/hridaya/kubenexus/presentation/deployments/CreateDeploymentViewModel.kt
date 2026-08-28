@@ -217,7 +217,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
                                 newNamespaceError = null,
                                 isCreatingNamespace = false,
                                 availableNamespaces =
-                                (current.availableNamespaces + name).distinct(),
+                                    (current.availableNamespaces + name).distinct(),
                                 namespace = name,
                             ),
                         )
@@ -226,7 +226,10 @@ class CreateDeploymentViewModel @AssistedInject constructor(
                 }
 
                 is Result.Error -> _uiState.update {
-                    it.copy(isCreatingNamespace = false, newNamespaceError = NAMESPACE_ERROR_MESSAGE)
+                    it.copy(
+                        isCreatingNamespace = false,
+                        newNamespaceError = NAMESPACE_ERROR_MESSAGE
+                    )
                 }
 
                 is Result.Loading -> Unit
@@ -235,7 +238,12 @@ class CreateDeploymentViewModel @AssistedInject constructor(
     }
 
     private fun validated(state: CreateDeploymentUiState): CreateDeploymentUiState {
-        return state.copy(fieldErrors = draftWithErrors(state, includeRequired = state.hasSubmitted).second)
+        return state.copy(
+            fieldErrors = draftWithErrors(
+                state,
+                includeRequired = state.hasSubmitted
+            ).second
+        )
     }
 
     private fun buildDraft(state: CreateDeploymentUiState): DeploymentDraft {

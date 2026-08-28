@@ -112,7 +112,11 @@ class ServiceDetailViewModel @AssistedInject constructor(
                     events = emptyList(),
                 )
                 _uiState.update { state ->
-                    state.copy(isLoading = false, service = state.service ?: initialDetails, errorMessage = null)
+                    state.copy(
+                        isLoading = false,
+                        service = state.service ?: initialDetails,
+                        errorMessage = null
+                    )
                 }
             } else {
                 _uiState.update { state ->

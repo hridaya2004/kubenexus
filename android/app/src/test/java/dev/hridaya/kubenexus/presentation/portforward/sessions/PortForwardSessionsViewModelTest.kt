@@ -16,7 +16,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -54,16 +53,17 @@ class PortForwardSessionsViewModelTest {
     }
 
     @Test
-    fun `observes sessions and updates visible sessions and active count`() = runTest(testDispatcher) {
-        sessionManager.startPodForward("cfg", "default", "pod-1", 8080, 80)
-        sessionManager.startServiceForward("cfg", "default", "svc-1", 9090, 80, "pod-1", 8080)
-        runCurrent()
+    fun `observes sessions and updates visible sessions and active count`() =
+        runTest(testDispatcher) {
+            sessionManager.startPodForward("cfg", "default", "pod-1", 8080, 80)
+            sessionManager.startServiceForward("cfg", "default", "svc-1", 9090, 80, "pod-1", 8080)
+            runCurrent()
 
-        val state = viewModel.uiState.value
-        assertEquals(2, state.activeCount)
-        assertEquals(2, state.visibleSessions.size)
-        assertTrue(state.canStopAll)
-    }
+            val state = viewModel.uiState.value
+            assertEquals(2, state.activeCount)
+            assertEquals(2, state.visibleSessions.size)
+            assertTrue(state.canStopAll)
+        }
 
     @Test
     fun `dismissStopped removes stopped row from visible state`() = runTest(testDispatcher) {

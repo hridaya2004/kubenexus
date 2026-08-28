@@ -3,8 +3,8 @@ package dev.hridaya.kubenexus.data.repository
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.data.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
+import dev.hridaya.kubenexus.data.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ServiceDao
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
@@ -191,7 +191,13 @@ class ServiceRepositoryImplTest {
                         type = "ClusterIP",
                         clusterIP = "10.96.0.10",
                         ports = listOf(
-                            ServicePortDetail(port = 80, targetPort = 8080, nodePort = null, protocol = "TCP", name = "http"),
+                            ServicePortDetail(
+                                port = 80,
+                                targetPort = 8080,
+                                nodePort = null,
+                                protocol = "TCP",
+                                name = "http"
+                            ),
                         ),
                         creationTimestampMillis = 1000L,
                     ),
@@ -251,7 +257,8 @@ class ServiceRepositoryImplTest {
                 ),
             )
 
-            val summaries = repository.getServicesStream(clusterId = "c-1", namespace = null).first()
+            val summaries =
+                repository.getServicesStream(clusterId = "c-1", namespace = null).first()
 
             assertEquals(ServiceDaoVariant.CLUSTER, serviceDao.lastStreamVariant)
             val port = summaries.single().ports.single()
@@ -282,7 +289,8 @@ class ServiceRepositoryImplTest {
             )
             recordingBridge.describeResultToReturn = Result.Success(expected)
 
-            val result = repository.getServiceDetails(clusterId = "c-1", namespace = "web", name = "nginx")
+            val result =
+                repository.getServiceDetails(clusterId = "c-1", namespace = "web", name = "nginx")
 
             assertTrue(result is Result.Success)
             assertEquals(expected, (result as Result.Success).data)
@@ -387,7 +395,10 @@ class ServiceRepositoryImplTest {
             return rows
         }
 
-        override fun getServicesByNamespaceStream(clusterId: String, namespace: String): Flow<List<ServiceEntity>> {
+        override fun getServicesByNamespaceStream(
+            clusterId: String,
+            namespace: String
+        ): Flow<List<ServiceEntity>> {
             lastStreamVariant = ServiceDaoVariant.NAMESPACE
             return rows
         }
@@ -395,7 +406,10 @@ class ServiceRepositoryImplTest {
         override suspend fun getServiceIdsForCluster(clusterId: String): List<String> =
             storedIds.toList()
 
-        override suspend fun getServiceIdsForNamespace(clusterId: String, namespace: String): List<String> =
+        override suspend fun getServiceIdsForNamespace(
+            clusterId: String,
+            namespace: String
+        ): List<String> =
             storedIds.filter { it.endsWith("_${namespace}") }
 
         override suspend fun insertServices(services: List<ServiceEntity>) {
@@ -476,7 +490,9 @@ class ServiceRepositoryImplTest {
         }
 
         override suspend fun updateStatus(id: String, status: String, lastConnectedAt: Long?) {
-            clusters[id]?.let { clusters[id] = it.copy(status = status, lastConnectedAt = lastConnectedAt) }
+            clusters[id]?.let {
+                clusters[id] = it.copy(status = status, lastConnectedAt = lastConnectedAt)
+            }
         }
     }
 }

@@ -4,12 +4,12 @@ import android.util.Log
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.core.security.NoOpKubeconfigEncryptor
 import dev.hridaya.kubenexus.data.mapper.toDomain
 import dev.hridaya.kubenexus.data.mapper.toEntity
+import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ServiceDao
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
@@ -155,14 +155,15 @@ class ServiceRepositoryImpl @Inject constructor(
 
     override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
         if (clusterId == null) return flowOf(null)
-        return serviceDao.getSyncMetadataStream("${clusterId}_services").flowOn(dispatcherProvider.io)
+        return serviceDao.getSyncMetadataStream("${clusterId}_services")
+            .flowOn(dispatcherProvider.io)
     }
 
     /** Mirrors how the pods screen expresses "no namespace filter". */
     private fun isAllNamespaces(namespace: String?): Boolean =
         namespace.isNullOrBlank() ||
-            namespace == "All Namespaces" ||
-            namespace.equals("all", ignoreCase = true)
+                namespace == "All Namespaces" ||
+                namespace.equals("all", ignoreCase = true)
 
     /**
      * The bridge normalizes its own namespace argument; the DAO needs the null

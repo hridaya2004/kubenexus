@@ -65,9 +65,18 @@ class DeploymentYamlGeneratorTest {
 
         // One app label at each level: deployment metadata, selector matchLabels,
         // and the pod template.
-        assertEquals(1, Regex("^    app: api$", RegexOption.MULTILINE).findAll(renderedManifest).count())
-        assertEquals(1, Regex("^      app: api$", RegexOption.MULTILINE).findAll(renderedManifest).count())
-        assertEquals(1, Regex("^        app: api$", RegexOption.MULTILINE).findAll(renderedManifest).count())
+        assertEquals(
+            1,
+            Regex("^    app: api$", RegexOption.MULTILINE).findAll(renderedManifest).count()
+        )
+        assertEquals(
+            1,
+            Regex("^      app: api$", RegexOption.MULTILINE).findAll(renderedManifest).count()
+        )
+        assertEquals(
+            1,
+            Regex("^        app: api$", RegexOption.MULTILINE).findAll(renderedManifest).count()
+        )
     }
 
     @Test

@@ -70,7 +70,10 @@ class PodYamlGeneratorTest {
             ),
         )
 
-        assertEquals(1, Regex("^\\s*ports:\\s*$", RegexOption.MULTILINE).findAll(renderedManifest).count())
+        assertEquals(
+            1,
+            Regex("^\\s*ports:\\s*$", RegexOption.MULTILINE).findAll(renderedManifest).count()
+        )
         assertTrue(renderedManifest.contains("containerPort: 6379"))
     }
 }

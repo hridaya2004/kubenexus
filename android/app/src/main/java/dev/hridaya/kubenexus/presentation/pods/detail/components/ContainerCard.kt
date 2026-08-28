@@ -133,7 +133,10 @@ fun ContainerCard(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isAttachable) "Terminal" else "Detached", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        if (isAttachable) "Terminal" else "Detached",
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }

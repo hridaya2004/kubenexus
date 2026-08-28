@@ -59,6 +59,7 @@ fun ServicesEmptyState(
                 isRefreshing -> "Retrieving service state from cluster"
                 selectedNamespace != ALL_NAMESPACES_FILTER && selectedNamespace.isNotBlank() ->
                     "No services are running in namespace '$selectedNamespace'."
+
                 else -> "No services are currently running in the cluster."
             }
             Text(

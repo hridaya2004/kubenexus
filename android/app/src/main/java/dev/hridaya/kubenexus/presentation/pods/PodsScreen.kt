@@ -197,7 +197,7 @@ private fun PodsScreenPreview() {
                         readyContainers = "1/1",
                         restarts = 0,
                         creationTimestampMillis = System.currentTimeMillis() -
-                            12.days.inWholeMilliseconds,
+                                12.days.inWholeMilliseconds,
                         ip = "10.244.0.2",
                     ),
                     Pod(
@@ -208,7 +208,7 @@ private fun PodsScreenPreview() {
                         readyContainers = "1/1",
                         restarts = 1,
                         creationTimestampMillis = System.currentTimeMillis() -
-                            2.days.inWholeMilliseconds,
+                                2.days.inWholeMilliseconds,
                         ip = "10.244.0.15",
                     ),
                 ),

@@ -17,7 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -61,21 +60,22 @@ class CreatePodViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun vmTest(block: suspend TestScope.(CreatePodViewModel) -> Unit) = runTest(testDispatcher) {
-        val viewModel = CreatePodViewModel(
-            clusterId = "c-1",
-            initialNamespace = "team-a",
-            initialAvailableNamespaces = listOf("default", "team-a"),
-            createPodUseCase = CreatePodUseCase(fakePodRepository),
-            createNamespaceUseCase = CreateNamespaceUseCase(fakePodRepository),
-            dispatcherProvider = testDispatcherProvider,
-        )
-        try {
-            block(viewModel)
-        } finally {
-            viewModel.viewModelScope.cancel()
+    private fun vmTest(block: suspend TestScope.(CreatePodViewModel) -> Unit) =
+        runTest(testDispatcher) {
+            val viewModel = CreatePodViewModel(
+                clusterId = "c-1",
+                initialNamespace = "team-a",
+                initialAvailableNamespaces = listOf("default", "team-a"),
+                createPodUseCase = CreatePodUseCase(fakePodRepository),
+                createNamespaceUseCase = CreateNamespaceUseCase(fakePodRepository),
+                dispatcherProvider = testDispatcherProvider,
+            )
+            try {
+                block(viewModel)
+            } finally {
+                viewModel.viewModelScope.cancel()
+            }
         }
-    }
 
     private fun fillValidForm(viewModel: CreatePodViewModel) {
         viewModel.onAction(CreatePodUiAction.NameChanged("web-app"))
@@ -85,17 +85,18 @@ class CreatePodViewModelTest {
     }
 
     @Test
-    fun `initial form state does not show required field errors before submit`() = vmTest { viewModel ->
-        val state = viewModel.uiState.value
-        assertTrue(state.fieldErrors.isEmpty())
-        assertNull(state.errorMessage)
+    fun `initial form state does not show required field errors before submit`() =
+        vmTest { viewModel ->
+            val state = viewModel.uiState.value
+            assertTrue(state.fieldErrors.isEmpty())
+            assertNull(state.errorMessage)
 
-        viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
-        val submittedState = viewModel.uiState.value
-        assertTrue(submittedState.fieldErrors.containsKey("name"))
-        assertTrue(submittedState.fieldErrors.containsKey("image"))
-        assertNotNull(submittedState.errorMessage)
-    }
+            viewModel.onAction(CreatePodUiAction.PreviewSubmitted)
+            val submittedState = viewModel.uiState.value
+            assertTrue(submittedState.fieldErrors.containsKey("name"))
+            assertTrue(submittedState.fieldErrors.containsKey("image"))
+            assertNotNull(submittedState.errorMessage)
+        }
 
     @Test
     fun `preview success moves to review step with generated yaml`() = vmTest { viewModel ->
@@ -282,24 +283,25 @@ class CreatePodViewModelTest {
     }
 
     @Test
-    fun `namespace creation failure keeps dialog input and shows friendly message`() = vmTest { viewModel ->
-        fakePodRepository.createError = AppError.Unknown(message = "already exists")
-        viewModel.onAction(CreatePodUiAction.CreateNamespaceClicked)
-        viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("team-b"))
+    fun `namespace creation failure keeps dialog input and shows friendly message`() =
+        vmTest { viewModel ->
+            fakePodRepository.createError = AppError.Unknown(message = "already exists")
+            viewModel.onAction(CreatePodUiAction.CreateNamespaceClicked)
+            viewModel.onAction(CreatePodUiAction.NewNamespaceNameChanged("team-b"))
 
-        viewModel.onAction(CreatePodUiAction.CreateNamespaceSubmitted)
-        advanceUntilIdle()
+            viewModel.onAction(CreatePodUiAction.CreateNamespaceSubmitted)
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue(state.showCreateNamespaceDialog)
-        assertEquals("team-b", state.newNamespaceName)
-        assertFalse(state.isCreatingNamespace)
-        assertEquals(
-            "Couldn't create that namespace. The name may already be taken.",
-            state.newNamespaceError,
-        )
-        assertFalse(state.availableNamespaces.contains("team-b"))
-    }
+            val state = viewModel.uiState.value
+            assertTrue(state.showCreateNamespaceDialog)
+            assertEquals("team-b", state.newNamespaceName)
+            assertFalse(state.isCreatingNamespace)
+            assertEquals(
+                "Couldn't create that namespace. The name may already be taken.",
+                state.newNamespaceError,
+            )
+            assertFalse(state.availableNamespaces.contains("team-b"))
+        }
 }
 
 /** Only [createNamespace] and [createPodFromManifest] are exercised here; everything else is inert. */

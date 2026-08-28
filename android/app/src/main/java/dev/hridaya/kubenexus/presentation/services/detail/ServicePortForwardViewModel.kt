@@ -10,11 +10,11 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.di.ApplicationScope
 import dev.hridaya.kubenexus.data.portforward.PortForwardSessionManager
+import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
+import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.ResolveServiceForwardTargetUseCase
-import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
-import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import dev.hridaya.kubenexus.presentation.portforward.ActivePortForward
 import dev.hridaya.kubenexus.presentation.portforward.PortForwardStatus
 import dev.hridaya.kubenexus.presentation.portforward.PortForwardUiState
@@ -61,9 +61,9 @@ class ServicePortForwardViewModel @AssistedInject constructor(
                 val serviceForwards = allSessions
                     .filter {
                         it.namespace == namespace &&
-                            it.targetName == serviceName &&
-                            it.kind == PortForwardTargetKind.Service &&
-                            it.isActive
+                                it.targetName == serviceName &&
+                                it.kind == PortForwardTargetKind.Service &&
+                                it.isActive
                     }
                     .map { session ->
                         ActivePortForward(
@@ -97,7 +97,8 @@ class ServicePortForwardViewModel @AssistedInject constructor(
         _uiState.update { it.copy(isStarting = true, error = null) }
 
         externalScope.launch(dispatcherProvider.io) {
-            when (val targetResult = resolveServiceForwardTargetUseCase(kubeconfig, service, servicePort)) {
+            when (val targetResult =
+                resolveServiceForwardTargetUseCase(kubeconfig, service, servicePort)) {
                 is Result.Success -> {
                     val target = targetResult.data
                     when (
@@ -115,6 +116,7 @@ class ServicePortForwardViewModel @AssistedInject constructor(
                         is Result.Error -> _uiState.update {
                             it.copy(isStarting = false, error = startResult.error.message)
                         }
+
                         is Result.Loading -> Unit
                     }
                 }

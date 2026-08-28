@@ -88,7 +88,8 @@ internal fun ServiceOverviewCard(
             }
 
             Text(
-                text = DateUtils.getRelativeTimeSpanString(service.creationTimestampMillis).toString(),
+                text = DateUtils.getRelativeTimeSpanString(service.creationTimestampMillis)
+                    .toString(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

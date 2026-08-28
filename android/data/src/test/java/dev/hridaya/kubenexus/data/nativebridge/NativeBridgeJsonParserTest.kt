@@ -98,7 +98,10 @@ class NativeBridgeJsonParserTest {
         assertEquals("PodStatus", status.type)
         assertFalse(status.required)
         assertTrue(pod.fields.first { it.name == "apiVersion" }.required)
-        assertEquals("integer (int64)", pod.fields.first { it.name == "terminationGracePeriodSeconds" }.type)
+        assertEquals(
+            "integer (int64)",
+            pod.fields.first { it.name == "terminationGracePeriodSeconds" }.type
+        )
 
         val podsPlural = parser.resolveResourceExplain(schema, "pods", "v1")
         assertEquals("Pod", podsPlural.kind)

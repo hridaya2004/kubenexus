@@ -43,8 +43,10 @@ fun ExploreExplainTopBar(
                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val commandClip = ClipData.newPlainText("Command", "kubectl explain ${resource.name}")
+                        val clipboard =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val commandClip =
+                            ClipData.newPlainText("Command", "kubectl explain ${resource.name}")
                         clipboard.setPrimaryClip(commandClip)
                         Toast.makeText(context, "Command copied", Toast.LENGTH_SHORT).show()
                     },

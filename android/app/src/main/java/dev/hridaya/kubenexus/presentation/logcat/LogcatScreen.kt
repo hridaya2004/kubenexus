@@ -148,7 +148,10 @@ fun LogcatScreen(
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
             ) {
                 if (uiState.isLoading && uiState.logs.isEmpty()) {
                     Box(

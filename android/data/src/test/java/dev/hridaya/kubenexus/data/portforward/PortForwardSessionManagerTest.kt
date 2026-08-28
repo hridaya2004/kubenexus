@@ -41,35 +41,36 @@ class PortForwardSessionManagerTest {
     }
 
     @Test
-    fun `startPodForward registers active session with STARTING status and transitions to READY`() = runTest(testDispatcher) {
-        val result = manager.startPodForward(
-            rawKubeconfig = "test-kubeconfig",
-            namespace = "default",
-            podName = "nginx",
-            localPort = 8080,
-            remotePort = 80,
-        )
+    fun `startPodForward registers active session with STARTING status and transitions to READY`() =
+        runTest(testDispatcher) {
+            val result = manager.startPodForward(
+                rawKubeconfig = "test-kubeconfig",
+                namespace = "default",
+                podName = "nginx",
+                localPort = 8080,
+                remotePort = 80,
+            )
 
-        assertTrue(result is Result.Success)
-        val handleId = (result as Result.Success).data
-        assertEquals("pf-1", handleId)
+            assertTrue(result is Result.Success)
+            val handleId = (result as Result.Success).data
+            assertEquals("pf-1", handleId)
 
-        val sessions = manager.sessions.value
-        assertEquals(1, sessions.size)
-        val session = sessions.first()
-        assertEquals("pf-1", session.handleId)
-        assertEquals(PortForwardTargetKind.Pod, session.kind)
-        assertEquals("default", session.namespace)
-        assertEquals("nginx", session.targetName)
-        assertEquals("nginx", session.podName)
-        assertEquals(8080, session.localPort)
-        assertEquals(80, session.remotePort)
-        assertEquals(PortForwardSessionStatus.STARTING, session.status)
+            val sessions = manager.sessions.value
+            assertEquals(1, sessions.size)
+            val session = sessions.first()
+            assertEquals("pf-1", session.handleId)
+            assertEquals(PortForwardTargetKind.Pod, session.kind)
+            assertEquals("default", session.namespace)
+            assertEquals("nginx", session.targetName)
+            assertEquals("nginx", session.podName)
+            assertEquals(8080, session.localPort)
+            assertEquals(80, session.remotePort)
+            assertEquals(PortForwardSessionStatus.STARTING, session.status)
 
-        // Trigger listener callback
-        fakeRepository.lastListener?.onPortForwardReady(handleId, 8080)
-        assertEquals(PortForwardSessionStatus.READY, manager.sessions.value.first().status)
-    }
+            // Trigger listener callback
+            fakeRepository.lastListener?.onPortForwardReady(handleId, 8080)
+            assertEquals(PortForwardSessionStatus.READY, manager.sessions.value.first().status)
+        }
 
     @Test
     fun `startServiceForward registers active service session`() = runTest(testDispatcher) {

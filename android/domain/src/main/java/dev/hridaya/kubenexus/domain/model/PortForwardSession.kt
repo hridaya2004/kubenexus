@@ -45,8 +45,9 @@ data class ActivePortForwardSession(
     val title: String get() = "$namespace/$targetName"
 
     /** Row subtitle, e.g. "127.0.0.1:8080 -> nginx-7d9f:80". */
-    val endpointLabel: String get() {
-        val remoteHost = podName?.takeIf { it.isNotBlank() } ?: targetName
-        return "127.0.0.1:$localPort -> $remoteHost:$remotePort"
-    }
+    val endpointLabel: String
+        get() {
+            val remoteHost = podName?.takeIf { it.isNotBlank() } ?: targetName
+            return "127.0.0.1:$localPort -> $remoteHost:$remotePort"
+        }
 }

@@ -1,5 +1,3 @@
-import java.util.concurrent.TimeUnit
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -49,9 +47,12 @@ android {
     }
 
     val appCommitSha = System.getenv("KUBENEXUS_APP_COMMIT_SHA") ?: getGitCommitSha()
-    val libghosttyCommitSha = System.getenv("KUBENEXUS_LIBGHOSTTY_COMMIT_SHA") ?: extractGhosttyZonSha()
-    val ghosttyBridgeCommitSha = System.getenv("KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA") ?: getGitCommitSha("terminal-native")
-    val goCoreCommitSha = System.getenv("KUBENEXUS_GO_CORE_COMMIT_SHA") ?: getGitCommitSha("k8s-engine")
+    val libghosttyCommitSha =
+        System.getenv("KUBENEXUS_LIBGHOSTTY_COMMIT_SHA") ?: extractGhosttyZonSha()
+    val ghosttyBridgeCommitSha =
+        System.getenv("KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA") ?: getGitCommitSha("terminal-native")
+    val goCoreCommitSha =
+        System.getenv("KUBENEXUS_GO_CORE_COMMIT_SHA") ?: getGitCommitSha("k8s-engine")
     val clientGoCommitSha = System.getenv("KUBENEXUS_CLIENT_GO_COMMIT_SHA") ?: "44a8af2"
 
     defaultConfig {

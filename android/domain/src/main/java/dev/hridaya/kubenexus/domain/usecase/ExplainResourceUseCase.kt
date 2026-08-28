@@ -15,7 +15,12 @@ class ExplainResourceUseCase @Inject constructor(
         groupVersion: String = "",
         forceRefresh: Boolean = false,
     ): Result<ResourceExplain> {
-        return exploreRepository.explainResource(clusterId, resourceOrKind, groupVersion, forceRefresh)
+        return exploreRepository.explainResource(
+            clusterId,
+            resourceOrKind,
+            groupVersion,
+            forceRefresh
+        )
     }
 
     suspend fun getCached(

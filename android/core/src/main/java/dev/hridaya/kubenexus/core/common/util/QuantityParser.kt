@@ -85,8 +85,10 @@ object QuantityParser {
             suffix.isEmpty() -> value
             BINARY_SI.containsKey(suffix) ->
                 value.multiply(BigDecimal(BigInteger.valueOf(2).pow(BINARY_SI.getValue(suffix))))
+
             DECIMAL_SI.containsKey(suffix) ->
                 value.scaleByPowerOfTen(DECIMAL_SI.getValue(suffix))
+
             else -> null
         }
     }

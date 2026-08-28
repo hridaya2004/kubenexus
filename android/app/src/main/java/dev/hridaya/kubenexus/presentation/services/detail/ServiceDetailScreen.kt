@@ -36,7 +36,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.K8sEventSummary
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
@@ -113,7 +112,10 @@ fun ServiceDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -183,7 +185,13 @@ fun ServiceDetailScreen(
                 else -> uiState.service?.let { service ->
                     ServiceDetailContent(
                         service = service,
-                        onPortForwardClick = { onAction(ServiceDetailUiAction.ShowPortForwardDialog(true)) },
+                        onPortForwardClick = {
+                            onAction(
+                                ServiceDetailUiAction.ShowPortForwardDialog(
+                                    true
+                                )
+                            )
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

@@ -2,7 +2,6 @@ package dev.hridaya.kubenexus.data.source.remote.dto
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.intOrNull
 
 /**
  * Sentinel for a Service targetPort the API server sent as a *named* port

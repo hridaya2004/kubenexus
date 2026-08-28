@@ -31,7 +31,10 @@ class DpasteLogPasteProvider(
                 doOutput = true
                 connectTimeout = connectTimeoutMs
                 readTimeout = readTimeoutMs
-                setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+                setRequestProperty(
+                    "Content-Type",
+                    "application/x-www-form-urlencoded; charset=utf-8"
+                )
                 setRequestProperty("User-Agent", "KubeNexus-Android/1.0")
             }
 

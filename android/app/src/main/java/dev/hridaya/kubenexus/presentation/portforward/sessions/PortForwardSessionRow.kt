@@ -1,8 +1,5 @@
 package dev.hridaya.kubenexus.presentation.portforward.sessions
 
-import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
-import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
-import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +29,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
+import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
+import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 /**

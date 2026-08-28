@@ -8,10 +8,10 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.LogSanitizer
 import dev.hridaya.kubenexus.core.security.NoOpKubeconfigEncryptor
-import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.mapper.toDomain
 import dev.hridaya.kubenexus.data.mapper.toDomainName
 import dev.hridaya.kubenexus.data.mapper.toEntity
+import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
@@ -387,7 +387,13 @@ class PodRepositoryImpl @Inject constructor(
 
         try {
             val nativeResult =
-                nativeBridge.getPodLogs(decryptedKubeconfig, namespace, podName, containerName, tailLines)
+                nativeBridge.getPodLogs(
+                    decryptedKubeconfig,
+                    namespace,
+                    podName,
+                    containerName,
+                    tailLines
+                )
             if (nativeResult.isSuccess) {
                 Result.Success(nativeResult.getOrThrow())
             } else {

@@ -1,10 +1,13 @@
 package dev.hridaya.kubenexus.presentation.pods.detail.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,11 +26,16 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
@@ -35,15 +43,6 @@ import dev.hridaya.kubenexus.presentation.pods.components.GhosttyTerminalLogView
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiAction
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiState
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.Surface
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -104,7 +103,9 @@ fun LogsTabContent(
                 shape = ButtonDefaults.outlinedShape,
                 border = ButtonDefaults.outlinedButtonBorder(enabled = isFetchEnabled),
                 color = Color.Transparent,
-                contentColor = if (isFetchEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                contentColor = if (isFetchEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = 0.38f
+                ),
                 modifier = Modifier
                     .weight(1f)
                     .clip(ButtonDefaults.outlinedShape)
@@ -120,7 +121,10 @@ fun LogsTabContent(
                 ProvideTextStyle(value = MaterialTheme.typography.labelLarge) {
                     Row(
                         modifier = Modifier
-                            .defaultMinSize(minWidth = ButtonDefaults.MinWidth, minHeight = ButtonDefaults.MinHeight)
+                            .defaultMinSize(
+                                minWidth = ButtonDefaults.MinWidth,
+                                minHeight = ButtonDefaults.MinHeight
+                            )
                             .padding(PaddingValues(horizontal = 12.dp, vertical = 8.dp)),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
@@ -140,7 +144,10 @@ fun LogsTabContent(
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (isConnected) "Fetch Logs" else "Offline", style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                if (isConnected) "Fetch Logs" else "Offline",
+                                style = MaterialTheme.typography.labelLarge
+                            )
                         }
                     }
                 }

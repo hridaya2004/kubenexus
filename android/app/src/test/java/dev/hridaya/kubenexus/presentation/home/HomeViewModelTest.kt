@@ -342,7 +342,10 @@ class HomeViewModelTest {
 
             assertEquals(null, viewModel.uiState.value.testingClusterId)
             assertEquals(null, viewModel.uiState.value.clusterTestStatuses[clusterId])
-            assertEquals(ClusterConnectionStatus.CONNECTED, viewModel.uiState.value.clusterConnectionStatus)
+            assertEquals(
+                ClusterConnectionStatus.CONNECTED,
+                viewModel.uiState.value.clusterConnectionStatus
+            )
         }
 
     @Test
@@ -361,7 +364,10 @@ class HomeViewModelTest {
             viewModel.onAction(HomeUiAction.ConnectAndSaveSubmitted)
             advanceUntilIdle()
 
-            assertEquals(ClusterConnectionStatus.CONNECTED, viewModel.uiState.value.clusterConnectionStatus)
+            assertEquals(
+                ClusterConnectionStatus.CONNECTED,
+                viewModel.uiState.value.clusterConnectionStatus
+            )
         }
 
     private class FakeClusterRepository : ClusterRepository {

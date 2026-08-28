@@ -99,6 +99,7 @@ internal fun DeploymentsEmptyState(
                 isSyncing -> "Retrieving workload state from the cluster"
                 selectedNamespace != ALL_NAMESPACES_FILTER ->
                     "No deployments are running in namespace '$selectedNamespace'."
+
                 else -> "No deployments are currently running in the cluster."
             }
             Text(

@@ -124,7 +124,7 @@ class ServicesViewModel @AssistedInject constructor(
                         // is momentarily empty, mirroring the Home behavior.
                         availableNamespaces = if (data.namespaces.isNotEmpty()) {
                             listOf(ALL_NAMESPACES_FILTER) +
-                                data.namespaces.filter { it != ALL_NAMESPACES_FILTER }
+                                    data.namespaces.filter { it != ALL_NAMESPACES_FILTER }
                         } else {
                             state.availableNamespaces
                         },

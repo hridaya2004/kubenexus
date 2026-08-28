@@ -60,7 +60,8 @@ fun ServicePortForwardDialog(
     }
     var localPortInput by remember(ports) {
         mutableStateOf(
-            ports.firstOrNull()?.port?.let { defaultLocalPort(it, takenLocalPorts).toString() }.orEmpty(),
+            ports.firstOrNull()?.port?.let { defaultLocalPort(it, takenLocalPorts).toString() }
+                .orEmpty(),
         )
     }
 

@@ -16,7 +16,10 @@ interface DeploymentDao {
     fun getDeploymentsStream(clusterId: String): Flow<List<DeploymentEntity>>
 
     @Query("SELECT * FROM deployments WHERE clusterId = :clusterId AND namespace = :namespace ORDER BY name ASC")
-    fun getDeploymentsByNamespaceStream(clusterId: String, namespace: String): Flow<List<DeploymentEntity>>
+    fun getDeploymentsByNamespaceStream(
+        clusterId: String,
+        namespace: String
+    ): Flow<List<DeploymentEntity>>
 
     @Query("SELECT id FROM deployments WHERE clusterId = :clusterId")
     suspend fun getDeploymentIdsForCluster(clusterId: String): List<String>

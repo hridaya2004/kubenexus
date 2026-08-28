@@ -8,9 +8,9 @@ import dev.hridaya.kubenexus.data.source.remote.dto.ServiceDto
 import dev.hridaya.kubenexus.data.source.remote.dto.ServicePortDto
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.model.ServicePortDetail
+import dev.hridaya.kubenexus.domain.model.ServiceSummary
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
-import dev.hridaya.kubenexus.domain.model.ServiceSummary
 
 private const val DEFAULT_NAMESPACE = "default"
 

@@ -44,15 +44,29 @@
           {
             "name": "wait-for-db",
             "image": "busybox:1.36",
-            "command": ["sh", "-c", "until nc -z db 5432; do sleep 1; done"]
+            "command": [
+              "sh",
+              "-c",
+              "until nc -z db 5432; do sleep 1; done"
+            ]
           }
         ],
         "containers": [
           {
             "name": "nginx",
             "image": "nginx:1.27.1",
-            "ports": [{ "containerPort": 80, "protocol": "TCP" }],
-            "resources": { "limits": { "cpu": "500m", "memory": "128Mi" } }
+            "ports": [
+              {
+                "containerPort": 80,
+                "protocol": "TCP"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "128Mi"
+              }
+            }
           },
           {
             "name": "sidecar-logger",
@@ -61,17 +75,35 @@
           }
         ],
         "volumes": [
-          { "name": "config", "configMap": { "name": "nginx-config" } },
-          { "name": "kube-api-access-2x9lk", "projected": { "defaultMode": 420 } }
+          {
+            "name": "config",
+            "configMap": {
+              "name": "nginx-config"
+            }
+          },
+          {
+            "name": "kube-api-access-2x9lk",
+            "projected": {
+              "defaultMode": 420
+            }
+          }
         ],
         "tolerations": [
-          { "key": "node.kubernetes.io/not-ready", "effect": "NoExecute", "tolerationSeconds": 300 }
+          {
+            "key": "node.kubernetes.io/not-ready",
+            "effect": "NoExecute",
+            "tolerationSeconds": 300
+          }
         ]
       },
       "status": {
         "phase": "Running",
         "podIP": "10.244.0.15",
-        "podIPs": [{ "ip": "10.244.0.15" }],
+        "podIPs": [
+          {
+            "ip": "10.244.0.15"
+          }
+        ],
         "hostIP": "192.168.65.4",
         "startTime": "2026-08-21T09:15:02Z",
         "qosClass": "Burstable",
@@ -116,7 +148,11 @@
             "ready": true,
             "restartCount": 2,
             "started": true,
-            "state": { "running": { "startedAt": "2026-08-21T09:15:15Z" } }
+            "state": {
+              "running": {
+                "startedAt": "2026-08-21T09:15:15Z"
+              }
+            }
           },
           {
             "name": "sidecar-logger",
@@ -141,12 +177,19 @@
         "name": "broken-worker-5d8f9",
         "namespace": "jobs",
         "creationTimestamp": "2026-08-23T10:00:00Z",
-        "labels": { "app": "worker" }
+        "labels": {
+          "app": "worker"
+        }
       },
       "spec": {
         "nodeName": "node-2",
         "restartPolicy": "Always",
-        "containers": [{ "name": "worker", "image": "acme/worker:2.4.0" }]
+        "containers": [
+          {
+            "name": "worker",
+            "image": "acme/worker:2.4.0"
+          }
+        ]
       },
       "status": {
         "phase": "Running",
@@ -180,7 +223,12 @@
       },
       "spec": {
         "restartPolicy": "OnFailure",
-        "containers": [{ "name": "task", "image": "" }]
+        "containers": [
+          {
+            "name": "task",
+            "image": ""
+          }
+        ]
       },
       "status": {
         "phase": "Pending",

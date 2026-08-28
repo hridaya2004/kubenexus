@@ -84,7 +84,11 @@ class ServiceYamlGeneratorTest {
         )
 
         assertTrue(renderedManifest.contains("  type: ${ServiceDraft.DEFAULT_TYPE}"))
-        assertTrue(Regex("^    - port: 6379$", RegexOption.MULTILINE).containsMatchIn(renderedManifest))
+        assertTrue(
+            Regex("^    - port: 6379$", RegexOption.MULTILINE).containsMatchIn(
+                renderedManifest
+            )
+        )
         assertTrue(renderedManifest.contains("targetPort: 6379"))
     }
 

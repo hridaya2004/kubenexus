@@ -58,6 +58,7 @@ fun PodsEmptyState(
                 isRefreshing -> "Retrieving live workload state from cluster"
                 selectedNamespace != "All Namespaces" && selectedNamespace.isNotBlank() ->
                     "No pods are running in namespace '$selectedNamespace'."
+
                 else -> "No pods are currently running in the cluster."
             }
             Text(

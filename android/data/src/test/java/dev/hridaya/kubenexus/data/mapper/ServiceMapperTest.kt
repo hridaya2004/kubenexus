@@ -6,10 +6,10 @@ import dev.hridaya.kubenexus.data.source.remote.dto.NAMED_PORT_UNRESOLVED
 import dev.hridaya.kubenexus.data.source.remote.dto.ServiceDto
 import dev.hridaya.kubenexus.domain.model.ServicePortDetail
 import dev.hridaya.kubenexus.domain.model.ServiceSummary
-import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.Instant
 
 /**
  * Exercises the Service mappers against real Kubernetes API payloads,
@@ -30,7 +30,15 @@ class ServiceMapperTest {
         assertEquals(2, service.spec.ports.size)
 
         val http = service.spec.ports[0].toDomain()
-        assertEquals(ServicePortDetail(port = 80, targetPort = 8080, nodePort = 30080, protocol = "TCP", name = "http"), http)
+        assertEquals(
+            ServicePortDetail(
+                port = 80,
+                targetPort = 8080,
+                nodePort = 30080,
+                protocol = "TCP",
+                name = "http"
+            ), http
+        )
 
         // A named targetPort cannot be an Int; it must not fail the decode and
         // must surface as NAMED_PORT_UNRESOLVED so the row still renders.
@@ -82,8 +90,20 @@ class ServiceMapperTest {
             type = "LoadBalancer",
             clusterIP = "10.96.44.17",
             ports = listOf(
-                ServicePortDetail(port = 80, targetPort = 8080, nodePort = 30080, protocol = "TCP", name = "http"),
-                ServicePortDetail(port = 443, targetPort = NAMED_PORT_UNRESOLVED, nodePort = null, protocol = "TCP", name = null),
+                ServicePortDetail(
+                    port = 80,
+                    targetPort = 8080,
+                    nodePort = 30080,
+                    protocol = "TCP",
+                    name = "http"
+                ),
+                ServicePortDetail(
+                    port = 443,
+                    targetPort = NAMED_PORT_UNRESOLVED,
+                    nodePort = null,
+                    protocol = "TCP",
+                    name = null
+                ),
             ),
             creationTimestampMillis = 1_772_000_000_000L,
         )

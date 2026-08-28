@@ -1,6 +1,5 @@
 package dev.hridaya.kubenexus.presentation.pods.components
 
-import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -152,7 +151,11 @@ fun GhosttyTerminalLogViewer(
                             when (val result = LogExportHelper.uploadToPastebin(text, pasteTitle)) {
                                 is Result.Success -> {
                                     val pasteUrl = result.data
-                                    LogExportHelper.copyToClipboard(context, pasteUrl, "Pastebin URL")
+                                    LogExportHelper.copyToClipboard(
+                                        context,
+                                        pasteUrl,
+                                        "Pastebin URL"
+                                    )
                                     Toast.makeText(
                                         context,
                                         "Logs uploaded! URL copied to clipboard: $pasteUrl",
@@ -163,8 +166,14 @@ fun GhosttyTerminalLogViewer(
                                         putExtra(Intent.EXTRA_SUBJECT, pasteTitle)
                                         putExtra(Intent.EXTRA_TEXT, pasteUrl)
                                     }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Share Log Link"))
+                                    context.startActivity(
+                                        Intent.createChooser(
+                                            shareIntent,
+                                            "Share Log Link"
+                                        )
+                                    )
                                 }
+
                                 is Result.Error -> {
                                     Toast.makeText(
                                         context,
@@ -172,6 +181,7 @@ fun GhosttyTerminalLogViewer(
                                         Toast.LENGTH_LONG,
                                     ).show()
                                 }
+
                                 Result.Loading -> Unit
                             }
                         }

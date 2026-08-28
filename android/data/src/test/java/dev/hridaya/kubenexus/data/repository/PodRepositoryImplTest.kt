@@ -3,8 +3,8 @@ package dev.hridaya.kubenexus.data.repository
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.data.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.core.security.AesGcmKubeconfigEncryptor
+import dev.hridaya.kubenexus.data.nativebridge.FakeKubeNexusNativeBridge
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.NamespaceDao
 import dev.hridaya.kubenexus.data.source.local.dao.PodDao
@@ -88,7 +88,8 @@ class PodRepositoryImplTest {
 
     @Test
     fun `createPodFromManifest fails when no cluster is selected`() = runTest(testDispatcher) {
-        val result = repository.createPodFromManifest(clusterId = null, manifestYaml = sampleManifest)
+        val result =
+            repository.createPodFromManifest(clusterId = null, manifestYaml = sampleManifest)
 
         assertTrue(result is Result.Error)
         assertEquals(
@@ -132,41 +133,43 @@ class PodRepositoryImplTest {
         }
 
     @Test
-    fun `createPodFromManifest surfaces sanitized bridge error messages`() = runTest(testDispatcher) {
-        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
-        recordingBridge.resultToReturn = Result.Error(
-            AppError.Unknown("pods denied: token: secret-token-12345 rejected"),
-        )
+    fun `createPodFromManifest surfaces sanitized bridge error messages`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+            recordingBridge.resultToReturn = Result.Error(
+                AppError.Unknown("pods denied: token: secret-token-12345 rejected"),
+            )
 
-        val result = repository.createPodFromManifest(
-            clusterId = "c-1",
-            manifestYaml = sampleManifest,
-        )
+            val result = repository.createPodFromManifest(
+                clusterId = "c-1",
+                manifestYaml = sampleManifest,
+            )
 
-        assertTrue(result is Result.Error)
-        val error = (result as Result.Error).error
-        assertTrue(error is AppError.Network)
-        assertEquals(
-            "pods denied: token: [REDACTED] rejected",
-            error.message,
-        )
-    }
+            assertTrue(result is Result.Error)
+            val error = (result as Result.Error).error
+            assertTrue(error is AppError.Network)
+            assertEquals(
+                "pods denied: token: [REDACTED] rejected",
+                error.message,
+            )
+        }
 
     @Test
-    fun `createPodFromManifest maps bridge exceptions to network errors`() = runTest(testDispatcher) {
-        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
-        recordingBridge.errorToThrow = RuntimeException("connection reset by peer")
+    fun `createPodFromManifest maps bridge exceptions to network errors`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+            recordingBridge.errorToThrow = RuntimeException("connection reset by peer")
 
-        val result = repository.createPodFromManifest(
-            clusterId = "c-1",
-            manifestYaml = sampleManifest,
-        )
+            val result = repository.createPodFromManifest(
+                clusterId = "c-1",
+                manifestYaml = sampleManifest,
+            )
 
-        assertTrue(result is Result.Error)
-        val error = (result as Result.Error).error
-        assertTrue(error is AppError.Network)
-        assertEquals("connection reset by peer", error.message)
-    }
+            assertTrue(result is Result.Error)
+            val error = (result as Result.Error).error
+            assertTrue(error is AppError.Network)
+            assertEquals("connection reset by peer", error.message)
+        }
 
     private fun seedCluster(id: String, rawKubeconfig: String) {
         fakeDao.clusters[id] = ClusterEntity(
@@ -213,12 +216,18 @@ class PodRepositoryImplTest {
         override fun getPodsStream(clusterId: String): Flow<List<PodEntity>> =
             MutableStateFlow(emptyList())
 
-        override fun getPodsByNamespaceStream(clusterId: String, namespace: String): Flow<List<PodEntity>> =
+        override fun getPodsByNamespaceStream(
+            clusterId: String,
+            namespace: String
+        ): Flow<List<PodEntity>> =
             MutableStateFlow(emptyList())
 
         override suspend fun getPodIdsForCluster(clusterId: String): List<String> = emptyList()
 
-        override suspend fun getPodIdsForNamespace(clusterId: String, namespace: String): List<String> =
+        override suspend fun getPodIdsForNamespace(
+            clusterId: String,
+            namespace: String
+        ): List<String> =
             emptyList()
 
         override suspend fun getPodsList(clusterId: String): List<PodEntity> = emptyList()
@@ -296,7 +305,9 @@ class PodRepositoryImplTest {
         }
 
         override suspend fun updateStatus(id: String, status: String, lastConnectedAt: Long?) {
-            clusters[id]?.let { clusters[id] = it.copy(status = status, lastConnectedAt = lastConnectedAt) }
+            clusters[id]?.let {
+                clusters[id] = it.copy(status = status, lastConnectedAt = lastConnectedAt)
+            }
         }
     }
 }

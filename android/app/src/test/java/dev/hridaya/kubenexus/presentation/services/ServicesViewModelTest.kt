@@ -21,7 +21,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
@@ -96,7 +95,15 @@ class ServicesViewModelTest {
         namespace = namespace,
         type = "ClusterIP",
         clusterIP = "10.96.0.1",
-        ports = listOf(ServicePortDetail(port = 80, targetPort = 8080, nodePort = null, protocol = "TCP", name = "http")),
+        ports = listOf(
+            ServicePortDetail(
+                port = 80,
+                targetPort = 8080,
+                nodePort = null,
+                protocol = "TCP",
+                name = "http"
+            )
+        ),
         creationTimestampMillis = 0L,
     )
 
@@ -130,19 +137,20 @@ class ServicesViewModelTest {
     }
 
     @Test
-    fun `sync failure preserves cached rows and does not show blocking error`() = vmTest { viewModel ->
-        fakeRepository.cachedRows.value = listOf(serviceSummary("svc-cached"))
-        fakeRepository.syncResult = Result.Error(AppError.Network("Offline"))
-        advanceUntilIdle()
+    fun `sync failure preserves cached rows and does not show blocking error`() =
+        vmTest { viewModel ->
+            fakeRepository.cachedRows.value = listOf(serviceSummary("svc-cached"))
+            fakeRepository.syncResult = Result.Error(AppError.Network("Offline"))
+            advanceUntilIdle()
 
-        viewModel.onAction(ServicesUiAction.Refresh)
-        advanceUntilIdle()
+            viewModel.onAction(ServicesUiAction.Refresh)
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertEquals(1, state.services.size)
-        assertNull(state.errorMessage)
-        assertFalse(state.isRefreshing)
-    }
+            val state = viewModel.uiState.value
+            assertEquals(1, state.services.size)
+            assertNull(state.errorMessage)
+            assertFalse(state.isRefreshing)
+        }
 
     @Test
     fun `sync failure with empty cache surfaces friendly error`() = vmTest { viewModel ->
@@ -181,7 +189,10 @@ private class FakeServicesRepository : ServiceRepository {
     var syncResult: Result<Unit> = Result.Success(Unit)
     val syncCalls = mutableListOf<Pair<String?, String?>>()
 
-    override suspend fun createFromManifest(clusterId: String?, manifestYaml: String): Result<Unit> =
+    override suspend fun createFromManifest(
+        clusterId: String?,
+        manifestYaml: String
+    ): Result<Unit> =
         Result.Success(Unit)
 
     override fun getServicesStream(
@@ -220,30 +231,111 @@ private class FakeNetworkMonitor : NetworkMonitor {
 }
 
 private object InertPodRepository : PodRepository {
-    override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> = emptyFlow()
-    override fun getNamespacesStream(clusterId: String?): Flow<List<String>> = flowOf(listOf("team-a", "team-b"))
-    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = flowOf(null)
-    override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> = Result.Success(Unit)
-    override suspend fun listPodsBySelector(rawKubeconfig: String, namespace: String?, labelSelector: String): Result<List<Pod>> =
-        Result.Success(emptyList())
-    override suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails> =
-        Result.Error(AppError.NotFound("inert"))
-    override suspend fun getPodMetrics(clusterId: String?, namespace: String?): Result<List<PodMetricSample>> =
-        Result.Success(emptyList())
-    override suspend fun getSinglePodMetrics(clusterId: String?, namespace: String, podName: String): Result<PodMetricSample?> =
-        Result.Error(AppError.NotFound("inert"))
-    override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> = Result.Success(Unit)
-    override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> = Result.Success(Unit)
-    override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> = Result.Success(Unit)
-    override suspend fun createPodFromManifest(clusterId: String?, manifestYaml: String): Result<Unit> = Result.Success(Unit)
-    override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Result<String> =
-        Result.Success("")
-    override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Flow<String> =
+    override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
         emptyFlow()
-    override suspend fun execCommand(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, stdin: String): Result<dev.hridaya.kubenexus.domain.model.CommandExecResult> =
+
+    override fun getNamespacesStream(clusterId: String?): Flow<List<String>> =
+        flowOf(listOf("team-a", "team-b"))
+
+    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = flowOf(null)
+    override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> =
+        Result.Success(Unit)
+
+    override suspend fun listPodsBySelector(
+        rawKubeconfig: String,
+        namespace: String?,
+        labelSelector: String
+    ): Result<List<Pod>> =
+        Result.Success(emptyList())
+
+    override suspend fun describePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<PodDetails> =
         Result.Error(AppError.NotFound("inert"))
-    override suspend fun startTerminalSession(clusterId: String?, namespace: String, podName: String, containerName: String, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
+
+    override suspend fun getPodMetrics(
+        clusterId: String?,
+        namespace: String?
+    ): Result<List<PodMetricSample>> =
+        Result.Success(emptyList())
+
+    override suspend fun getSinglePodMetrics(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<PodMetricSample?> =
         Result.Error(AppError.NotFound("inert"))
-    override suspend fun startExecSession(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, tty: Boolean, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
+
+    override suspend fun deletePod(
+        clusterId: String?,
+        namespace: String,
+        podName: String
+    ): Result<Unit> = Result.Success(Unit)
+
+    override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> =
+        Result.Success(Unit)
+
+    override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> =
+        Result.Success(Unit)
+
+    override suspend fun createPodFromManifest(
+        clusterId: String?,
+        manifestYaml: String
+    ): Result<Unit> = Result.Success(Unit)
+
+    override suspend fun getPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?,
+        tailLines: Long?
+    ): Result<String> =
+        Result.Success("")
+
+    override fun streamPodLogs(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String?,
+        tailLines: Long?
+    ): Flow<String> =
+        emptyFlow()
+
+    override suspend fun execCommand(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        command: String,
+        stdin: String
+    ): Result<dev.hridaya.kubenexus.domain.model.CommandExecResult> =
+        Result.Error(AppError.NotFound("inert"))
+
+    override suspend fun startTerminalSession(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        onStdout: (String) -> Unit,
+        onStderr: (String) -> Unit,
+        onError: (String) -> Unit,
+        onDone: () -> Unit
+    ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
+        Result.Error(AppError.NotFound("inert"))
+
+    override suspend fun startExecSession(
+        clusterId: String?,
+        namespace: String,
+        podName: String,
+        containerName: String,
+        command: String,
+        tty: Boolean,
+        onStdout: (String) -> Unit,
+        onStderr: (String) -> Unit,
+        onError: (String) -> Unit,
+        onDone: () -> Unit
+    ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
         Result.Error(AppError.NotFound("inert"))
 }

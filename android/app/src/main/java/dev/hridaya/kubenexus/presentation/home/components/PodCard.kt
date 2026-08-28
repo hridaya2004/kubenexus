@@ -138,7 +138,7 @@ private fun PodCardPreview() {
                     readyContainers = "1/1",
                     restarts = 0,
                     creationTimestampMillis = System.currentTimeMillis() -
-                        (2.days + 4.hours).inWholeMilliseconds,
+                            (2.days + 4.hours).inWholeMilliseconds,
                     ip = "10.244.0.15",
                     node = "node-1",
                 ),

@@ -103,21 +103,99 @@ class ResolveServiceForwardTargetUseCaseTest {
             labelSelector: String,
         ): Result<List<Pod>> = Result.Success(podsToReturn)
 
-        override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> = flowOf(podsToReturn)
-        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> = flowOf(emptyList())
+        override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
+            flowOf(podsToReturn)
+
+        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> =
+            flowOf(emptyList())
+
         override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = flowOf(null)
-        override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> = Result.Success(Unit)
-        override suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails> = Result.Error(AppError.NotFound())
-        override suspend fun getPodMetrics(clusterId: String?, namespace: String?): Result<List<PodMetricSample>> = Result.Success(emptyList())
-        override suspend fun getSinglePodMetrics(clusterId: String?, namespace: String, podName: String): Result<PodMetricSample?> = Result.Success(null)
-        override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun createPodFromManifest(clusterId: String?, manifestYaml: String): Result<Unit> = Result.Success(Unit)
-        override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Result<String> = Result.Success("")
-        override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Flow<String> = flowOf("")
-        override suspend fun execCommand(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, stdin: String): Result<CommandExecResult> = Result.Error(AppError.NotFound())
-        override suspend fun startTerminalSession(clusterId: String?, namespace: String, podName: String, containerName: String, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<TerminalSession> = Result.Error(AppError.NotFound())
-        override suspend fun startExecSession(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, tty: Boolean, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<TerminalSession> = Result.Error(AppError.NotFound())
+        override suspend fun refreshWorkloads(
+            clusterId: String?,
+            namespace: String?
+        ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun describePod(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<PodDetails> = Result.Error(AppError.NotFound())
+
+        override suspend fun getPodMetrics(
+            clusterId: String?,
+            namespace: String?
+        ): Result<List<PodMetricSample>> = Result.Success(emptyList())
+
+        override suspend fun getSinglePodMetrics(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<PodMetricSample?> = Result.Success(null)
+
+        override suspend fun deletePod(
+            clusterId: String?,
+            namespace: String,
+            podName: String
+        ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> =
+            Result.Success(Unit)
+
+        override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> =
+            Result.Success(Unit)
+
+        override suspend fun createPodFromManifest(
+            clusterId: String?,
+            manifestYaml: String
+        ): Result<Unit> = Result.Success(Unit)
+
+        override suspend fun getPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?,
+            tailLines: Long?
+        ): Result<String> = Result.Success("")
+
+        override fun streamPodLogs(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String?,
+            tailLines: Long?
+        ): Flow<String> = flowOf("")
+
+        override suspend fun execCommand(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            stdin: String
+        ): Result<CommandExecResult> = Result.Error(AppError.NotFound())
+
+        override suspend fun startTerminalSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<TerminalSession> = Result.Error(AppError.NotFound())
+
+        override suspend fun startExecSession(
+            clusterId: String?,
+            namespace: String,
+            podName: String,
+            containerName: String,
+            command: String,
+            tty: Boolean,
+            onStdout: (String) -> Unit,
+            onStderr: (String) -> Unit,
+            onError: (String) -> Unit,
+            onDone: () -> Unit
+        ): Result<TerminalSession> = Result.Error(AppError.NotFound())
     }
 }

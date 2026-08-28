@@ -218,7 +218,7 @@ class CreateServiceViewModel @AssistedInject constructor(
                                 newNamespaceError = null,
                                 isCreatingNamespace = false,
                                 availableNamespaces =
-                                (current.availableNamespaces + name).distinct(),
+                                    (current.availableNamespaces + name).distinct(),
                                 namespace = name,
                             ),
                         )
@@ -227,7 +227,10 @@ class CreateServiceViewModel @AssistedInject constructor(
                 }
 
                 is Result.Error -> _uiState.update {
-                    it.copy(isCreatingNamespace = false, newNamespaceError = NAMESPACE_ERROR_MESSAGE)
+                    it.copy(
+                        isCreatingNamespace = false,
+                        newNamespaceError = NAMESPACE_ERROR_MESSAGE
+                    )
                 }
 
                 is Result.Loading -> Unit
@@ -236,7 +239,12 @@ class CreateServiceViewModel @AssistedInject constructor(
     }
 
     private fun validated(state: CreateServiceUiState): CreateServiceUiState {
-        return state.copy(fieldErrors = draftWithErrors(state, includeRequired = state.hasSubmitted).second)
+        return state.copy(
+            fieldErrors = draftWithErrors(
+                state,
+                includeRequired = state.hasSubmitted
+            ).second
+        )
     }
 
     private fun buildDraft(state: CreateServiceUiState): ServiceDraft {

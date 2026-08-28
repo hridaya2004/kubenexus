@@ -203,11 +203,11 @@ abstract class KubeNexusDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_deployments_clusterId_namespace` " +
-                        "ON `deployments` (`clusterId`, `namespace`)",
+                            "ON `deployments` (`clusterId`, `namespace`)",
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_deployments_clusterId_name` " +
-                        "ON `deployments` (`clusterId`, `name`)",
+                            "ON `deployments` (`clusterId`, `name`)",
                 )
 
                 db.execSQL(
@@ -228,11 +228,11 @@ abstract class KubeNexusDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_services_clusterId_namespace` " +
-                        "ON `services` (`clusterId`, `namespace`)",
+                            "ON `services` (`clusterId`, `namespace`)",
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_services_clusterId_name` " +
-                        "ON `services` (`clusterId`, `name`)",
+                            "ON `services` (`clusterId`, `name`)",
                 )
             }
         }

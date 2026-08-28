@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.ServicePortDetail
 import dev.hridaya.kubenexus.domain.model.ServiceSummary
@@ -85,9 +84,9 @@ fun ServicesScreen(
             val query = searchQuery.trim()
             uiState.services.filter { service ->
                 service.name.contains(query, ignoreCase = true) ||
-                    service.namespace.contains(query, ignoreCase = true) ||
-                    service.type.contains(query, ignoreCase = true) ||
-                    service.clusterIP.contains(query, ignoreCase = true)
+                        service.namespace.contains(query, ignoreCase = true) ||
+                        service.type.contains(query, ignoreCase = true) ||
+                        service.clusterIP.contains(query, ignoreCase = true)
             }
         }
     }

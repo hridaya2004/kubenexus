@@ -31,8 +31,8 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
-import dev.hridaya.kubenexus.ui.theme.Material3Motion
 import dev.hridaya.kubenexus.ui.theme.LocalStatusColors
+import dev.hridaya.kubenexus.ui.theme.Material3Motion
 
 @Composable
 fun ClusterPill(

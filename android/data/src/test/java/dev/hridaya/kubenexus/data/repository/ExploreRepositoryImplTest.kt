@@ -8,12 +8,12 @@ import dev.hridaya.kubenexus.data.nativebridge.NativeBridgeJsonParser
 import dev.hridaya.kubenexus.data.source.local.dao.APIResourceDao
 import dev.hridaya.kubenexus.data.source.local.dao.ClusterDao
 import dev.hridaya.kubenexus.data.source.local.dao.ExplainedResourceDao
+import dev.hridaya.kubenexus.data.source.local.dao.OpenApiSchemaDao
 import dev.hridaya.kubenexus.data.source.local.entity.APIResourceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
 import dev.hridaya.kubenexus.data.source.local.entity.ExplainedResourceEntity
-import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
-import dev.hridaya.kubenexus.data.source.local.dao.OpenApiSchemaDao
 import dev.hridaya.kubenexus.data.source.local.entity.OpenApiSchemaEntity
+import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
 import dev.hridaya.kubenexus.domain.model.APIResource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -166,7 +166,8 @@ class ExploreRepositoryImplTest {
             // return Error so failed refresh is not counted as success, and the cached
             // explanation must survive untouched.
             fakeNativeBridge.shouldFailSchema = true
-            val failedResult = repository.explainResource(clusterId, "pods", "v1", forceRefresh = true)
+            val failedResult =
+                repository.explainResource(clusterId, "pods", "v1", forceRefresh = true)
             assertTrue(failedResult is Result.Error)
 
             // Test direct getCachedExplainedResource returns cached schema
@@ -424,7 +425,8 @@ class ExploreRepositoryImplTest {
     private class FakeOpenApiSchemaDao : OpenApiSchemaDao {
         private val storage = mutableMapOf<String, OpenApiSchemaEntity>()
 
-        override suspend fun getForCluster(clusterId: String): OpenApiSchemaEntity? = storage[clusterId]
+        override suspend fun getForCluster(clusterId: String): OpenApiSchemaEntity? =
+            storage[clusterId]
 
         override suspend fun upsert(schema: OpenApiSchemaEntity) {
             storage[schema.clusterId] = schema

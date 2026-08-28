@@ -48,10 +48,10 @@ class ResolveServiceForwardTargetUseCase @Inject constructor(
                 parts.size == 2 && parts[0] == parts[1] && parts[0] != "0"
             }
         } ?: pods.firstOrNull { it.status == PodStatus.RUNNING }
-            ?: pods.firstOrNull()
-            ?: return Result.Error(
-                AppError.NotFound("No active pods found matching selector for service '${service.name}'."),
-            )
+        ?: pods.firstOrNull()
+        ?: return Result.Error(
+            AppError.NotFound("No active pods found matching selector for service '${service.name}'."),
+        )
 
         val portDetail = service.ports.firstOrNull { it.port == servicePort }
         val targetPort = if (portDetail != null && portDetail.targetPort > 0) {

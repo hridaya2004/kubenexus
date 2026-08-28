@@ -1,8 +1,6 @@
 package dev.hridaya.kubenexus.presentation.portforward.sessions
 
 import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
-import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
-import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 
 /**
  * State of the global port-forward sessions sheet. [sessions] mirrors the

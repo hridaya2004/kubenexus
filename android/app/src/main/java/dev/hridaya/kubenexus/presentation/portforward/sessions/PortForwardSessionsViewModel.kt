@@ -5,12 +5,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.hridaya.kubenexus.data.portforward.PortForwardSessionManager
 import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Exposes the app-wide port-forward tunnel list behind a sheet-friendly UI

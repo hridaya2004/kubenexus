@@ -26,8 +26,8 @@ data class OpenApiSchemaEntity(
         if (this === other) return true
         if (other !is OpenApiSchemaEntity) return false
         return clusterId == other.clusterId &&
-            fetchedAt == other.fetchedAt &&
-            schemaGzip.contentEquals(other.schemaGzip)
+                fetchedAt == other.fetchedAt &&
+                schemaGzip.contentEquals(other.schemaGzip)
     }
 
     override fun hashCode(): Int {

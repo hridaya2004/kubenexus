@@ -17,7 +17,10 @@ interface DeploymentRepository {
      * Lists Deployment summaries for the active cluster. A null or blank
      * [namespace] lists across all namespaces.
      */
-    suspend fun getDeployments(clusterId: String?, namespace: String?): Result<List<DeploymentSummary>>
+    suspend fun getDeployments(
+        clusterId: String?,
+        namespace: String?
+    ): Result<List<DeploymentSummary>>
 
     /**
      * Cold stream of cached Deployments, refreshed by [syncDeployments].

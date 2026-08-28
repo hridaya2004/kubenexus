@@ -7,15 +7,24 @@
         "singularName": "pod",
         "namespaced": true,
         "kind": "Pod",
-        "verbs": ["get", "list"],
-        "shortNames": ["po"],
-        "categories": ["all"]
+        "verbs": [
+          "get",
+          "list"
+        ],
+        "shortNames": [
+          "po"
+        ],
+        "categories": [
+          "all"
+        ]
       },
       {
         "name": "nodes",
         "namespaced": false,
         "kind": "Node",
-        "verbs": ["get"]
+        "verbs": [
+          "get"
+        ]
       }
     ]
   },
@@ -27,12 +36,17 @@
         "singularName": "deployment",
         "namespaced": true,
         "kind": "Deployment",
-        "verbs": ["get", "list"]
+        "verbs": [
+          "get",
+          "list"
+        ]
       },
       {
         "name": "pods",
         "kind": "Pod",
-        "verbs": ["get"]
+        "verbs": [
+          "get"
+        ]
       }
     ]
   }

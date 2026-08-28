@@ -61,7 +61,11 @@ class NativeBridgeJsonParser @Inject constructor() {
      * schema document. Returns a best-effort fallback when the schema is
      * unavailable or nothing matches.
      */
-    fun resolveResourceExplain(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain {
+    fun resolveResourceExplain(
+        schemaJson: String,
+        resourceOrKind: String,
+        groupVersion: String
+    ): ResourceExplain {
         return findDefinition(schemaJson, resourceOrKind, groupVersion)
             ?: buildFallbackExplain(resourceOrKind, groupVersion)
     }
@@ -81,7 +85,11 @@ class NativeBridgeJsonParser @Inject constructor() {
      * Returns null when the schema has no definition matching the resource or
      * kind, so callers can decide whether a fallback is worth persisting.
      */
-    fun findDefinition(schemaJson: String, resourceOrKind: String, groupVersion: String): ResourceExplain? =
+    fun findDefinition(
+        schemaJson: String,
+        resourceOrKind: String,
+        groupVersion: String
+    ): ResourceExplain? =
         parseDefinitions(schemaJson)?.let { findDefinition(it, resourceOrKind, groupVersion) }
 
     fun findDefinition(
@@ -102,10 +110,11 @@ class NativeBridgeJsonParser @Inject constructor() {
                 val version = gvk.optString("version", "")
 
                 val kindMatches =
-                    kind.equals(target, ignoreCase = true) || kind.plus("s").equals(target, ignoreCase = true)
+                    kind.equals(target, ignoreCase = true) || kind.plus("s")
+                        .equals(target, ignoreCase = true)
                 val versionMatches = groupVersion.isBlank() ||
-                    version.equals(groupVersion, ignoreCase = true) ||
-                    "$group/$version".equals(groupVersion, ignoreCase = true)
+                        version.equals(groupVersion, ignoreCase = true) ||
+                        "$group/$version".equals(groupVersion, ignoreCase = true)
                 if (!kindMatches || !versionMatches) continue
 
                 return buildExplainFromDefinition(definition, kind, group, version)
@@ -224,7 +233,11 @@ class NativeBridgeJsonParser @Inject constructor() {
                     "metadata", "ObjectMeta",
                     "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
                 ),
-                ResourceField("spec", "object", "Specification of the desired behavior of the resource."),
+                ResourceField(
+                    "spec",
+                    "object",
+                    "Specification of the desired behavior of the resource."
+                ),
                 ResourceField(
                     "status", "object",
                     "Most recently observed status of the resource. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status",

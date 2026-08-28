@@ -6,10 +6,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.hridaya.kubenexus.core.common.network.ConnectivityNetworkMonitor
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
-import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
-import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridgeImpl
 import dev.hridaya.kubenexus.core.security.AndroidKeystoreKubeconfigEncryptor
 import dev.hridaya.kubenexus.core.security.KubeconfigEncryptor
+import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridgeImpl
 import dev.hridaya.kubenexus.data.repository.ClusterRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.DeploymentRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ExploreRepositoryImpl

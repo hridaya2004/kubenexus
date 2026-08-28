@@ -18,7 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -64,21 +63,22 @@ class CreateServiceViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun vmTest(block: suspend TestScope.(CreateServiceViewModel) -> Unit) = runTest(testDispatcher) {
-        val viewModel = CreateServiceViewModel(
-            clusterId = "c-1",
-            initialNamespace = "team-a",
-            initialAvailableNamespaces = listOf("default", "team-a"),
-            createServiceUseCase = CreateServiceUseCase(fakeServiceRepository),
-            createNamespaceUseCase = CreateNamespaceUseCase(fakePodRepository),
-            dispatcherProvider = testDispatcherProvider,
-        )
-        try {
-            block(viewModel)
-        } finally {
-            viewModel.viewModelScope.cancel()
+    private fun vmTest(block: suspend TestScope.(CreateServiceViewModel) -> Unit) =
+        runTest(testDispatcher) {
+            val viewModel = CreateServiceViewModel(
+                clusterId = "c-1",
+                initialNamespace = "team-a",
+                initialAvailableNamespaces = listOf("default", "team-a"),
+                createServiceUseCase = CreateServiceUseCase(fakeServiceRepository),
+                createNamespaceUseCase = CreateNamespaceUseCase(fakePodRepository),
+                dispatcherProvider = testDispatcherProvider,
+            )
+            try {
+                block(viewModel)
+            } finally {
+                viewModel.viewModelScope.cancel()
+            }
         }
-    }
 
     private fun fillValidForm(viewModel: CreateServiceViewModel) {
         viewModel.onAction(CreateServiceUiAction.NameChanged("web-app"))
@@ -89,19 +89,20 @@ class CreateServiceViewModelTest {
     }
 
     @Test
-    fun `initial form state does not show required field errors before submit`() = vmTest { viewModel ->
-        val state = viewModel.uiState.value
-        assertTrue(state.fieldErrors.isEmpty())
-        assertNull(state.errorMessage)
+    fun `initial form state does not show required field errors before submit`() =
+        vmTest { viewModel ->
+            val state = viewModel.uiState.value
+            assertTrue(state.fieldErrors.isEmpty())
+            assertNull(state.errorMessage)
 
-        viewModel.onAction(CreateServiceUiAction.PreviewSubmitted)
-        val submittedState = viewModel.uiState.value
-        assertTrue(submittedState.fieldErrors.containsKey("name"))
-        assertTrue(submittedState.fieldErrors.containsKey("selectorApp"))
-        assertTrue(submittedState.fieldErrors.containsKey("port"))
-        assertTrue(submittedState.fieldErrors.containsKey("targetPort"))
-        assertNotNull(submittedState.errorMessage)
-    }
+            viewModel.onAction(CreateServiceUiAction.PreviewSubmitted)
+            val submittedState = viewModel.uiState.value
+            assertTrue(submittedState.fieldErrors.containsKey("name"))
+            assertTrue(submittedState.fieldErrors.containsKey("selectorApp"))
+            assertTrue(submittedState.fieldErrors.containsKey("port"))
+            assertTrue(submittedState.fieldErrors.containsKey("targetPort"))
+            assertNotNull(submittedState.errorMessage)
+        }
 
     @Test
     fun `preview success moves to review step with generated service yaml`() = vmTest { viewModel ->
@@ -308,24 +309,25 @@ class CreateServiceViewModelTest {
     }
 
     @Test
-    fun `namespace creation failure keeps dialog input and shows friendly message`() = vmTest { viewModel ->
-        fakePodRepository.createError = AppError.Unknown(message = "already exists")
-        viewModel.onAction(CreateServiceUiAction.CreateNamespaceClicked)
-        viewModel.onAction(CreateServiceUiAction.NewNamespaceNameChanged("team-b"))
+    fun `namespace creation failure keeps dialog input and shows friendly message`() =
+        vmTest { viewModel ->
+            fakePodRepository.createError = AppError.Unknown(message = "already exists")
+            viewModel.onAction(CreateServiceUiAction.CreateNamespaceClicked)
+            viewModel.onAction(CreateServiceUiAction.NewNamespaceNameChanged("team-b"))
 
-        viewModel.onAction(CreateServiceUiAction.CreateNamespaceSubmitted)
-        advanceUntilIdle()
+            viewModel.onAction(CreateServiceUiAction.CreateNamespaceSubmitted)
+            advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue(state.showCreateNamespaceDialog)
-        assertEquals("team-b", state.newNamespaceName)
-        assertFalse(state.isCreatingNamespace)
-        assertEquals(
-            "Couldn't create that namespace. The name may already be taken.",
-            state.newNamespaceError,
-        )
-        assertFalse(state.availableNamespaces.contains("team-b"))
-    }
+            val state = viewModel.uiState.value
+            assertTrue(state.showCreateNamespaceDialog)
+            assertEquals("team-b", state.newNamespaceName)
+            assertFalse(state.isCreatingNamespace)
+            assertEquals(
+                "Couldn't create that namespace. The name may already be taken.",
+                state.newNamespaceError,
+            )
+            assertFalse(state.availableNamespaces.contains("team-b"))
+        }
 }
 
 /** Only [createFromManifest] is exercised here; everything else is inert. */

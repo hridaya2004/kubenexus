@@ -122,7 +122,7 @@ class DeploymentDetailViewModel @AssistedInject constructor(
                             deployment = null,
                             errorMessage =
                                 "Deployment \"$deploymentName\" was not found in namespace " +
-                                    "\"$namespace\". It may have been deleted or renamed.",
+                                        "\"$namespace\". It may have been deleted or renamed.",
                         )
                     } else {
                         state.copy(isLoading = false)

@@ -37,7 +37,8 @@ class PortForwardNotificationManager @Inject constructor(
             description = "Shows active Kubernetes port-forwarding sessions"
             setShowBadge(true)
         }
-        val sysManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        val sysManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         sysManager?.createNotificationChannel(channel)
     }
 
@@ -45,9 +46,10 @@ class PortForwardNotificationManager @Inject constructor(
      * Builds the [Notification] representing current active port forwards.
      */
     fun buildNotification(activeSessions: List<ActivePortForwardSession>): Notification {
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        } ?: Intent()
+        val launchIntent =
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            } ?: Intent()
 
         val contentIntent = PendingIntent.getActivity(
             context,

@@ -17,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,7 +43,9 @@ internal fun DeploymentStatusCard(
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
@@ -83,18 +84,21 @@ internal fun DeploymentStatusCard(
 
             LinearProgressIndicator(
                 progress = { rolloutFraction },
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
             )
 
             Text(
                 text = "${deployment.readyReplicas}/${deployment.desiredReplicas} ready · " +
-                    "${deployment.availableReplicas} available",
+                        "${deployment.availableReplicas} available",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Text(
-                text = DateUtils.getRelativeTimeSpanString(deployment.creationTimestampMillis).toString(),
+                text = DateUtils.getRelativeTimeSpanString(deployment.creationTimestampMillis)
+                    .toString(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -114,7 +118,9 @@ internal fun DeploymentImagesCard(
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
         ) {
             Text(
                 text = "Images",

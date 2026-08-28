@@ -36,12 +36,14 @@ object ConnectedButtonGroupDefaults {
                 topEnd = InnerCornerRadius,
                 bottomEnd = InnerCornerRadius,
             )
+
             index == count - 1 -> RoundedCornerShape(
                 topStart = InnerCornerRadius,
                 bottomStart = InnerCornerRadius,
                 topEnd = OuterCornerRadius,
                 bottomEnd = OuterCornerRadius,
             )
+
             else -> RoundedCornerShape(InnerCornerRadius)
         }
     }

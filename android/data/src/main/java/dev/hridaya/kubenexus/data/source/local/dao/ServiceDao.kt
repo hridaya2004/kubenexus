@@ -16,7 +16,10 @@ interface ServiceDao {
     fun getServicesStream(clusterId: String): Flow<List<ServiceEntity>>
 
     @Query("SELECT * FROM services WHERE clusterId = :clusterId AND namespace = :namespace ORDER BY name ASC")
-    fun getServicesByNamespaceStream(clusterId: String, namespace: String): Flow<List<ServiceEntity>>
+    fun getServicesByNamespaceStream(
+        clusterId: String,
+        namespace: String
+    ): Flow<List<ServiceEntity>>
 
     @Query("SELECT id FROM services WHERE clusterId = :clusterId")
     suspend fun getServiceIdsForCluster(clusterId: String): List<String>

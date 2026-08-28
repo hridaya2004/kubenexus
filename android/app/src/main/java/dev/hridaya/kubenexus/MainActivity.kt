@@ -2,7 +2,6 @@ package dev.hridaya.kubenexus
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import dev.hridaya.kubenexus.domain.model.ThemeMode
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.main.AppSplashScreen
@@ -26,7 +26,6 @@ import dev.hridaya.kubenexus.ui.theme.LocalAmoledDark
 import dev.hridaya.kubenexus.ui.theme.LocalOnAmoledDarkChange
 import dev.hridaya.kubenexus.ui.theme.LocalOnThemeModeChange
 import dev.hridaya.kubenexus.ui.theme.LocalThemeMode
-import dev.hridaya.kubenexus.domain.model.ThemeMode
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 

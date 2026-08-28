@@ -2,13 +2,21 @@
   "definitions": {
     "io.k8s.api.core.v1.Pod": {
       "x-kubernetes-group-version-kind": [
-        {"group": "", "version": "v1", "kind": "Pod"}
+        {
+          "group": "",
+          "version": "v1",
+          "kind": "Pod"
+        }
       ],
       "description": "Core pod."
     },
     "io.k8s.something.v2.Pod": {
       "x-kubernetes-group-version-kind": [
-        {"group": "something", "version": "v2", "kind": "Pod"}
+        {
+          "group": "something",
+          "version": "v2",
+          "kind": "Pod"
+        }
       ],
       "description": "Something pod."
     }

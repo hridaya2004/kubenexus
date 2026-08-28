@@ -13,6 +13,7 @@ data class DeploymentsUiState(
     val lastSyncedAt: Long? = null,
     val selectedNamespace: String = ALL_NAMESPACES_FILTER,
     val namespaces: List<String> = listOf(ALL_NAMESPACES_FILTER),
+    val isOnline: Boolean = true,
 )
 
 sealed interface DeploymentsUiAction {

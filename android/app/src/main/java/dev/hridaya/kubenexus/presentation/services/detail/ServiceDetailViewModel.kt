@@ -12,6 +12,7 @@ import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetServiceDetailsUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetServicesStreamUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,9 +21,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Network-first detail screen for one Service (mirroring PodDetailViewModel).
+ * Offline-first detail screen for one Service.
  *
- * Fetches fresh describe and service details over the network on every entry and refresh.
+ * Reads cached service summary immediately from Room, while fetching live
+ * describe details over the network in the background.
  * Automatically re-fetches when network connectivity is restored.
  */
 @HiltViewModel(assistedFactory = ServiceDetailViewModel.Factory::class)
@@ -31,6 +33,7 @@ class ServiceDetailViewModel @AssistedInject constructor(
     @Assisted("namespace") private val namespace: String,
     private val getServiceDetailsUseCase: GetServiceDetailsUseCase,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
+    private val getServicesStreamUseCase: GetServicesStreamUseCase? = null,
     private val networkMonitor: NetworkMonitor? = null,
     private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
@@ -55,6 +58,7 @@ class ServiceDetailViewModel @AssistedInject constructor(
 
     init {
         observeNetwork()
+        load()
     }
 
     private fun observeNetwork() {
@@ -80,18 +84,42 @@ class ServiceDetailViewModel @AssistedInject constructor(
     }
 
     /**
-     * Deliberately not called from init: [ServiceDetailRoute]'s
-     * LifecycleStartEffect triggers it on every start, so an init call would
-     * fire two identical fetches on first entry.
+     * Reads cached summary from Room for instant offline display, then pulls
+     * fresh describe details over the network.
      */
     private fun load() {
         viewModelScope.launch {
-            // First load takes the full spinner; a refresh of an already shown
-            // service keeps the overview on screen while re-fetching.
-            _uiState.update { state ->
-                state.copy(isLoading = state.service == null, errorMessage = null)
-            }
             val clusterId = getActiveClusterUseCase().firstOrNull()?.id
+
+            // Instant offline load from Room cache
+            val cachedSummary = getServicesStreamUseCase?.invoke(clusterId, namespace)
+                ?.firstOrNull()
+                ?.firstOrNull { it.name == serviceName && it.namespace == namespace }
+
+            if (cachedSummary != null) {
+                val initialDetails = ServiceDetails(
+                    name = cachedSummary.name,
+                    namespace = cachedSummary.namespace,
+                    creationTimestampMillis = cachedSummary.creationTimestampMillis,
+                    type = cachedSummary.type,
+                    clusterIP = cachedSummary.clusterIP,
+                    clusterIPs = if (cachedSummary.clusterIP.isNotBlank()) listOf(cachedSummary.clusterIP) else emptyList(),
+                    externalIPs = emptyList(),
+                    selector = emptyMap(),
+                    ports = cachedSummary.ports,
+                    labels = emptyMap(),
+                    annotations = emptyMap(),
+                    events = emptyList(),
+                )
+                _uiState.update { state ->
+                    state.copy(isLoading = false, service = state.service ?: initialDetails, errorMessage = null)
+                }
+            } else {
+                _uiState.update { state ->
+                    state.copy(isLoading = state.service == null, errorMessage = null)
+                }
+            }
+
             when (val result = getServiceDetails(clusterId, namespace, serviceName)) {
                 is Result.Success -> _uiState.update { state ->
                     state.copy(isLoading = false, service = result.data, errorMessage = null)
@@ -100,7 +128,7 @@ class ServiceDetailViewModel @AssistedInject constructor(
                 is Result.Error -> _uiState.update { state ->
                     state.copy(
                         isLoading = false,
-                        errorMessage = LOAD_ERROR_MESSAGE,
+                        errorMessage = if (state.service == null) LOAD_ERROR_MESSAGE else null,
                     )
                 }
 

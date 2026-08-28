@@ -48,13 +48,6 @@ fun DeploymentDetailRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Re-fetch summary AND describe details on every lifecycle start so a
-    // screen created earlier (the VM outlives the overlay) never shows stale data.
-    LifecycleStartEffect(viewModel) {
-        viewModel.onAction(DeploymentDetailUiAction.Refresh)
-        onStopOrDispose { }
-    }
-
     DeploymentDetailScreen(
         uiState = uiState,
         onAction = viewModel::onAction,

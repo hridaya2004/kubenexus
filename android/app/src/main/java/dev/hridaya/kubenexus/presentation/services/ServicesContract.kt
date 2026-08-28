@@ -18,6 +18,7 @@ data class ServicesUiState(
     val lastRefreshedAt: Long? = null,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
+    val isOnline: Boolean = true,
 )
 
 sealed interface ServicesUiAction {

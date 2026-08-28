@@ -153,6 +153,11 @@ class ServiceRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
+        if (clusterId == null) return flowOf(null)
+        return serviceDao.getSyncMetadataStream("${clusterId}_services").flowOn(dispatcherProvider.io)
+    }
+
     /** Mirrors how the pods screen expresses "no namespace filter". */
     private fun isAllNamespaces(namespace: String?): Boolean =
         namespace.isNullOrBlank() ||

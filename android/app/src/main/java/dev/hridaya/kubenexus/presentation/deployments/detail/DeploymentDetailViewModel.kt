@@ -11,6 +11,7 @@ import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentDetailsUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,9 +21,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Network-first detail screen for one Deployment (mirroring PodDetailViewModel).
+ * Offline-first detail screen for one Deployment.
  *
- * Describes the deployment directly over the network on every entry and refresh.
+ * Reads cached deployment summary immediately from Room, while fetching live
+ * describe details over the network in the background.
  * Automatically re-fetches when network connectivity is restored.
  */
 @HiltViewModel(assistedFactory = DeploymentDetailViewModel.Factory::class)
@@ -32,6 +34,7 @@ class DeploymentDetailViewModel @AssistedInject constructor(
     private val getDeploymentsUseCase: GetDeploymentsUseCase,
     private val getDeploymentDetailsUseCase: GetDeploymentDetailsUseCase,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
+    private val getDeploymentsStreamUseCase: GetDeploymentsStreamUseCase? = null,
     private val networkMonitor: NetworkMonitor? = null,
     private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
@@ -56,6 +59,7 @@ class DeploymentDetailViewModel @AssistedInject constructor(
 
     init {
         observeNetwork()
+        load()
     }
 
     private fun observeNetwork() {
@@ -90,11 +94,20 @@ class DeploymentDetailViewModel @AssistedInject constructor(
     }
 
     private suspend fun loadSummary(clusterId: String?) {
-        // First load takes the full spinner; a refresh of an already shown
-        // deployment keeps the overview on screen while re-fetching.
-        _uiState.update { state ->
-            state.copy(isLoading = state.deployment == null, errorMessage = null)
+        // Read cached summary from Room stream first so it appears instantly even offline!
+        val cachedSummary = getDeploymentsStreamUseCase?.invoke(clusterId, namespace)
+            ?.firstOrNull()
+            ?.firstOrNull { it.name == deploymentName && it.namespace == namespace }
+        if (cachedSummary != null) {
+            _uiState.update { state ->
+                state.copy(isLoading = false, deployment = cachedSummary, errorMessage = null)
+            }
+        } else {
+            _uiState.update { state ->
+                state.copy(isLoading = state.deployment == null, errorMessage = null)
+            }
         }
+
         when (val result = getDeploymentsUseCase(clusterId, namespace)) {
             is Result.Success -> {
                 val match = result.data.firstOrNull { candidate ->
@@ -103,7 +116,7 @@ class DeploymentDetailViewModel @AssistedInject constructor(
                 _uiState.update { state ->
                     if (match != null) {
                         state.copy(isLoading = false, deployment = match, errorMessage = null)
-                    } else {
+                    } else if (state.deployment == null) {
                         state.copy(
                             isLoading = false,
                             deployment = null,
@@ -111,6 +124,8 @@ class DeploymentDetailViewModel @AssistedInject constructor(
                                 "Deployment \"$deploymentName\" was not found in namespace " +
                                     "\"$namespace\". It may have been deleted or renamed.",
                         )
+                    } else {
+                        state.copy(isLoading = false)
                     }
                 }
             }
@@ -118,7 +133,7 @@ class DeploymentDetailViewModel @AssistedInject constructor(
             is Result.Error -> _uiState.update { state ->
                 state.copy(
                     isLoading = false,
-                    errorMessage = LOAD_ERROR_MESSAGE,
+                    errorMessage = if (state.deployment == null) LOAD_ERROR_MESSAGE else null,
                 )
             }
 
@@ -126,10 +141,6 @@ class DeploymentDetailViewModel @AssistedInject constructor(
         }
     }
 
-    /**
-     * Integration seam: the describe use case lands in parallel with this
-     * change; adapt here only if its final signature differs slightly.
-     */
     private suspend fun loadDetails(clusterId: String?) {
         _uiState.update { state ->
             state.copy(isDetailsLoading = state.details == null, detailsErrorMessage = null)
@@ -144,7 +155,10 @@ class DeploymentDetailViewModel @AssistedInject constructor(
             }
 
             is Result.Error -> _uiState.update { state ->
-                state.copy(isDetailsLoading = false, detailsErrorMessage = DETAILS_ERROR_MESSAGE)
+                state.copy(
+                    isDetailsLoading = false,
+                    detailsErrorMessage = if (state.deployment == null) DETAILS_ERROR_MESSAGE else null,
+                )
             }
 
             is Result.Loading -> Unit

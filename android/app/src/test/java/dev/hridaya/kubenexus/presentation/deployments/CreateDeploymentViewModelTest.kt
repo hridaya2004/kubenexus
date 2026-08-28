@@ -335,6 +335,10 @@ private class FakeDeploymentRepository : DeploymentRepository {
         return kotlinx.coroutines.flow.flowOf(emptyList())
     }
 
+    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
+        return kotlinx.coroutines.flow.flowOf(null)
+    }
+
     override suspend fun syncDeployments(
         clusterId: String?,
         namespace: String?,

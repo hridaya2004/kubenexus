@@ -60,13 +60,6 @@ fun ServiceDetailRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Re-fetch on every lifecycle start so a screen created earlier (the VM
-    // outlives the overlay) never shows stale data.
-    LifecycleStartEffect(viewModel) {
-        viewModel.onAction(ServiceDetailUiAction.Refresh)
-        onStopOrDispose { }
-    }
-
     val servicePortForwardViewModel: ServicePortForwardViewModel = hiltViewModel(
         key = "port_forward_service_${uiState.namespace}_${uiState.serviceName}",
         creationCallback = { factory: ServicePortForwardViewModel.Factory ->

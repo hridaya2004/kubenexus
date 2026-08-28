@@ -39,4 +39,10 @@ interface ServiceRepository {
         namespace: String,
         name: String,
     ): Result<ServiceDetails>
+
+    /**
+     * Cold stream of the last sync timestamp for this cluster's services cache,
+     * read from the persisted sync_metadata table.
+     */
+    fun getLastRefreshedStream(clusterId: String?): Flow<Long?>
 }

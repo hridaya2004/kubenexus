@@ -349,6 +349,10 @@ private class FakeServiceRepository : ServiceRepository {
         return kotlinx.coroutines.flow.flowOf(emptyList())
     }
 
+    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
+        return kotlinx.coroutines.flow.flowOf(null)
+    }
+
     override suspend fun syncServices(clusterId: String?, namespace: String?): Result<Unit> {
         return Result.Success(Unit)
     }

@@ -48,13 +48,6 @@ fun DeploymentsRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // One background Room sync per lifecycle start; the cached rows render
-    // instantly either way, so the VM never blocks on the network here.
-    LifecycleStartEffect(viewModel) {
-        viewModel.onAction(DeploymentsUiAction.Refresh)
-        onStopOrDispose { }
-    }
-
     DeploymentsScreen(
         uiState = uiState,
         onAction = viewModel::onAction,
@@ -113,7 +106,7 @@ fun DeploymentsScreen(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = false,
+            isRefreshing = uiState.isSyncing,
             onRefresh = { onAction(DeploymentsUiAction.Refresh) },
             modifier = Modifier
                 .fillMaxSize()

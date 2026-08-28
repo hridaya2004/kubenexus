@@ -58,13 +58,6 @@ fun ServicesRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Re-sync on every lifecycle start so a screen created earlier (the VM
-    // outlives the overlay) never shows stale data; exactly one sync fires.
-    LifecycleStartEffect(viewModel) {
-        viewModel.onAction(ServicesUiAction.Refresh)
-        onStopOrDispose { }
-    }
-
     ServicesScreen(
         uiState = uiState,
         onAction = viewModel::onAction,
@@ -122,7 +115,7 @@ fun ServicesScreen(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = false,
+            isRefreshing = uiState.isRefreshing,
             onRefresh = { onAction(ServicesUiAction.Refresh) },
             modifier = Modifier
                 .fillMaxSize()
@@ -150,7 +143,7 @@ fun ServicesScreen(
                 )
 
                 when {
-                    uiState.isLoading -> {
+                    uiState.isLoading && uiState.services.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()

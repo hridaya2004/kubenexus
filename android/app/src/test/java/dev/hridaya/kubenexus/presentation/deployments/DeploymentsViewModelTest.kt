@@ -9,6 +9,7 @@ import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
+import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsLastRefreshedUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.SyncDeploymentsUseCase
@@ -61,6 +62,7 @@ class DeploymentsViewModelTest {
                 getNamespacesUseCase = GetNamespacesUseCase(InertPodRepository),
                 syncDeploymentsUseCase = SyncDeploymentsUseCase(fakeRepository),
                 getDeploymentsStreamUseCase = GetDeploymentsStreamUseCase(fakeRepository),
+                getDeploymentsLastRefreshedUseCase = GetDeploymentsLastRefreshedUseCase(fakeRepository),
             )
             try {
                 advanceUntilIdle()
@@ -206,6 +208,10 @@ private class FakeDeploymentsRepository : DeploymentRepository {
                 rows.filter { it.namespace == namespace }
             }
         }
+    }
+
+    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
+        return kotlinx.coroutines.flow.flowOf(null)
     }
 
     override suspend fun syncDeployments(

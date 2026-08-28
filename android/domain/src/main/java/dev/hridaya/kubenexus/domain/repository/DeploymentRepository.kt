@@ -43,4 +43,10 @@ interface DeploymentRepository {
         namespace: String,
         name: String,
     ): Result<DeploymentDetails>
+
+    /**
+     * Cold stream of the last sync timestamp for this cluster's deployments cache,
+     * read from the persisted sync_metadata table.
+     */
+    fun getLastRefreshedStream(clusterId: String?): Flow<Long?>
 }

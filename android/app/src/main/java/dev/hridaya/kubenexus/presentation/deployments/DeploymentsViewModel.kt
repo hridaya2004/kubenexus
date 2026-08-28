@@ -6,8 +6,11 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
+import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
+import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsLastRefreshedUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.SyncDeploymentsUseCase
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -34,10 +38,6 @@ import kotlinx.coroutines.launch
  * [SyncDeploymentsUseCase] refreshes the cache over the network, after which
  * the stream re-emits on its own. Namespace changes swap the stream via
  * flatMapLatest rather than refetching anything.
- *
- * Integration note: the sync/stream use cases land in parallel with this
- * change; [pushRemoteSnapshot] and [observeRoomRows] are the two seams to
- * touch if their final signatures differ slightly.
  */
 @HiltViewModel(assistedFactory = DeploymentsViewModel.Factory::class)
 class DeploymentsViewModel @AssistedInject constructor(
@@ -46,6 +46,9 @@ class DeploymentsViewModel @AssistedInject constructor(
     private val getNamespacesUseCase: GetNamespacesUseCase,
     private val syncDeploymentsUseCase: SyncDeploymentsUseCase,
     private val getDeploymentsStreamUseCase: GetDeploymentsStreamUseCase,
+    private val getDeploymentsLastRefreshedUseCase: GetDeploymentsLastRefreshedUseCase,
+    private val networkMonitor: NetworkMonitor? = null,
+    private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -61,9 +64,27 @@ class DeploymentsViewModel @AssistedInject constructor(
     )
     val uiState: StateFlow<DeploymentsUiState> = _uiState.asStateFlow()
 
+    private var wasOffline = false
+
     init {
+        observeNetworkConnectivity()
         observeNamespaceOptions()
         observeCachedDeploymentRows()
+    }
+
+    private fun observeNetworkConnectivity() {
+        val monitor = networkMonitor ?: return
+        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        viewModelScope.launch(dispatcher) {
+            monitor.isOnline.collect { online ->
+                val offlineTransition = wasOffline && online
+                wasOffline = !online
+                _uiState.update { it.copy(isOnline = online) }
+                if (offlineTransition) {
+                    syncRemoteSnapshot()
+                }
+            }
+        }
     }
 
     fun onAction(action: DeploymentsUiAction) {
@@ -75,16 +96,27 @@ class DeploymentsViewModel @AssistedInject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeCachedDeploymentRows() {
-        viewModelScope.launch {
+        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        viewModelScope.launch(dispatcher) {
             _uiState
                 .map { it.selectedNamespace }
                 .distinctUntilChanged()
                 .flatMapLatest { namespaceFilter ->
-                    observeRoomRows(namespaceFilter.toNamespaceArgument())
+                    combine(
+                        observeRoomRows(namespaceFilter.toNamespaceArgument()),
+                        getDeploymentsLastRefreshedUseCase(clusterId),
+                    ) { cachedRows, lastRefreshed ->
+                        cachedRows to lastRefreshed
+                    }
                 }
-                .collect { cachedRows ->
+                .collect { (cachedRows, lastRefreshed) ->
                     _uiState.update { state ->
-                        state.copy(deployments = cachedRows, isLoading = false, errorMessage = null)
+                        state.copy(
+                            deployments = cachedRows,
+                            lastSyncedAt = lastRefreshed ?: state.lastSyncedAt,
+                            isLoading = false,
+                            errorMessage = null,
+                        )
                     }
                 }
         }

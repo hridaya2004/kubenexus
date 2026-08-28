@@ -20,7 +20,7 @@ import dev.hridaya.kubenexus.data.repository.ServiceRepositoryImpl
 import dev.hridaya.kubenexus.data.repository.ThemePreferencesRepositoryImpl
 import dev.hridaya.kubenexus.data.source.local.DefaultLogcatLocalDataSource
 import dev.hridaya.kubenexus.data.source.local.LogcatLocalDataSource
-import dev.hridaya.kubenexus.data.source.local.SharedPrefsThemePreferencesDataSource
+import dev.hridaya.kubenexus.data.source.local.DataStoreThemePreferencesDataSource
 import dev.hridaya.kubenexus.data.source.local.ThemePreferencesLocalDataSource
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
@@ -87,7 +87,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindThemePreferencesLocalDataSource(
-        impl: SharedPrefsThemePreferencesDataSource
+        impl: DataStoreThemePreferencesDataSource
     ): ThemePreferencesLocalDataSource
 
     @Binds

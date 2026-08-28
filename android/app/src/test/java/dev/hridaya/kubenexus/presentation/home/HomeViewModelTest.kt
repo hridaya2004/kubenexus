@@ -249,7 +249,7 @@ class HomeViewModelTest {
         }
 
     @Test
-    fun `totalPodsCount always reflects all namespaces count even when specific namespace is selected`() =
+    fun `selecting specific namespace updates selected namespace and filters pods`() =
         runTest(testDispatcher) {
             val validYaml = """
             apiVersion: v1
@@ -271,7 +271,6 @@ class HomeViewModelTest {
             val state = viewModel.uiState.value
             assertEquals("default", state.selectedNamespace)
             assertEquals(1, state.pods.size)
-            assertEquals(2, state.totalPodsCount)
         }
 
     @Test

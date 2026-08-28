@@ -32,7 +32,6 @@ import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 fun HomeWorkloadsList(
     isRefreshing: Boolean,
     lastRefreshedAt: Long?,
-    totalPodsCount: Int,
     onNavigateToPods: () -> Unit,
     onNavigateToDeployments: () -> Unit,
     onNavigateToServices: () -> Unit,
@@ -95,7 +94,6 @@ fun HomeWorkloadsList(
                 title = "Pods",
                 subtitle = "Container instances and workload state",
                 icon = Icons.Outlined.Layers,
-                badgeText = "$totalPodsCount",
                 onClick = onNavigateToPods,
             )
         }
@@ -105,7 +103,6 @@ fun HomeWorkloadsList(
                 title = "Deployments",
                 subtitle = "Declarative updates for Pods and ReplicaSets",
                 icon = Icons.Outlined.Apps,
-                badgeText = "Workload",
                 onClick = onNavigateToDeployments,
             )
         }
@@ -115,7 +112,6 @@ fun HomeWorkloadsList(
                 title = "Services",
                 subtitle = "Stable network endpoints for Pods",
                 icon = Icons.Outlined.Dns,
-                badgeText = "Networking",
                 onClick = onNavigateToServices,
             )
         }
@@ -125,7 +121,6 @@ fun HomeWorkloadsList(
                 title = "ReplicaSets",
                 subtitle = "Maintain stable set of replica Pods",
                 icon = Icons.Outlined.Widgets,
-                badgeText = "Workload",
                 onClick = {
                     onNoopAction("ReplicaSet management coming soon")
                 },
@@ -141,7 +136,6 @@ private fun HomeWorkloadsListPreview() {
         HomeWorkloadsList(
             isRefreshing = false,
             lastRefreshedAt = System.currentTimeMillis(),
-            totalPodsCount = 12,
             onNavigateToPods = {},
             onNavigateToDeployments = {},
             onNavigateToServices = {},

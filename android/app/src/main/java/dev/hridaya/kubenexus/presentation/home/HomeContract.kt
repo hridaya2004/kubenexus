@@ -22,7 +22,6 @@ data class HomeUiState(
     val clusters: List<Cluster> = emptyList(),
     val activeCluster: Cluster? = null,
     val pods: List<Pod> = emptyList(),
-    val totalPodsCount: Int = 0,
     val availableNamespaces: List<String> = listOf(
         "All Namespaces",
         "default",

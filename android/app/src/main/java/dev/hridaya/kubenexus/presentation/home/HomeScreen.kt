@@ -164,7 +164,7 @@ fun HomeScreen(
         },
     ) { innerPadding ->
         PullToRefreshBox(
-            isRefreshing = false,
+            isRefreshing = uiState.isRefreshing,
             onRefresh = { onAction(HomeUiAction.RefreshWorkloads) },
             modifier = Modifier
                 .fillMaxSize()
@@ -185,7 +185,6 @@ fun HomeScreen(
                     HomeWorkloadsList(
                         isRefreshing = uiState.isRefreshing,
                         lastRefreshedAt = uiState.lastRefreshedAt,
-                        totalPodsCount = uiState.totalPodsCount,
                         onNavigateToPods = onNavigateToPods,
                         onNavigateToDeployments = onNavigateToDeployments,
                         onNavigateToServices = onNavigateToServices,
@@ -276,7 +275,6 @@ private fun HomeScreenPreview() {
                     isActive = true,
                 ),
                 clusterConnectionStatus = ClusterConnectionStatus.CONNECTED,
-                totalPodsCount = 10,
             ),
             onAction = {},
             onNavigateToManageClusters = {},

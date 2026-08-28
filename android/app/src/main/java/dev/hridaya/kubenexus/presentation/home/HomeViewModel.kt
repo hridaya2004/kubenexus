@@ -109,18 +109,16 @@ class HomeViewModel @Inject constructor(
                 val clusterId = activeCluster?.id
                 combine(
                     getPodsUseCase(clusterId, ns),
-                    getPodsUseCase(clusterId, null),
                     getNamespacesUseCase(clusterId),
                     getLastRefreshedUseCase(clusterId),
-                ) { pods, allPods, namespaces, lastRefreshed ->
+                ) { pods, namespaces, lastRefreshed ->
                     LocalWorkloadData(
-                        clusters,
-                        activeCluster,
-                        pods,
-                        allPods.size,
-                        namespaces,
-                        ns,
-                        lastRefreshed,
+                        clusters = clusters,
+                        activeCluster = activeCluster,
+                        pods = pods,
+                        namespaces = namespaces,
+                        selectedNamespace = ns,
+                        lastRefreshed = lastRefreshed,
                     )
                 }.catch { t ->
                     _uiState.update {
@@ -144,7 +142,6 @@ class HomeViewModel @Inject constructor(
                         clusters = data.clusters,
                         activeCluster = data.activeCluster,
                         pods = data.pods,
-                        totalPodsCount = data.totalPodsCount,
                         availableNamespaces = if (data.namespaces.isNotEmpty()) data.namespaces else state.availableNamespaces,
                         selectedNamespace = data.selectedNamespace,
                         lastRefreshedAt = data.lastRefreshed ?: state.lastRefreshedAt,
@@ -193,7 +190,6 @@ class HomeViewModel @Inject constructor(
         val clusters: List<Cluster>,
         val activeCluster: Cluster?,
         val pods: List<Pod>,
-        val totalPodsCount: Int,
         val namespaces: List<String>,
         val selectedNamespace: String,
         val lastRefreshed: Long?,

@@ -384,6 +384,12 @@ private class FakePodRepository : PodRepository {
         return Result.Error(error)
     }
 
+    override suspend fun listPodsBySelector(
+        rawKubeconfig: String,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>> = Result.Success(emptyList())
+
     override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
         flowOf(emptyList())
 

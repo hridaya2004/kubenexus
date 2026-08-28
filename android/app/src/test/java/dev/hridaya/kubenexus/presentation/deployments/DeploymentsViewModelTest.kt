@@ -244,6 +244,12 @@ private object InertPodRepository : PodRepository {
     override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> =
         Result.Success(Unit)
 
+    override suspend fun listPodsBySelector(
+        rawKubeconfig: String,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>> = Result.Success(emptyList())
+
     override suspend fun describePod(
         clusterId: String?,
         namespace: String,

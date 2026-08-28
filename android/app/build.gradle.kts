@@ -3,7 +3,6 @@ import java.util.concurrent.TimeUnit
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
 
@@ -51,7 +50,7 @@ android {
     val appCommitSha = System.getenv("KUBENEXUS_APP_COMMIT_SHA") ?: getGitCommitSha()
     val libghosttyCommitSha = System.getenv("KUBENEXUS_LIBGHOSTTY_COMMIT_SHA") ?: extractGhosttyZonSha()
     val ghosttyBridgeCommitSha = System.getenv("KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA") ?: getGitCommitSha("terminal-native")
-    val goCoreCommitSha = System.getenv("KUBENEXUS_GO_CORE_COMMIT_SHA") ?: getGitCommitSha("core")
+    val goCoreCommitSha = System.getenv("KUBENEXUS_GO_CORE_COMMIT_SHA") ?: getGitCommitSha("k8s-engine")
     val clientGoCommitSha = System.getenv("KUBENEXUS_CLIENT_GO_COMMIT_SHA") ?: "44a8af2"
 
     defaultConfig {
@@ -168,19 +167,22 @@ android {
 }
 
 dependencies {
-    // kubenexus-sources.jar sits alongside kubenexus.aar so Android Studio can
-    // attach Go doc comments and real parameter names to the generated bindings.
-    // It must stay off the compile classpath.
     implementation(
         fileTree(
             mapOf(
-                "dir" to "libs",
+                "dir" to "../data/libs",
                 "include" to listOf("*.jar", "*.aar"),
                 "exclude" to listOf("*-sources.jar"),
             ),
         ),
     )
 
+    // Sub-module dependencies
+    implementation(project(":core"))
+    implementation(project(":domain"))
+    implementation(project(":data"))
+
+    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
@@ -191,19 +193,19 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+
+    // Core / Lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.yamlkt)
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
 
+    // Hilt (app still needs @HiltAndroidApp processor)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
@@ -220,6 +222,4 @@ dependencies {
     debugImplementation(libs.leakcanary)
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
+

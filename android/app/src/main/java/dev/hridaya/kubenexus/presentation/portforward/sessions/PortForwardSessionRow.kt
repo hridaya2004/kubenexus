@@ -1,5 +1,8 @@
 package dev.hridaya.kubenexus.presentation.portforward.sessions
 
+import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
+import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
+import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,9 +85,10 @@ internal fun PortForwardSessionRow(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                if (session.status == PortForwardSessionStatus.ERROR && session.message != null) {
+                val errorMessage = session.message
+                if (session.status == PortForwardSessionStatus.ERROR && errorMessage != null) {
                     Text(
-                        text = session.message,
+                        text = errorMessage,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 2,

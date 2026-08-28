@@ -2,9 +2,9 @@ package dev.hridaya.kubenexus.presentation.explore
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.domain.model.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.model.ResourceExplain
 import dev.hridaya.kubenexus.domain.model.ResourceField

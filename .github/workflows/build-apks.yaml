@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: '1.26'
-          cache-dependency-path: core/go.sum
+          cache-dependency-path: k8s-engine/go.sum
 
       - name: Set up Zig
         uses: mlugg/setup-zig@v2

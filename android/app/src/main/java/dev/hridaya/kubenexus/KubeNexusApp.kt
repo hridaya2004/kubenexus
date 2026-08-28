@@ -3,7 +3,7 @@ package dev.hridaya.kubenexus
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 import dev.hridaya.kubenexus.core.di.ApplicationScope
-import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
+import dev.hridaya.kubenexus.data.nativebridge.KubeNexusNativeBridge
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

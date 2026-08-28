@@ -3,9 +3,9 @@ package dev.hridaya.kubenexus.presentation.home
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.ClusterConnectionStatus
+import dev.hridaya.kubenexus.domain.model.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
@@ -506,6 +506,12 @@ class HomeViewModelTest {
             namespace: String,
             podName: String,
         ): Result<PodMetricSample?> = Result.Success(null)
+
+        override suspend fun listPodsBySelector(
+            rawKubeconfig: String,
+            namespace: String?,
+            labelSelector: String,
+        ): Result<List<Pod>> = Result.Success(emptyList())
 
         override suspend fun describePod(
             clusterId: String?,

@@ -2,8 +2,8 @@ package dev.hridaya.kubenexus.presentation.portforward.sessions
 
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.nativebridge.PortForwardListener
 import dev.hridaya.kubenexus.data.portforward.PortForwardSessionManager
+import dev.hridaya.kubenexus.domain.model.PortForwardListener
 import dev.hridaya.kubenexus.domain.repository.PortForwardRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers

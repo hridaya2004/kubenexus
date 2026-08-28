@@ -3,24 +3,21 @@ package dev.hridaya.kubenexus.presentation.services.detail
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
-import dev.hridaya.kubenexus.core.nativebridge.ClusterHealth
-import dev.hridaya.kubenexus.core.nativebridge.KubeNexusNativeBridge
-import dev.hridaya.kubenexus.core.nativebridge.PortForwardListener
 import dev.hridaya.kubenexus.data.portforward.PortForwardSessionManager
-import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Cluster
+import dev.hridaya.kubenexus.domain.model.ClusterHealth
 import dev.hridaya.kubenexus.domain.model.ClusterStatus
-import dev.hridaya.kubenexus.domain.model.DeploymentDetails
-import dev.hridaya.kubenexus.domain.model.DeploymentSummary
-import dev.hridaya.kubenexus.domain.model.Namespace
+import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
 import dev.hridaya.kubenexus.domain.model.PodStatus
+import dev.hridaya.kubenexus.domain.model.PortForwardListener
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.model.ServicePortDetail
-import dev.hridaya.kubenexus.domain.model.ServiceSummary
+import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
+import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.PortForwardRepository
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.ResolveServiceForwardTargetUseCase
@@ -56,7 +53,7 @@ class ServicePortForwardViewModelTest {
 
     private lateinit var fakeRepository: FakePortForwardRepository
     private lateinit var sessionManager: PortForwardSessionManager
-    private lateinit var fakeBridge: FakeNativeBridge
+    private lateinit var fakePodRepository: FakePodRepository
     private lateinit var fakeClusterRepository: FakeClusterRepository
     private lateinit var viewModel: ServicePortForwardViewModel
 
@@ -69,14 +66,14 @@ class ServicePortForwardViewModelTest {
             externalScope = TestScope(testDispatcher),
             dispatcherProvider = testDispatcherProvider,
         )
-        fakeBridge = FakeNativeBridge()
+        fakePodRepository = FakePodRepository()
         fakeClusterRepository = FakeClusterRepository()
 
         viewModel = ServicePortForwardViewModel(
             serviceName = "web-svc",
             namespace = "default",
             sessionManager = sessionManager,
-            resolveServiceForwardTargetUseCase = ResolveServiceForwardTargetUseCase(fakeBridge),
+            resolveServiceForwardTargetUseCase = ResolveServiceForwardTargetUseCase(fakePodRepository),
             getActiveClusterUseCase = GetActiveClusterUseCase(fakeClusterRepository, testDispatcherProvider),
             externalScope = TestScope(testDispatcher),
             dispatcherProvider = testDispatcherProvider,
@@ -113,7 +110,7 @@ class ServicePortForwardViewModelTest {
             annotations = emptyMap(),
             events = emptyList(),
         )
-        fakeBridge.podsToReturn = listOf(
+        fakePodRepository.podsToReturn = listOf(
             Pod(
                 id = "1",
                 name = "web-pod-1",
@@ -177,48 +174,30 @@ class ServicePortForwardViewModelTest {
         override fun stop(handleId: String): Result<Unit> = Result.Success(Unit)
     }
 
-    private class FakeNativeBridge : KubeNexusNativeBridge {
+    private class FakePodRepository : PodRepository {
         var podsToReturn: List<Pod> = emptyList()
 
-        override fun listPods(
+        override suspend fun listPodsBySelector(
             rawKubeconfig: String,
             namespace: String?,
             labelSelector: String,
-            limit: Long,
         ): Result<List<Pod>> = Result.Success(podsToReturn)
 
-        override fun initialize() = Unit
-        override fun isAvailable(): Boolean = true
-        override fun touch(): Boolean = true
-        override fun listNamespaces(rawKubeconfig: String): Result<List<Namespace>> = Result.Success(emptyList())
-        override fun createNamespace(rawKubeconfig: String, name: String): Result<Unit> = Result.Success(Unit)
-        override fun deleteNamespace(rawKubeconfig: String, namespace: String): Result<Unit> = Result.Success(Unit)
-        override fun listAPIResources(rawKubeconfig: String): Result<List<APIResource>> = Result.Success(emptyList())
-        override fun topPods(rawKubeconfig: String, namespace: String?): Result<List<PodMetricSample>> = Result.Success(emptyList())
-        override fun topPod(rawKubeconfig: String, namespace: String, podName: String): Result<PodMetricSample?> = Result.Success(null)
-        override fun openAPISchemaJSON(rawKubeconfig: String): Result<String> = Result.Success("")
-        override fun describePod(rawKubeconfig: String, namespace: String, podName: String): Result<PodDetails> = Result.Error(AppError.NotFound())
-        override fun deletePod(rawKubeconfig: String, namespace: String, podName: String): Result<Unit> = Result.Success(Unit)
-        override fun listDeployments(rawKubeconfig: String, namespace: String?): Result<List<DeploymentSummary>> = Result.Success(emptyList())
-        override fun describeDeployment(rawKubeconfig: String, namespace: String, name: String): Result<DeploymentDetails> = Result.Error(AppError.NotFound())
-        override fun listServices(rawKubeconfig: String, namespace: String?): Result<List<ServiceSummary>> = Result.Success(emptyList())
-        override fun describeService(rawKubeconfig: String, namespace: String, name: String): Result<ServiceDetails> = Result.Error(AppError.NotFound())
-        override fun createDeployment(rawKubeconfig: String, namespace: String, manifestYaml: String): Result<String> = Result.Success("")
-        override fun createPod(rawKubeconfig: String, namespace: String, manifestYaml: String): Result<String> = Result.Success("")
-        override fun createService(rawKubeconfig: String, namespace: String, manifestYaml: String): Result<String> = Result.Success("")
-        override fun getPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?, tailLines: Long?): Result<String> = Result.Success("")
-        override fun streamPodLogs(rawKubeconfig: String, namespace: String, podName: String, container: String?, tailLines: Long?, callback: client.LogCallback): Result<Unit> = Result.Success(Unit)
-        override fun exec(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, stdin: String): Result<client.ExecResult> = Result.Error(AppError.NotFound())
-        override fun startTerminal(rawKubeconfig: String, namespace: String, podName: String, container: String, callback: client.ExecCallback): Result<client.ExecSession> = Result.Error(AppError.NotFound())
-        override fun startExecSession(rawKubeconfig: String, namespace: String, podName: String, container: String, command: String, tty: Boolean, callback: client.ExecCallback): Result<client.ExecSession> = Result.Error(AppError.NotFound())
-        override fun startPortForward(rawKubeconfig: String, namespace: String, podName: String, localPort: Int, remotePort: Int, listener: PortForwardListener): Result<String> = Result.Success("pf-1")
-        override fun stopPortForward(handleId: String): Result<Unit> = Result.Success(Unit)
-        override fun ping(rawKubeconfig: String): Result<String> = Result.Success("pong")
-        override fun checkLivez(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
-        override fun checkReadyz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
-        override fun checkHealthz(rawKubeconfig: String): Result<Boolean> = Result.Success(true)
-        override fun serverVersion(rawKubeconfig: String): Result<String> = Result.Success("1.30.0")
-        override fun checkHealth(rawKubeconfig: String): Result<ClusterHealth> =
-            Result.Success(ClusterHealth(livez = true, readyz = true, healthz = true, serverVersion = "1.30.0", statusMessage = "Ready"))
+        override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> = flowOf(podsToReturn)
+        override fun getNamespacesStream(clusterId: String?): Flow<List<String>> = flowOf(emptyList())
+        override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = flowOf(null)
+        override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> = Result.Success(Unit)
+        override suspend fun describePod(clusterId: String?, namespace: String, podName: String): Result<PodDetails> = Result.Error(AppError.NotFound())
+        override suspend fun getPodMetrics(clusterId: String?, namespace: String?): Result<List<PodMetricSample>> = Result.Success(emptyList())
+        override suspend fun getSinglePodMetrics(clusterId: String?, namespace: String, podName: String): Result<PodMetricSample?> = Result.Success(null)
+        override suspend fun deletePod(clusterId: String?, namespace: String, podName: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun createNamespace(clusterId: String?, name: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun createPodFromManifest(clusterId: String?, manifestYaml: String): Result<Unit> = Result.Success(Unit)
+        override suspend fun getPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Result<String> = Result.Success("")
+        override fun streamPodLogs(clusterId: String?, namespace: String, podName: String, containerName: String?, tailLines: Long?): Flow<String> = flowOf("")
+        override suspend fun execCommand(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, stdin: String): Result<CommandExecResult> = Result.Error(AppError.NotFound())
+        override suspend fun startTerminalSession(clusterId: String?, namespace: String, podName: String, containerName: String, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<TerminalSession> = Result.Error(AppError.NotFound())
+        override suspend fun startExecSession(clusterId: String?, namespace: String, podName: String, containerName: String, command: String, tty: Boolean, onStdout: (String) -> Unit, onStderr: (String) -> Unit, onError: (String) -> Unit, onDone: () -> Unit): Result<TerminalSession> = Result.Error(AppError.NotFound())
     }
 }

@@ -24,3 +24,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Kube Nexus"
 include(":app")
+include(":core")
+include(":domain")
+include(":data")

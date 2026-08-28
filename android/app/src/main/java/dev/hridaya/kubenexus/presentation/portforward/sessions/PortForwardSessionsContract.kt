@@ -1,58 +1,8 @@
 package dev.hridaya.kubenexus.presentation.portforward.sessions
 
-/** Cluster object a tunnel terminates on. */
-enum class PortForwardTargetKind {
-    Pod,
-    Service,
-}
-
-/** Lifecycle of one globally-tracked port-forward tunnel. */
-enum class PortForwardSessionStatus {
-    /** Request accepted, waiting for the listener-ready callback. */
-    STARTING,
-
-    /** The local listener on 127.0.0.1 is accepting connections. */
-    READY,
-
-    /** The tunnel failed; [ActivePortForwardSession.message] carries the reason. */
-    ERROR,
-
-    /**
-     * The tunnel was torn down (user stop or remote close). Rows linger in
-     * this state until the user dismisses them.
-     */
-    STOPPED,
-}
-
-/**
- * UI-facing snapshot of one tunnel tracked by the PortForwardSessionManager.
- * Kept in the presentation layer so the sessions surface compiles against a
- * stable shape and maps from the manager model in exactly one place (the
- * ViewModel collection seam).
- */
-data class ActivePortForwardSession(
-    val handleId: String,
-    val kind: PortForwardTargetKind = PortForwardTargetKind.Pod,
-    val namespace: String,
-    val targetName: String,
-    val podName: String? = null,
-    val localPort: Int,
-    val remotePort: Int,
-    val status: PortForwardSessionStatus = PortForwardSessionStatus.STARTING,
-    val message: String? = null,
-) {
-    val isStopped: Boolean get() = status == PortForwardSessionStatus.STOPPED
-    val isActive: Boolean get() = !isStopped
-
-    /** Row headline, e.g. "default/nginx-7d9f". */
-    val title: String get() = "$namespace/$targetName"
-
-    /** Row subtitle, e.g. "127.0.0.1:8080 -> nginx-7d9f:80". */
-    val endpointLabel: String get() {
-        val remoteHost = podName?.takeIf { it.isNotBlank() } ?: targetName
-        return "127.0.0.1:$localPort -> $remoteHost:$remotePort"
-    }
-}
+import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
+import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
+import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 
 /**
  * State of the global port-forward sessions sheet. [sessions] mirrors the

@@ -93,9 +93,10 @@ private fun DeploymentEventCard(
                         )
                     }
                 }
-                if (!event.message.isNullOrBlank()) {
+                val message = event.message
+                if (!message.isNullOrBlank()) {
                     Text(
-                        text = event.message,
+                        text = message,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
                     )

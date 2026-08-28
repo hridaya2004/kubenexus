@@ -110,9 +110,10 @@ fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                if (!pod.ip.isNullOrBlank()) {
+                val podIp = pod.ip
+                if (!podIp.isNullOrBlank()) {
                     Text(
-                        text = pod.ip,
+                        text = podIp,
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),

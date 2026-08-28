@@ -1,0 +1,39 @@
+package dev.hridaya.kubenexus.domain.usecase
+
+import dev.hridaya.kubenexus.core.common.result.AppError
+import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.model.PodDraft
+import dev.hridaya.kubenexus.domain.repository.PodRepository
+import dev.hridaya.kubenexus.domain.util.PodYamlGenerator
+import javax.inject.Inject
+
+/**
+ * Guided Pod creation (issue #5 follow-up): validate the form, show the
+ * generated manifest for review, then apply exactly that text.
+ *
+ * The two steps are separate on purpose — the apply step takes the already
+ * reviewed manifest rather than the draft, so the cluster can never receive
+ * anything other than what the user confirmed.
+ */
+class CreatePodUseCase @Inject constructor(
+    private val podRepository: PodRepository,
+) {
+
+    /**
+     * Validates [draft] and renders it to YAML. Fails with [AppError.Validation]
+     * carrying every field error when the draft is incomplete.
+     */
+    fun previewYaml(draft: PodDraft): Result<String> {
+        val errors = draft.validate()
+        if (errors.isNotEmpty()) {
+            val summary = errors.entries.joinToString("; ") { "${it.key}: ${it.value}" }
+            return Result.Error(AppError.Validation(summary))
+        }
+        return Result.Success(PodYamlGenerator.generate(draft))
+    }
+
+    /** Applies the reviewed [manifestYaml]. */
+    suspend operator fun invoke(clusterId: String?, manifestYaml: String): Result<Unit> {
+        return podRepository.createPodFromManifest(clusterId, manifestYaml)
+    }
+}

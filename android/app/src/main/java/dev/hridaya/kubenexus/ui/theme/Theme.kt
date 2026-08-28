@@ -18,12 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-
-enum class ThemeMode(val title: String) {
-    DARK("Dark"),
-    SYSTEM("System"),
-    LIGHT("Light"),
-}
+import dev.hridaya.kubenexus.domain.model.ThemeMode
 
 val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
 val LocalOnThemeModeChange = compositionLocalOf<(ThemeMode) -> Unit> { {} }

@@ -13,11 +13,11 @@ import dev.hridaya.kubenexus.data.portforward.PortForwardSessionManager
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.ResolveServiceForwardTargetUseCase
+import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
+import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import dev.hridaya.kubenexus.presentation.portforward.ActivePortForward
 import dev.hridaya.kubenexus.presentation.portforward.PortForwardStatus
 import dev.hridaya.kubenexus.presentation.portforward.PortForwardUiState
-import dev.hridaya.kubenexus.presentation.portforward.sessions.PortForwardSessionStatus
-import dev.hridaya.kubenexus.presentation.portforward.sessions.PortForwardTargetKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

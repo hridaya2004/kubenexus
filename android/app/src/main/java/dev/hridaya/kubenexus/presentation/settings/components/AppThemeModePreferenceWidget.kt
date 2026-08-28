@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.presentation.common.components.ConnectedButtonGroup
 import dev.hridaya.kubenexus.presentation.common.components.ConnectedButtonGroupDefaults
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
-import dev.hridaya.kubenexus.ui.theme.ThemeMode
+import dev.hridaya.kubenexus.domain.model.ThemeMode
 
 @Composable
 fun AppThemeModePreferenceWidget(

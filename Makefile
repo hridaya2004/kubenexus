@@ -1,5 +1,5 @@
 ANDROID_DIR := android
-CORE_DIR := core
+CORE_DIR := k8s-engine
 TERMINAL_DIR := terminal-native
 GRADLEW := ./gradlew
 
@@ -16,7 +16,7 @@ export KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA ?= $(shell git log -n 1 --format=%h -
 export KUBENEXUS_GO_CORE_COMMIT_SHA ?= $(shell git log -n 1 --format=%h -- $(CORE_DIR) 2>/dev/null || echo unknown)
 export KUBENEXUS_CLIENT_GO_COMMIT_SHA ?= 44a8af2
 
-AAR_TARGET := $(ANDROID_DIR)/app/libs/kubenexus.aar
+AAR_TARGET := $(ANDROID_DIR)/data/libs/kubenexus.aar
 GHOSTTY_SO_TARGET := $(ANDROID_DIR)/app/src/main/jniLibs/arm64-v8a/libghostty_jni.so
 
 .DEFAULT_GOAL := help
@@ -48,16 +48,19 @@ jni: $(AAR_TARGET) $(GHOSTTY_SO_TARGET) ## Ensure native JNI libraries (Go core 
 
 go-core: ## Build kubenexus.aar from core Go source and copy to android libs
 	$(MAKE) -C $(CORE_DIR) build-android
+	mkdir -p $(ANDROID_DIR)/data/libs
 	mkdir -p $(ANDROID_DIR)/app/libs
+	cp $(CORE_DIR)/kubenexus.aar $(ANDROID_DIR)/data/libs/kubenexus.aar
 	cp $(CORE_DIR)/kubenexus.aar $(ANDROID_DIR)/app/libs/kubenexus.aar
 	@# gomobile also emits a sources jar. Keeping it next to the AAR lets Android
 	@# Studio show Go doc comments and real parameter names instead of p0, p1.
 	@# The Gradle fileTree excludes *-sources.jar from the compile classpath.
 	@if [ -f $(CORE_DIR)/kubenexus-sources.jar ]; then \
+		cp $(CORE_DIR)/kubenexus-sources.jar $(ANDROID_DIR)/data/libs/kubenexus-sources.jar; \
 		cp $(CORE_DIR)/kubenexus-sources.jar $(ANDROID_DIR)/app/libs/kubenexus-sources.jar; \
-		echo "Updated $(ANDROID_DIR)/app/libs/kubenexus-sources.jar"; \
+		echo "Updated $(ANDROID_DIR)/data/libs/kubenexus-sources.jar"; \
 	fi
-	@echo "Updated $(ANDROID_DIR)/app/libs/kubenexus.aar"
+	@echo "Updated $(ANDROID_DIR)/data/libs/kubenexus.aar"
 
 ghostty: ## Cross-compile libghostty_jni.so for Android (arm64-v8a) using Zig
 	cd $(TERMINAL_DIR) && zig build -Doptimize=ReleaseSmall jni
@@ -72,7 +75,7 @@ go-clean: ## Clean core Go build artifacts and gomobile cache
 go-test: ## Run core Go unit tests
 	$(MAKE) -C $(CORE_DIR) test
 
-generate-kube-openapi-spec: ## Re-record live cluster payloads into core/pkg/client/testdata (kubectl + jq required)
+generate-kube-openapi-spec: ## Re-record live cluster payloads into k8s-engine/pkg/client/testdata (kubectl + jq required)
 	$(MAKE) -C $(CORE_DIR) generate-kube-openapi-spec
 
 go-lint: ## Run golangci-lint on core Go source

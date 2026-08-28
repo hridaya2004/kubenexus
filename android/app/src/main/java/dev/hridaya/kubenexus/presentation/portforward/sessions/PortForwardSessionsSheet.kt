@@ -1,5 +1,8 @@
 package dev.hridaya.kubenexus.presentation.portforward.sessions
 
+import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
+import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
+import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

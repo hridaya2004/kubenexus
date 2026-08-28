@@ -14,6 +14,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetServicesLastRefreshedUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetServicesStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.SyncServicesUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,23 +29,21 @@ import kotlinx.coroutines.launch
  * Offline-first list of Services for the workloads screen, sibling of the
  * Deployments screen (issue #7 family). The cluster id and initial namespace
  * filter are supplied by the host ([dev.hridaya.kubenexus.presentation.main.MainScreen])
- * from the Home state at creation time, mirroring the DeploymentsViewModel
- * assisted pattern.
+ * through the assisted factory; namespace is switchable in-screen via chips.
  *
- * Rendering is driven by the Room stream ([GetServicesStreamUseCase]) so cached
- * services appear instantly, airplane-mode safe. [SyncServicesUseCase] runs on
- * lifecycle start and on pull-to-refresh; a failed sync only surfaces an error
- * when there is nothing cached to show.
+ * Room is the single source of truth: [GetServicesStreamUseCase] replays the
+ * last synced snapshot instantly (offline included), and [SyncServicesUseCase]
+ * refreshes the cache over the network.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel(assistedFactory = ServicesViewModel.Factory::class)
 class ServicesViewModel @AssistedInject constructor(
     @Assisted("clusterId") private val clusterId: String?,
-    @Assisted("namespace") initialNamespace: String?,
+    @Assisted("namespace") initialNamespace: String? = null,
     private val getServicesStreamUseCase: GetServicesStreamUseCase,
+    private val getServicesLastRefreshedUseCase: GetServicesLastRefreshedUseCase,
     private val syncServicesUseCase: SyncServicesUseCase,
     private val getNamespacesUseCase: GetNamespacesUseCase,
-    private val getServicesLastRefreshedUseCase: GetServicesLastRefreshedUseCase,
     private val networkMonitor: NetworkMonitor? = null,
     private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
@@ -53,16 +52,18 @@ class ServicesViewModel @AssistedInject constructor(
     interface Factory {
         fun create(
             @Assisted("clusterId") clusterId: String?,
-            @Assisted("namespace") namespace: String?,
+            @Assisted("namespace") namespace: String? = null,
         ): ServicesViewModel
     }
 
     private val _selectedNamespace = MutableStateFlow(
-        initialNamespace?.takeIf { it.isNotBlank() } ?: ALL_NAMESPACES_FILTER,
+        initialNamespace?.takeIf { it.isNotBlank() } ?: "All Namespaces",
     )
 
     private val _uiState = MutableStateFlow(
-        ServicesUiState(selectedNamespace = _selectedNamespace.value),
+        ServicesUiState(
+            selectedNamespace = _selectedNamespace.value,
+        ),
     )
     val uiState: StateFlow<ServicesUiState> = _uiState.asStateFlow()
 
@@ -75,7 +76,7 @@ class ServicesViewModel @AssistedInject constructor(
 
     private fun observeNetworkConnectivity() {
         val monitor = networkMonitor ?: return
-        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
         viewModelScope.launch(dispatcher) {
             monitor.isOnline.collect { online ->
                 val offlineTransition = wasOffline && online
@@ -95,12 +96,14 @@ class ServicesViewModel @AssistedInject constructor(
         }
     }
 
+    private val autoFetchedNamespaces = mutableSetOf<String>()
+
     /**
      * Re-collects whenever the namespace chip changes so the Room query is
      * re-issued with the new filter; namespaces stream alongside for the chips.
      */
     private fun observeLocalDatabase() {
-        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
         viewModelScope.launch(dispatcher) {
             _selectedNamespace.flatMapLatest { selected ->
                 combine(
@@ -115,9 +118,13 @@ class ServicesViewModel @AssistedInject constructor(
                     )
                 }
             }.collect { data ->
+                val currentNamespace = _selectedNamespace.value
+                val shouldAutoFetch = data.services.isEmpty() &&
+                    currentNamespace !in autoFetchedNamespaces &&
+                    !_uiState.value.isRefreshing
                 _uiState.update { state ->
                     state.copy(
-                        isLoading = false,
+                        isLoading = if (shouldAutoFetch) true else false,
                         services = data.services,
                         lastRefreshedAt = data.lastRefreshed ?: state.lastRefreshedAt,
                         // Keep the previous chip list if the namespaces stream
@@ -129,6 +136,10 @@ class ServicesViewModel @AssistedInject constructor(
                             state.availableNamespaces
                         },
                     )
+                }
+                if (shouldAutoFetch) {
+                    autoFetchedNamespaces.add(currentNamespace)
+                    sync()
                 }
             }
         }

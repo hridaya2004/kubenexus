@@ -9,14 +9,22 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.usecase.DeleteDeploymentUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentDetailsUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsUseCase
+import dev.hridaya.kubenexus.domain.usecase.GetPodsBySelectorUseCase
+import dev.hridaya.kubenexus.domain.usecase.RestartDeploymentUseCase
+import dev.hridaya.kubenexus.domain.usecase.ScaleDeploymentUseCase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,17 +32,21 @@ import kotlinx.coroutines.launch
  * Offline-first detail screen for one Deployment.
  *
  * Reads cached deployment summary immediately from Room, while fetching live
- * describe details over the network in the background.
- * Automatically re-fetches when network connectivity is restored.
+ * describe details and associated pods over the network in the background.
+ * Supports scaling, rolling restart, and deletion with instant cache invalidation.
  */
 @HiltViewModel(assistedFactory = DeploymentDetailViewModel.Factory::class)
 class DeploymentDetailViewModel @AssistedInject constructor(
-    @Assisted("deploymentName") private val deploymentName: String,
-    @Assisted("namespace") private val namespace: String,
-    private val getDeploymentsUseCase: GetDeploymentsUseCase,
-    private val getDeploymentDetailsUseCase: GetDeploymentDetailsUseCase,
+    @Assisted("deploymentName") val deploymentName: String,
+    @Assisted("namespace") val namespace: String,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
+    private val getDeploymentDetailsUseCase: GetDeploymentDetailsUseCase,
+    private val getDeploymentsUseCase: GetDeploymentsUseCase,
     private val getDeploymentsStreamUseCase: GetDeploymentsStreamUseCase? = null,
+    private val scaleDeploymentUseCase: ScaleDeploymentUseCase? = null,
+    private val restartDeploymentUseCase: RestartDeploymentUseCase? = null,
+    private val deleteDeploymentUseCase: DeleteDeploymentUseCase? = null,
+    private val getPodsBySelectorUseCase: GetPodsBySelectorUseCase? = null,
     private val networkMonitor: NetworkMonitor? = null,
     private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
@@ -55,6 +67,9 @@ class DeploymentDetailViewModel @AssistedInject constructor(
     )
     val uiState: StateFlow<DeploymentDetailUiState> = _uiState.asStateFlow()
 
+    private val _effects = Channel<DeploymentDetailUiEffect>(Channel.BUFFERED)
+    val effects: Flow<DeploymentDetailUiEffect> = _effects.receiveAsFlow()
+
     private var wasOffline = false
 
     init {
@@ -64,7 +79,7 @@ class DeploymentDetailViewModel @AssistedInject constructor(
 
     private fun observeNetwork() {
         val monitor = networkMonitor ?: return
-        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
         viewModelScope.launch(dispatcher) {
             monitor.isOnline.collect { online ->
                 if (online && wasOffline) {
@@ -78,23 +93,65 @@ class DeploymentDetailViewModel @AssistedInject constructor(
     fun onAction(action: DeploymentDetailUiAction) {
         when (action) {
             DeploymentDetailUiAction.Refresh -> load()
+            DeploymentDetailUiAction.OpenScaleDialog -> {
+                val currentDesired = _uiState.value.details?.desiredReplicas
+                    ?: _uiState.value.deployment?.desiredReplicas
+                    ?: 1
+                _uiState.update { it.copy(showScaleDialog = true, scaleInput = currentDesired) }
+            }
+            DeploymentDetailUiAction.DismissScaleDialog -> {
+                _uiState.update { it.copy(showScaleDialog = false) }
+            }
+            is DeploymentDetailUiAction.ScaleInputChanged -> {
+                _uiState.update { it.copy(scaleInput = action.replicas) }
+            }
+            DeploymentDetailUiAction.ConfirmScale -> performScale()
+            DeploymentDetailUiAction.OpenRestartDialog -> {
+                _uiState.update { it.copy(showRestartDialog = true) }
+            }
+            DeploymentDetailUiAction.DismissRestartDialog -> {
+                _uiState.update { it.copy(showRestartDialog = false) }
+            }
+            DeploymentDetailUiAction.ConfirmRestart -> performRestart()
+            DeploymentDetailUiAction.OpenDeleteDialog -> {
+                _uiState.update { it.copy(showDeleteDialog = true) }
+            }
+            DeploymentDetailUiAction.DismissDeleteDialog -> {
+                _uiState.update { it.copy(showDeleteDialog = false) }
+            }
+            DeploymentDetailUiAction.ConfirmDelete -> performDelete()
+            DeploymentDetailUiAction.DismissMutationError -> {
+                _uiState.update { it.copy(mutationErrorMessage = null) }
+            }
         }
     }
 
-    /**
-     * One active-cluster read feeds both sections; they then run concurrently
-     * so a hung describe call cannot delay the summary card.
-     */
     private fun load() {
-        viewModelScope.launch {
+        val isExplicitRefresh = _uiState.value.deployment != null
+        _uiState.update { state ->
+            state.copy(
+                isRefreshing = isExplicitRefresh,
+                isLoading = !isExplicitRefresh && state.isLoading,
+                errorMessage = null,
+            )
+        }
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
+        viewModelScope.launch(dispatcher) {
             val clusterId = getActiveClusterUseCase().firstOrNull()?.id
-            launch { loadSummary(clusterId) }
-            launch { loadDetails(clusterId) }
+            val summaryJob = launch { loadSummary(clusterId) }
+            val detailsJob = launch { loadDetails(clusterId) }
+            summaryJob.join()
+            detailsJob.join()
+            _uiState.update { state ->
+                state.copy(
+                    isRefreshing = false,
+                    lastRefreshedAt = if (state.deployment != null) System.currentTimeMillis() else state.lastRefreshedAt,
+                )
+            }
         }
     }
 
     private suspend fun loadSummary(clusterId: String?) {
-        // Read cached summary from Room stream first so it appears instantly even offline!
         val cachedSummary = getDeploymentsStreamUseCase?.invoke(clusterId, namespace)
             ?.firstOrNull()
             ?.firstOrNull { it.name == deploymentName && it.namespace == namespace }
@@ -146,12 +203,16 @@ class DeploymentDetailViewModel @AssistedInject constructor(
             state.copy(isDetailsLoading = state.details == null, detailsErrorMessage = null)
         }
         when (val result = getDeploymentDetailsUseCase(clusterId, namespace, deploymentName)) {
-            is Result.Success -> _uiState.update { state ->
-                state.copy(
-                    isDetailsLoading = false,
-                    details = result.data,
-                    detailsErrorMessage = null,
-                )
+            is Result.Success -> {
+                val details = result.data
+                _uiState.update { state ->
+                    state.copy(
+                        isDetailsLoading = false,
+                        details = details,
+                        detailsErrorMessage = null,
+                    )
+                }
+                loadPodsForSelector(clusterId, details.selectorMatchLabels)
             }
 
             is Result.Error -> _uiState.update { state ->
@@ -162,6 +223,126 @@ class DeploymentDetailViewModel @AssistedInject constructor(
             }
 
             is Result.Loading -> Unit
+        }
+    }
+
+    private suspend fun loadPodsForSelector(clusterId: String?, selectorMap: Map<String, String>) {
+        if (selectorMap.isEmpty() || getPodsBySelectorUseCase == null) {
+            return
+        }
+        _uiState.update { it.copy(isPodsLoading = true, podsErrorMessage = null) }
+        val labelSelector = selectorMap.entries.joinToString(",") { "${it.key}=${it.value}" }
+        when (val podsResult = getPodsBySelectorUseCase.invoke(clusterId, namespace, labelSelector)) {
+            is Result.Success -> _uiState.update {
+                it.copy(isPodsLoading = false, associatedPods = podsResult.data, podsErrorMessage = null)
+            }
+            is Result.Error -> _uiState.update {
+                it.copy(isPodsLoading = false, podsErrorMessage = podsResult.error.message)
+            }
+            is Result.Loading -> Unit
+        }
+    }
+
+    private fun performScale() {
+        val targetReplicas = _uiState.value.scaleInput
+        _uiState.update {
+            it.copy(
+                showScaleDialog = false,
+                isMutating = true,
+                mutationErrorMessage = null,
+            )
+        }
+        viewModelScope.launch {
+            val clusterId = getActiveClusterUseCase().firstOrNull()?.id
+            val result = scaleDeploymentUseCase?.invoke(clusterId, namespace, deploymentName, targetReplicas)
+            when (result) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(isMutating = false) }
+                    _effects.send(DeploymentDetailUiEffect.ShowSnackbar("Scaled \"$deploymentName\" to $targetReplicas replicas"))
+                    load()
+                }
+                is Result.Error -> {
+                    val message = result.error.message ?: "Failed to scale deployment"
+                    _uiState.update {
+                        it.copy(
+                            isMutating = false,
+                            mutationErrorMessage = message,
+                        )
+                    }
+                    _effects.send(DeploymentDetailUiEffect.ShowSnackbar(message))
+                }
+                else -> {
+                    _uiState.update { it.copy(isMutating = false) }
+                }
+            }
+        }
+    }
+
+    private fun performRestart() {
+        _uiState.update {
+            it.copy(
+                showRestartDialog = false,
+                isMutating = true,
+                mutationErrorMessage = null,
+            )
+        }
+        viewModelScope.launch {
+            val clusterId = getActiveClusterUseCase().firstOrNull()?.id
+            val result = restartDeploymentUseCase?.invoke(clusterId, namespace, deploymentName)
+            when (result) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(isMutating = false) }
+                    _effects.send(DeploymentDetailUiEffect.ShowSnackbar("Initiated rollout restart for \"$deploymentName\""))
+                    load()
+                }
+                is Result.Error -> {
+                    val message = result.error.message ?: "Failed to restart deployment"
+                    _uiState.update {
+                        it.copy(
+                            isMutating = false,
+                            mutationErrorMessage = message,
+                        )
+                    }
+                    _effects.send(DeploymentDetailUiEffect.ShowSnackbar(message))
+                }
+                else -> {
+                    _uiState.update { it.copy(isMutating = false) }
+                }
+            }
+        }
+    }
+
+    private fun performDelete() {
+        _uiState.update {
+            it.copy(
+                showDeleteDialog = false,
+                isMutating = true,
+                mutationErrorMessage = null,
+            )
+        }
+        viewModelScope.launch {
+            val clusterId = getActiveClusterUseCase().firstOrNull()?.id
+            val result = deleteDeploymentUseCase?.invoke(clusterId, namespace, deploymentName)
+            when (result) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(isMutating = false) }
+                    _effects.send(DeploymentDetailUiEffect.ShowSnackbar("Deleted deployment \"$deploymentName\""))
+                    _effects.send(DeploymentDetailUiEffect.NavigateBack)
+                }
+                is Result.Error -> {
+                    val message = result.error.message ?: "Failed to delete deployment"
+                    _uiState.update {
+                        it.copy(
+                            isMutating = false,
+                            mutationErrorMessage = message,
+                        )
+                    }
+                    _effects.send(DeploymentDetailUiEffect.ShowSnackbar(message))
+                }
+                else -> {
+                    _uiState.update { it.copy(isMutating = false) }
+                }
+            }
         }
     }
 

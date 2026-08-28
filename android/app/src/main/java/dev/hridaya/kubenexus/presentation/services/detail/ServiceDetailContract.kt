@@ -6,6 +6,8 @@ data class ServiceDetailUiState(
     val serviceName: String,
     val namespace: String,
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
+    val lastRefreshedAt: Long? = null,
     val service: ServiceDetails? = null,
     val errorMessage: String? = null,
     val showPortForwardDialog: Boolean = false,

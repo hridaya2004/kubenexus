@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -14,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.domain.model.DeploymentDraft
 import dev.hridaya.kubenexus.presentation.common.components.ErrorBanner
 import dev.hridaya.kubenexus.presentation.common.components.NamespacePicker
 import dev.hridaya.kubenexus.presentation.common.components.StepHeader
@@ -103,6 +106,48 @@ internal fun CreateDeploymentFormFields(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.weight(1f),
+            )
+        }
+
+        Text(
+            text = "Expose with Service",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            DeploymentDraft.SERVICE_TYPES.forEach { type ->
+                FilterChip(
+                    selected = type == uiState.serviceType,
+                    onClick = { onAction(CreateDeploymentUiAction.ServiceTypeSelected(type)) },
+                    label = { Text(type) },
+                    shape = MaterialTheme.shapes.small,
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                )
+            }
+        }
+
+        if (uiState.serviceType != DeploymentDraft.SERVICE_TYPE_NONE) {
+            val servicePortError = uiState.fieldErrors["servicePort"]
+            OutlinedTextField(
+                value = uiState.servicePort,
+                onValueChange = { onAction(CreateDeploymentUiAction.ServicePortChanged(it)) },
+                label = { Text(text = "Service port") },
+                isError = servicePortError != null,
+                supportingText = servicePortError?.let { error ->
+                    { Text(text = error, color = MaterialTheme.colorScheme.error) }
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 

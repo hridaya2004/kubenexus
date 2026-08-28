@@ -32,6 +32,10 @@ import dev.hridaya.kubenexus.domain.repository.ServiceRepository
 import dev.hridaya.kubenexus.domain.repository.ThemePreferencesRepository
 import javax.inject.Singleton
 
+/**
+ * Ignore unused warnings.
+ */
+@Suppress("unused")
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {

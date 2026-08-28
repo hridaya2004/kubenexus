@@ -103,6 +103,12 @@ class ResolveServiceForwardTargetUseCaseTest {
             labelSelector: String,
         ): Result<List<Pod>> = Result.Success(podsToReturn)
 
+        override suspend fun getPodsBySelector(
+            clusterId: String?,
+            namespace: String?,
+            labelSelector: String,
+        ): Result<List<Pod>> = Result.Success(podsToReturn)
+
         override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
             flowOf(podsToReturn)
 

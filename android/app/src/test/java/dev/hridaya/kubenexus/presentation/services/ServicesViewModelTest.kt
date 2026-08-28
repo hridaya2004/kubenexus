@@ -5,11 +5,14 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.network.NetworkMonitor
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
+import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.model.ServicePortDetail
 import dev.hridaya.kubenexus.domain.model.ServiceSummary
+import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.ServiceRepository
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
@@ -182,6 +185,22 @@ class ServicesViewModelTest {
         assertTrue(viewModel.uiState.value.isOnline)
         assertTrue(fakeRepository.syncCalls.isNotEmpty())
     }
+
+    @Test
+    fun `auto fetch triggers when cache is empty on launch`() = runTest(testDispatcher) {
+        val viewModel = ServicesViewModel(
+            clusterId = "c-1",
+            initialNamespace = "team-a",
+            getServicesStreamUseCase = GetServicesStreamUseCase(fakeRepository),
+            getServicesLastRefreshedUseCase = GetServicesLastRefreshedUseCase(fakeRepository),
+            syncServicesUseCase = SyncServicesUseCase(fakeRepository),
+            getNamespacesUseCase = GetNamespacesUseCase(InertPodRepository),
+        )
+        advanceUntilIdle()
+        assertTrue(fakeRepository.syncCalls.isNotEmpty())
+        assertEquals(Pair<String?, String?>("c-1", "team-a"), fakeRepository.syncCalls.first())
+        viewModel.viewModelScope.cancel()
+    }
 }
 
 private class FakeServicesRepository : ServiceRepository {
@@ -217,7 +236,7 @@ private class FakeServicesRepository : ServiceRepository {
         clusterId: String?,
         namespace: String,
         name: String,
-    ): Result<dev.hridaya.kubenexus.domain.model.ServiceDetails> =
+    ): Result<ServiceDetails> =
         Result.Error(AppError.NotFound("inert"))
 }
 
@@ -248,6 +267,13 @@ private object InertPodRepository : PodRepository {
     ): Result<List<Pod>> =
         Result.Success(emptyList())
 
+    override suspend fun getPodsBySelector(
+        clusterId: String?,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>> =
+        Result.Success(emptyList())
+
     override suspend fun describePod(
         clusterId: String?,
         namespace: String,
@@ -266,7 +292,7 @@ private object InertPodRepository : PodRepository {
         namespace: String,
         podName: String
     ): Result<PodMetricSample?> =
-        Result.Error(AppError.NotFound("inert"))
+        Result.Success(null)
 
     override suspend fun deletePod(
         clusterId: String?,
@@ -310,7 +336,7 @@ private object InertPodRepository : PodRepository {
         containerName: String,
         command: String,
         stdin: String
-    ): Result<dev.hridaya.kubenexus.domain.model.CommandExecResult> =
+    ): Result<CommandExecResult> =
         Result.Error(AppError.NotFound("inert"))
 
     override suspend fun startTerminalSession(
@@ -322,7 +348,7 @@ private object InertPodRepository : PodRepository {
         onStderr: (String) -> Unit,
         onError: (String) -> Unit,
         onDone: () -> Unit
-    ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
+    ): Result<TerminalSession> =
         Result.Error(AppError.NotFound("inert"))
 
     override suspend fun startExecSession(
@@ -336,6 +362,6 @@ private object InertPodRepository : PodRepository {
         onStderr: (String) -> Unit,
         onError: (String) -> Unit,
         onDone: () -> Unit
-    ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
+    ): Result<TerminalSession> =
         Result.Error(AppError.NotFound("inert"))
 }

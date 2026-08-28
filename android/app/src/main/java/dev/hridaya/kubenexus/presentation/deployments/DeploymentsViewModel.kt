@@ -14,6 +14,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsLastRefreshedUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.SyncDeploymentsUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,20 +34,18 @@ import kotlinx.coroutines.launch
  * through the assisted factory, mirroring the CreateDeploymentViewModel pattern;
  * unlike Pods, the namespace is additionally switchable in-screen via chips.
  *
- * Room is the single source of truth for the list: [GetDeploymentsStreamUseCase]
- * replays the last synced snapshot instantly (offline included), and
- * [SyncDeploymentsUseCase] refreshes the cache over the network, after which
- * the stream re-emits on its own. Namespace changes swap the stream via
- * flatMapLatest rather than refetching anything.
+ * A fallback Dispatchers.Main.immediate is used when dispatcherProvider is null
+ * so existing tests constructing this class with defaults continue working
+ * without modification.
  */
 @HiltViewModel(assistedFactory = DeploymentsViewModel.Factory::class)
 class DeploymentsViewModel @AssistedInject constructor(
     @Assisted("clusterId") private val clusterId: String?,
-    @Assisted("namespace") initialNamespace: String?,
-    private val getNamespacesUseCase: GetNamespacesUseCase,
-    private val syncDeploymentsUseCase: SyncDeploymentsUseCase,
+    @Assisted("namespace") initialNamespace: String? = null,
     private val getDeploymentsStreamUseCase: GetDeploymentsStreamUseCase,
     private val getDeploymentsLastRefreshedUseCase: GetDeploymentsLastRefreshedUseCase,
+    private val syncDeploymentsUseCase: SyncDeploymentsUseCase,
+    private val getNamespacesUseCase: GetNamespacesUseCase,
     private val networkMonitor: NetworkMonitor? = null,
     private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
@@ -55,12 +54,14 @@ class DeploymentsViewModel @AssistedInject constructor(
     interface Factory {
         fun create(
             @Assisted("clusterId") clusterId: String?,
-            @Assisted("namespace") namespace: String?,
+            @Assisted("namespace") namespace: String? = null,
         ): DeploymentsViewModel
     }
 
     private val _uiState = MutableStateFlow(
-        DeploymentsUiState(selectedNamespace = initialNamespace.toInitialNamespaceFilter()),
+        DeploymentsUiState(
+            selectedNamespace = initialNamespace?.takeIf { it.isNotBlank() } ?: ALL_NAMESPACES_FILTER,
+        ),
     )
     val uiState: StateFlow<DeploymentsUiState> = _uiState.asStateFlow()
 
@@ -74,7 +75,7 @@ class DeploymentsViewModel @AssistedInject constructor(
 
     private fun observeNetworkConnectivity() {
         val monitor = networkMonitor ?: return
-        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
         viewModelScope.launch(dispatcher) {
             monitor.isOnline.collect { online ->
                 val offlineTransition = wasOffline && online
@@ -94,9 +95,11 @@ class DeploymentsViewModel @AssistedInject constructor(
         }
     }
 
+    private val autoFetchedNamespaces = mutableSetOf<String>()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeCachedDeploymentRows() {
-        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
         viewModelScope.launch(dispatcher) {
             _uiState
                 .map { it.selectedNamespace }
@@ -106,17 +109,24 @@ class DeploymentsViewModel @AssistedInject constructor(
                         observeRoomRows(namespaceFilter.toNamespaceArgument()),
                         getDeploymentsLastRefreshedUseCase(clusterId),
                     ) { cachedRows, lastRefreshed ->
-                        cachedRows to lastRefreshed
+                        Triple(cachedRows, lastRefreshed, namespaceFilter)
                     }
                 }
-                .collect { (cachedRows, lastRefreshed) ->
+                .collect { (cachedRows, lastRefreshed, namespaceFilter) ->
+                    val shouldAutoFetch = cachedRows.isEmpty() &&
+                        namespaceFilter !in autoFetchedNamespaces &&
+                        !_uiState.value.isSyncing
                     _uiState.update { state ->
                         state.copy(
                             deployments = cachedRows,
                             lastSyncedAt = lastRefreshed ?: state.lastSyncedAt,
-                            isLoading = false,
+                            isLoading = if (shouldAutoFetch) true else false,
                             errorMessage = null,
                         )
+                    }
+                    if (shouldAutoFetch) {
+                        autoFetchedNamespaces.add(namespaceFilter)
+                        syncRemoteSnapshot()
                     }
                 }
         }

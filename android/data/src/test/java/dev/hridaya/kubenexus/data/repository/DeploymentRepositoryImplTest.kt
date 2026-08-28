@@ -188,6 +188,37 @@ class DeploymentRepositoryImplTest {
     }
 
     @Test
+    fun `createFromManifest applies multi-document yaml manifests for deployment and service`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+
+            val multiDocManifest = """
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: web-app
+                  namespace: default
+                ---
+                apiVersion: v1
+                kind: Service
+                metadata:
+                  name: web-app
+                  namespace: default
+            """.trimIndent()
+
+            val result = repository.createFromManifest(
+                clusterId = "c-1",
+                manifestYaml = multiDocManifest,
+            )
+
+            assertTrue(result is Result.Success)
+            assertEquals(1, recordingBridge.createdDeployments.size)
+            assertEquals(1, recordingBridge.createdServices.size)
+            assertTrue(recordingBridge.createdDeployments.single().contains("kind: Deployment"))
+            assertTrue(recordingBridge.createdServices.single().contains("kind: Service"))
+        }
+
+    @Test
     fun `getDeployments fails when no cluster is selected`() = runTest(testDispatcher) {
         val result = repository.getDeployments(clusterId = null, namespace = "default")
 
@@ -449,6 +480,98 @@ class DeploymentRepositoryImplTest {
         )
     }
 
+    @Test
+    fun `scaleDeployment decrypts kubeconfig and passes replicas to bridge`() = runTest(testDispatcher) {
+        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+        recordingBridge.listResultToReturn = Result.Success(emptyList())
+
+        val result = repository.scaleDeployment(
+            clusterId = "c-1",
+            namespace = "web",
+            name = "nginx",
+            replicas = 5,
+        )
+
+        assertTrue(result is Result.Success)
+        assertEquals(sampleKubeconfig, recordingBridge.capturedScaleKubeconfig)
+        assertEquals("web", recordingBridge.capturedScaleNamespace)
+        assertEquals("nginx", recordingBridge.capturedScaleName)
+        assertEquals(5, recordingBridge.capturedScaleReplicas)
+        // Sync was invoked to refresh cached state
+        assertTrue(recordingBridge.capturedListNamespace == "web")
+    }
+
+    @Test
+    fun `scaleDeployment surfaces sanitized error when bridge fails`() = runTest(testDispatcher) {
+        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+        recordingBridge.scaleResultToReturn = Result.Error(
+            AppError.Unknown("forbidden: token: secret-token-12345 cannot scale"),
+        )
+
+        val result = repository.scaleDeployment(
+            clusterId = "c-1",
+            namespace = "web",
+            name = "nginx",
+            replicas = 5,
+        )
+
+        assertTrue(result is Result.Error)
+        val error = (result as Result.Error).error
+        assertEquals("forbidden: token: [REDACTED] cannot scale", error.message)
+    }
+
+    @Test
+    fun `restartDeployment decrypts kubeconfig and triggers rollout restart`() = runTest(testDispatcher) {
+        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+        recordingBridge.listResultToReturn = Result.Success(emptyList())
+
+        val result = repository.restartDeployment(
+            clusterId = "c-1",
+            namespace = "web",
+            name = "nginx",
+        )
+
+        assertTrue(result is Result.Success)
+        assertEquals(sampleKubeconfig, recordingBridge.capturedRestartKubeconfig)
+        assertEquals("web", recordingBridge.capturedRestartNamespace)
+        assertEquals("nginx", recordingBridge.capturedRestartName)
+    }
+
+    @Test
+    fun `deleteDeployment deletes from DAO, bridge and refreshes cache`() = runTest(testDispatcher) {
+        seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+        deploymentDao.insertDeployments(
+            listOf(
+                DeploymentEntity(
+                    id = "c-1_web_nginx",
+                    clusterId = "c-1",
+                    name = "nginx",
+                    namespace = "web",
+                    desiredReplicas = 2,
+                    readyReplicas = 2,
+                    availableReplicas = 2,
+                    updatedReplicas = 2,
+                    creationTimestampMillis = 1000L,
+                    images = "nginx:1.27",
+                ),
+            ),
+        )
+        recordingBridge.listResultToReturn = Result.Success(emptyList())
+
+        val result = repository.deleteDeployment(
+            clusterId = "c-1",
+            namespace = "web",
+            name = "nginx",
+        )
+
+        assertTrue(result is Result.Success)
+        assertEquals(sampleKubeconfig, recordingBridge.capturedDeleteKubeconfig)
+        assertEquals("web", recordingBridge.capturedDeleteNamespace)
+        assertEquals("nginx", recordingBridge.capturedDeleteName)
+        // Verified removed from DAO
+        assertTrue(deploymentDao.rows.value.isEmpty())
+    }
+
     private fun seedCluster(id: String, rawKubeconfig: String) {
         fakeDao.clusters[id] = ClusterEntity(
             id = id,
@@ -474,6 +597,9 @@ class DeploymentRepositoryImplTest {
         var capturedKubeconfig: String? = null
         var capturedNamespace: String? = null
         var capturedManifest: String? = null
+        val createdDeployments = mutableListOf<String>()
+        val createdServices = mutableListOf<String>()
+        val createdPods = mutableListOf<String>()
 
         var capturedListNamespace: String? = null
         var listResultToReturn: Result<List<DeploymentSummary>>? = null
@@ -486,6 +612,22 @@ class DeploymentRepositoryImplTest {
         var capturedCreateNamespaceName: String? = null
         var createNamespaceResultToReturn: Result<Unit>? = null
 
+        var capturedScaleKubeconfig: String? = null
+        var capturedScaleNamespace: String? = null
+        var capturedScaleName: String? = null
+        var capturedScaleReplicas: Int? = null
+        var scaleResultToReturn: Result<Unit>? = null
+
+        var capturedRestartKubeconfig: String? = null
+        var capturedRestartNamespace: String? = null
+        var capturedRestartName: String? = null
+        var restartResultToReturn: Result<Unit>? = null
+
+        var capturedDeleteKubeconfig: String? = null
+        var capturedDeleteNamespace: String? = null
+        var capturedDeleteName: String? = null
+        var deleteResultToReturn: Result<Unit>? = null
+
         var resultToReturn: Result<String>? = null
         var errorToThrow: Throwable? = null
 
@@ -497,6 +639,33 @@ class DeploymentRepositoryImplTest {
             capturedKubeconfig = rawKubeconfig
             capturedNamespace = namespace
             capturedManifest = manifestYaml
+            createdDeployments.add(manifestYaml)
+            errorToThrow?.let { throw it }
+            return resultToReturn ?: Result.Success(manifestYaml)
+        }
+
+        override fun createService(
+            rawKubeconfig: String,
+            namespace: String,
+            manifestYaml: String,
+        ): Result<String> {
+            capturedKubeconfig = rawKubeconfig
+            capturedNamespace = namespace
+            capturedManifest = manifestYaml
+            createdServices.add(manifestYaml)
+            errorToThrow?.let { throw it }
+            return resultToReturn ?: Result.Success(manifestYaml)
+        }
+
+        override fun createPod(
+            rawKubeconfig: String,
+            namespace: String,
+            manifestYaml: String,
+        ): Result<String> {
+            capturedKubeconfig = rawKubeconfig
+            capturedNamespace = namespace
+            capturedManifest = manifestYaml
+            createdPods.add(manifestYaml)
             errorToThrow?.let { throw it }
             return resultToReturn ?: Result.Success(manifestYaml)
         }
@@ -529,6 +698,44 @@ class DeploymentRepositoryImplTest {
             capturedCreateNamespaceName = name
             errorToThrow?.let { throw it }
             return createNamespaceResultToReturn ?: Result.Success(Unit)
+        }
+
+        override fun scaleDeployment(
+            rawKubeconfig: String,
+            namespace: String,
+            name: String,
+            replicas: Int,
+        ): Result<Unit> {
+            capturedScaleKubeconfig = rawKubeconfig
+            capturedScaleNamespace = namespace
+            capturedScaleName = name
+            capturedScaleReplicas = replicas
+            errorToThrow?.let { throw it }
+            return scaleResultToReturn ?: Result.Success(Unit)
+        }
+
+        override fun restartDeployment(
+            rawKubeconfig: String,
+            namespace: String,
+            name: String,
+        ): Result<Unit> {
+            capturedRestartKubeconfig = rawKubeconfig
+            capturedRestartNamespace = namespace
+            capturedRestartName = name
+            errorToThrow?.let { throw it }
+            return restartResultToReturn ?: Result.Success(Unit)
+        }
+
+        override fun deleteDeployment(
+            rawKubeconfig: String,
+            namespace: String,
+            name: String,
+        ): Result<Unit> {
+            capturedDeleteKubeconfig = rawKubeconfig
+            capturedDeleteNamespace = namespace
+            capturedDeleteName = name
+            errorToThrow?.let { throw it }
+            return deleteResultToReturn ?: Result.Success(Unit)
         }
     }
 
@@ -598,6 +805,12 @@ class DeploymentRepositoryImplTest {
         override suspend fun deleteDeploymentsByIds(ids: List<String>) {
             storedIds.removeAll(ids.toSet())
             rows.value = rows.value.filterNot { it.id in ids }
+        }
+
+        override suspend fun deleteDeployment(clusterId: String, namespace: String, name: String) {
+            val id = "${clusterId}_${namespace}_$name"
+            storedIds.remove(id)
+            rows.value = rows.value.filterNot { it.clusterId == clusterId && it.namespace == namespace && it.name == name }
         }
 
         override fun getSyncMetadataStream(key: String): Flow<Long?> = MutableStateFlow(null)

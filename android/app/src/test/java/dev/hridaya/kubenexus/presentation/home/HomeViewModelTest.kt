@@ -16,6 +16,7 @@ import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.ClusterRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.usecase.AddClusterUseCase
+import dev.hridaya.kubenexus.domain.usecase.CheckClusterHealthUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.DeleteNamespaceUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
@@ -94,7 +95,7 @@ class HomeViewModelTest {
                 fakeClusterRepository,
                 testDispatcherProvider,
             ),
-            checkClusterHealthUseCase = dev.hridaya.kubenexus.domain.usecase.CheckClusterHealthUseCase(
+            checkClusterHealthUseCase = CheckClusterHealthUseCase(
                 fakeClusterRepository,
                 testDispatcherProvider,
             ),
@@ -514,6 +515,12 @@ class HomeViewModelTest {
 
         override suspend fun listPodsBySelector(
             rawKubeconfig: String,
+            namespace: String?,
+            labelSelector: String,
+        ): Result<List<Pod>> = Result.Success(emptyList())
+
+        override suspend fun getPodsBySelector(
+            clusterId: String?,
             namespace: String?,
             labelSelector: String,
         ): Result<List<Pod>> = Result.Success(emptyList())

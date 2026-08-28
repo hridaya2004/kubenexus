@@ -23,6 +23,7 @@ class DeploymentYamlGeneratorTest {
                 image = "nginx:1.27",
                 replicas = 3,
                 containerPort = 8080,
+                serviceType = "None",
             ),
         )
 
@@ -97,5 +98,31 @@ class DeploymentYamlGeneratorTest {
         assertTrue(normalizedManifest.contains("image: registry.example.com/redis:7-alpine"))
         assertTrue(normalizedManifest.contains("replicas: 5"))
         assertTrue(normalizedManifest.contains("containerPort: 6379"))
+    }
+
+    @Test
+    fun `renders combined deployment and service with matching labels and selectors when service is requested`() {
+        val renderedManifest = DeploymentYamlGenerator.generate(
+            DeploymentDraft(
+                name = "web",
+                namespace = "production",
+                image = "nginx:alpine",
+                replicas = 2,
+                containerPort = 8080,
+                serviceType = "ClusterIP",
+                servicePort = 80,
+            ),
+        )
+
+        val normalizedManifest = normalizeRenderedManifest(renderedManifest)
+        assertTrue(normalizedManifest.contains("kind: Deployment"))
+        assertTrue(normalizedManifest.contains("kind: Service"))
+        assertTrue(normalizedManifest.contains("---"))
+        assertTrue(normalizedManifest.contains("type: ClusterIP"))
+        assertTrue(normalizedManifest.contains("port: 80"))
+        assertTrue(normalizedManifest.contains("targetPort: 8080"))
+
+        // Verify selector match
+        assertTrue(normalizedManifest.contains("selector:\n    app: web"))
     }
 }

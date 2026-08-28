@@ -111,6 +111,25 @@ open class FakeKubeNexusNativeBridge : KubeNexusNativeBridge {
         manifestYaml: String,
     ): Result<String> = Result.Success(manifestYaml)
 
+    override fun scaleDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+        replicas: Int,
+    ): Result<Unit> = Result.Success(Unit)
+
+    override fun restartDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = Result.Success(Unit)
+
+    override fun deleteDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = Result.Success(Unit)
+
     override fun createPod(
         rawKubeconfig: String,
         namespace: String,

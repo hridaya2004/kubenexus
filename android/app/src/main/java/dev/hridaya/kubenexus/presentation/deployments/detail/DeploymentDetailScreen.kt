@@ -3,6 +3,8 @@ package dev.hridaya.kubenexus.presentation.deployments.detail
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,18 +15,29 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,9 +47,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
+import dev.hridaya.kubenexus.domain.model.Pod
+import dev.hridaya.kubenexus.presentation.deployments.detail.components.DeleteDeploymentDialog
 import dev.hridaya.kubenexus.presentation.deployments.detail.components.DeploymentDetailsSection
 import dev.hridaya.kubenexus.presentation.deployments.detail.components.DeploymentImagesCard
+import dev.hridaya.kubenexus.presentation.deployments.detail.components.DeploymentPodsSection
 import dev.hridaya.kubenexus.presentation.deployments.detail.components.DeploymentStatusCard
+import dev.hridaya.kubenexus.presentation.deployments.detail.components.RestartDeploymentDialog
+import dev.hridaya.kubenexus.presentation.deployments.detail.components.ScaleDeploymentDialog
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
 @Composable
@@ -44,13 +62,28 @@ fun DeploymentDetailRoute(
     viewModel: DeploymentDetailViewModel,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToPodDetail: (podName: String, namespace: String) -> Unit = { _, _ -> },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel.effects) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is DeploymentDetailUiEffect.NavigateBack -> onNavigateBack()
+                is DeploymentDetailUiEffect.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(effect.message)
+                }
+            }
+        }
+    }
 
     DeploymentDetailScreen(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
+        onPodClick = { pod -> onNavigateToPodDetail(pod.name, pod.namespace) },
+        snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
 }
@@ -62,9 +95,12 @@ fun DeploymentDetailScreen(
     onAction: (DeploymentDetailUiAction) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onPodClick: (Pod) -> Unit = {},
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -79,7 +115,7 @@ fun DeploymentDetailScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
                         )
                     }
                 },
@@ -137,22 +173,87 @@ fun DeploymentDetailScreen(
             }
 
             else -> uiState.deployment?.let { deployment ->
-                Column(
+                val pullToRefreshState = rememberPullToRefreshState()
+                PullToRefreshBox(
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = { onAction(DeploymentDetailUiAction.Refresh) },
+                    state = pullToRefreshState,
+                    indicator = {
+                        if (!uiState.isRefreshing) {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullToRefreshState,
+                                isRefreshing = false,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            )
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .consumeWindowInsets(innerPadding),
                 ) {
-                    DeploymentStatusCard(
-                        deployment = deployment,
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        if (uiState.isMutating || uiState.isRefreshing) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+
+                        DeploymentStatusCard(
+                            deployment = deployment,
+                            details = uiState.details,
+                            lastRefreshedAt = uiState.lastRefreshedAt,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                    )
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilledTonalButton(
+                            onClick = { onAction(DeploymentDetailUiAction.OpenScaleDialog) },
+                            enabled = !uiState.isMutating,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Tune,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Scale")
+                        }
+
+                        FilledTonalButton(
+                            onClick = { onAction(DeploymentDetailUiAction.OpenRestartDialog) },
+                            enabled = !uiState.isMutating,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.RestartAlt,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Restart")
+                        }
+                    }
 
                     DeploymentImagesCard(
                         images = deployment.images,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    DeploymentPodsSection(
+                        pods = uiState.associatedPods,
+                        isLoading = uiState.isPodsLoading,
+                        errorMessage = uiState.podsErrorMessage,
+                        onPodClick = onPodClick,
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -167,6 +268,34 @@ fun DeploymentDetailScreen(
                     )
                 }
             }
+        }
+    }
+
+        if (uiState.showScaleDialog) {
+            ScaleDeploymentDialog(
+                deploymentName = uiState.deploymentName,
+                currentReplicas = uiState.scaleInput,
+                onReplicasChanged = { onAction(DeploymentDetailUiAction.ScaleInputChanged(it)) },
+                onConfirm = { onAction(DeploymentDetailUiAction.ConfirmScale) },
+                onDismiss = { onAction(DeploymentDetailUiAction.DismissScaleDialog) },
+            )
+        }
+
+        if (uiState.showRestartDialog) {
+            RestartDeploymentDialog(
+                deploymentName = uiState.deploymentName,
+                onConfirm = { onAction(DeploymentDetailUiAction.ConfirmRestart) },
+                onDismiss = { onAction(DeploymentDetailUiAction.DismissRestartDialog) },
+            )
+        }
+
+        if (uiState.showDeleteDialog) {
+            DeleteDeploymentDialog(
+                deploymentName = uiState.deploymentName,
+                namespace = uiState.namespace,
+                onConfirm = { onAction(DeploymentDetailUiAction.ConfirmDelete) },
+                onDismiss = { onAction(DeploymentDetailUiAction.DismissDeleteDialog) },
+            )
         }
     }
 }

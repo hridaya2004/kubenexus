@@ -19,6 +19,15 @@ interface PodRepository {
         labelSelector: String,
     ): Result<List<Pod>>
 
+    /**
+     * Lists pods matching [labelSelector] within [namespace] using cluster credentials.
+     */
+    suspend fun getPodsBySelector(
+        clusterId: String?,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>>
+
     suspend fun describePod(
         clusterId: String?,
         namespace: String,

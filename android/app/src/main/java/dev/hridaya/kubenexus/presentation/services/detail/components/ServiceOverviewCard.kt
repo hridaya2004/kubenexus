@@ -19,11 +19,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.core.common.util.TimeFormatter
 import dev.hridaya.kubenexus.domain.model.ServiceDetails
 
 @Composable
 internal fun ServiceOverviewCard(
     service: ServiceDetails,
+    lastRefreshedAt: Long? = null,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -87,12 +89,25 @@ internal fun ServiceOverviewCard(
                 )
             }
 
-            Text(
-                text = DateUtils.getRelativeTimeSpanString(service.creationTimestampMillis)
-                    .toString(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = DateUtils.getRelativeTimeSpanString(service.creationTimestampMillis)
+                        .toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (lastRefreshedAt != null) {
+                    Text(
+                        text = TimeFormatter.formatLastRefreshed(lastRefreshedAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

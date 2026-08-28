@@ -45,17 +45,23 @@ class DeploymentRepositoryImpl @Inject constructor(
         val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
 
         try {
-            // The reviewed manifest carries its own namespace, so the bridge is
-            // told to fall back to it rather than overriding the user's choice.
-            val nativeResult = nativeBridge.createDeployment(decryptedKubeconfig, "", manifestYaml)
-            if (nativeResult.isSuccess) {
-                Result.Success(Unit)
-            } else {
-                val error = nativeResult.exceptionOrNull()
-                val sanitizedMsg = LogSanitizer.sanitize(error?.message)
-                Log.e(TAG, "Failed to create deployment for cluster '$clusterId': $sanitizedMsg")
-                Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create deployment" }))
+            val documents = splitYamlDocuments(manifestYaml)
+            for (doc in documents) {
+                if (doc.isBlank()) continue
+                val kind = extractKindFromYaml(doc)
+                val nativeResult = when (kind?.lowercase()) {
+                    "service" -> nativeBridge.createService(decryptedKubeconfig, "", doc)
+                    "pod" -> nativeBridge.createPod(decryptedKubeconfig, "", doc)
+                    else -> nativeBridge.createDeployment(decryptedKubeconfig, "", doc)
+                }
+                if (nativeResult.isFailure) {
+                    val error = nativeResult.exceptionOrNull()
+                    val sanitizedMsg = LogSanitizer.sanitize(error?.message)
+                    Log.e(TAG, "Failed to create resource ($kind) for cluster '$clusterId': $sanitizedMsg")
+                    return@withContext Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create resource" }))
+                }
             }
+            Result.Success(Unit)
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
             Log.e(TAG, "Failed to create deployment for cluster '$clusterId': $sanitizedMsg", t)
@@ -179,6 +185,104 @@ class DeploymentRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun scaleDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+        replicas: Int,
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.scaleDeployment(decryptedKubeconfig, namespace, name, replicas)
+            if (nativeResult.isSuccess) {
+                syncDeployments(clusterId, namespace)
+                Result.Success(Unit)
+            } else {
+                val ex = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(
+                    AppError.Network(sanitizedMsg.ifEmpty { "Failed to scale deployment '$name'" }),
+                )
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to scale deployment '$name': $sanitizedMsg", t)
+            Result.Error(
+                AppError.Network(sanitizedMsg.ifEmpty { "Failed to scale deployment from cluster API" }),
+            )
+        }
+    }
+
+    override suspend fun restartDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.restartDeployment(decryptedKubeconfig, namespace, name)
+            if (nativeResult.isSuccess) {
+                syncDeployments(clusterId, namespace)
+                Result.Success(Unit)
+            } else {
+                val ex = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(
+                    AppError.Network(sanitizedMsg.ifEmpty { "Failed to restart deployment '$name'" }),
+                )
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to restart deployment '$name': $sanitizedMsg", t)
+            Result.Error(
+                AppError.Network(sanitizedMsg.ifEmpty { "Failed to restart deployment from cluster API" }),
+            )
+        }
+    }
+
+    override suspend fun deleteDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+
+        try {
+            val nativeResult = nativeBridge.deleteDeployment(decryptedKubeconfig, namespace, name)
+            if (nativeResult.isSuccess) {
+                deploymentDao.deleteDeployment(clusterId, namespace, name)
+                syncDeployments(clusterId, namespace)
+                Result.Success(Unit)
+            } else {
+                val ex = nativeResult.exceptionOrNull()
+                val sanitizedMsg = LogSanitizer.sanitize(ex?.message)
+                Result.Error(
+                    AppError.Network(sanitizedMsg.ifEmpty { "Failed to delete deployment '$name'" }),
+                )
+            }
+        } catch (t: Throwable) {
+            val sanitizedMsg = LogSanitizer.sanitize(t.message)
+            Log.e(TAG, "Failed to delete deployment '$name': $sanitizedMsg", t)
+            Result.Error(
+                AppError.Network(sanitizedMsg.ifEmpty { "Failed to delete deployment from cluster API" }),
+            )
+        }
+    }
+
     override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
         if (clusterId == null) return flowOf(null)
         return deploymentDao.getSyncMetadataStream("${clusterId}_deployments")
@@ -197,4 +301,13 @@ class DeploymentRepositoryImpl @Inject constructor(
      */
     private fun normalizedNamespaceOrNull(namespace: String?): String? =
         if (isAllNamespaces(namespace)) null else namespace?.trim()
+
+    private fun splitYamlDocuments(yaml: String): List<String> =
+        yaml.split(Regex("(?m)^---\\s*$")).map { it.trim() }.filter { it.isNotEmpty() }
+
+    private fun extractKindFromYaml(yaml: String): String? {
+        val match = Regex("""(?m)^kind:\s*["']?([A-Za-z0-9_]+)["']?""").find(yaml)
+        return match?.groupValues?.get(1)
+    }
 }
+

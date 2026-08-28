@@ -13,6 +13,7 @@ import dev.hridaya.kubenexus.domain.model.ServiceDetails
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetServiceDetailsUseCase
 import dev.hridaya.kubenexus.domain.usecase.GetServicesStreamUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,11 +30,11 @@ import kotlinx.coroutines.launch
  */
 @HiltViewModel(assistedFactory = ServiceDetailViewModel.Factory::class)
 class ServiceDetailViewModel @AssistedInject constructor(
-    @Assisted("serviceName") private val serviceName: String,
-    @Assisted("namespace") private val namespace: String,
-    private val getServiceDetailsUseCase: GetServiceDetailsUseCase,
+    @Assisted("serviceName") val serviceName: String,
+    @Assisted("namespace") val namespace: String,
     private val getActiveClusterUseCase: GetActiveClusterUseCase,
-    private val getServicesStreamUseCase: GetServicesStreamUseCase? = null,
+    private val getServiceDetailsUseCase: GetServiceDetailsUseCase,
+    private val getServicesStreamUseCase: GetServicesStreamUseCase,
     private val networkMonitor: NetworkMonitor? = null,
     private val dispatcherProvider: DispatcherProvider? = null,
 ) : ViewModel() {
@@ -63,7 +64,7 @@ class ServiceDetailViewModel @AssistedInject constructor(
 
     private fun observeNetwork() {
         val monitor = networkMonitor ?: return
-        val dispatcher = dispatcherProvider?.main ?: kotlinx.coroutines.Dispatchers.Main.immediate
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
         viewModelScope.launch(dispatcher) {
             monitor.isOnline.collect { online ->
                 if (online && wasOffline) {
@@ -88,50 +89,64 @@ class ServiceDetailViewModel @AssistedInject constructor(
      * fresh describe details over the network.
      */
     private fun load() {
-        viewModelScope.launch {
+        val isExplicitRefresh = _uiState.value.service != null
+        _uiState.update { state ->
+            state.copy(
+                isRefreshing = isExplicitRefresh,
+                isLoading = !isExplicitRefresh && state.isLoading,
+                errorMessage = null,
+            )
+        }
+        val dispatcher = dispatcherProvider?.main ?: Dispatchers.Main.immediate
+        viewModelScope.launch(dispatcher) {
             val clusterId = getActiveClusterUseCase().firstOrNull()?.id
 
             // Instant offline load from Room cache
-            val cachedSummary = getServicesStreamUseCase?.invoke(clusterId, namespace)
-                ?.firstOrNull()
-                ?.firstOrNull { it.name == serviceName && it.namespace == namespace }
+            if (_uiState.value.service == null) {
+                val cachedSummary = getServicesStreamUseCase?.invoke(clusterId, namespace)
+                    ?.firstOrNull()
+                    ?.firstOrNull { it.name == serviceName && it.namespace == namespace }
 
-            if (cachedSummary != null) {
-                val initialDetails = ServiceDetails(
-                    name = cachedSummary.name,
-                    namespace = cachedSummary.namespace,
-                    creationTimestampMillis = cachedSummary.creationTimestampMillis,
-                    type = cachedSummary.type,
-                    clusterIP = cachedSummary.clusterIP,
-                    clusterIPs = if (cachedSummary.clusterIP.isNotBlank()) listOf(cachedSummary.clusterIP) else emptyList(),
-                    externalIPs = emptyList(),
-                    selector = emptyMap(),
-                    ports = cachedSummary.ports,
-                    labels = emptyMap(),
-                    annotations = emptyMap(),
-                    events = emptyList(),
-                )
-                _uiState.update { state ->
-                    state.copy(
-                        isLoading = false,
-                        service = state.service ?: initialDetails,
-                        errorMessage = null
+                if (cachedSummary != null) {
+                    val initialDetails = ServiceDetails(
+                        name = cachedSummary.name,
+                        namespace = cachedSummary.namespace,
+                        creationTimestampMillis = cachedSummary.creationTimestampMillis,
+                        type = cachedSummary.type,
+                        clusterIP = cachedSummary.clusterIP,
+                        clusterIPs = if (cachedSummary.clusterIP.isNotBlank()) listOf(cachedSummary.clusterIP) else emptyList(),
+                        externalIPs = emptyList(),
+                        selector = emptyMap(),
+                        ports = cachedSummary.ports,
+                        labels = emptyMap(),
+                        annotations = emptyMap(),
+                        events = emptyList(),
                     )
-                }
-            } else {
-                _uiState.update { state ->
-                    state.copy(isLoading = state.service == null, errorMessage = null)
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            service = state.service ?: initialDetails,
+                            errorMessage = null,
+                        )
+                    }
                 }
             }
 
             when (val result = getServiceDetails(clusterId, namespace, serviceName)) {
                 is Result.Success -> _uiState.update { state ->
-                    state.copy(isLoading = false, service = result.data, errorMessage = null)
+                    state.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        service = result.data,
+                        lastRefreshedAt = System.currentTimeMillis(),
+                        errorMessage = null,
+                    )
                 }
 
                 is Result.Error -> _uiState.update { state ->
                     state.copy(
                         isLoading = false,
+                        isRefreshing = false,
                         errorMessage = if (state.service == null) LOAD_ERROR_MESSAGE else null,
                     )
                 }

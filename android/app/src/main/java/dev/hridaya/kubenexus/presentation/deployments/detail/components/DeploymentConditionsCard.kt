@@ -52,13 +52,15 @@ private fun DeploymentConditionRow(
     condition: DeploymentCondition,
     modifier: Modifier = Modifier,
 ) {
-    val statusColors = LocalStatusColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(
                 text = condition.type,
                 style = MaterialTheme.typography.bodyMedium,
@@ -71,19 +73,16 @@ private fun DeploymentConditionRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
             condition.lastUpdateMillis?.let { lastUpdateMillis ->
                 Text(
                     text = DateUtils.getRelativeTimeSpanString(lastUpdateMillis).toString(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(modifier = Modifier.width(6.dp))
             }
-            ConditionStatusIcon(status = condition.status)
         }
+
+        ConditionStatusIcon(status = condition.status)
     }
 }
 

@@ -126,6 +126,10 @@ fun MainScreen(
                     selectedDeploymentName = null
                     selectedDeploymentNamespace = null
                 },
+                onNavigateToPodDetail = { podName, podNamespace ->
+                    selectedPodName = podName
+                    selectedPodNamespace = podNamespace
+                },
                 modifier = modifier,
             )
         }
@@ -156,6 +160,24 @@ fun MainScreen(
             )
         }
 
+        isCreatingDeployment -> CreateDeploymentOverlay(
+            homeViewModel = homeViewModel,
+            onDismiss = { isCreatingDeployment = false },
+            modifier = modifier,
+        )
+
+        isCreatingPod -> CreatePodOverlay(
+            homeViewModel = homeViewModel,
+            onDismiss = { isCreatingPod = false },
+            modifier = modifier,
+        )
+
+        isCreatingService -> CreateServiceOverlay(
+            homeViewModel = homeViewModel,
+            onDismiss = { isCreatingService = false },
+            modifier = modifier,
+        )
+
         isManagingClusters -> {
             val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
             BackHandler { isManagingClusters = false }
@@ -178,6 +200,7 @@ fun MainScreen(
                     selectedPodName = pod.name
                     selectedPodNamespace = pod.namespace
                 },
+                onNavigateToCreatePod = { isCreatingPod = true },
                 modifier = modifier,
             )
         }
@@ -203,6 +226,7 @@ fun MainScreen(
                     selectedDeploymentName = deployment.name
                     selectedDeploymentNamespace = deployment.namespace
                 },
+                onNavigateToCreateDeployment = { isCreatingDeployment = true },
                 modifier = modifier,
             )
         }
@@ -228,6 +252,7 @@ fun MainScreen(
                     selectedServiceName = service.name
                     selectedServiceNamespace = service.namespace
                 },
+                onNavigateToCreateService = { isCreatingService = true },
                 modifier = modifier,
             )
         }
@@ -241,24 +266,6 @@ fun MainScreen(
                 modifier = modifier,
             )
         }
-
-        isCreatingDeployment -> CreateDeploymentOverlay(
-            homeViewModel = homeViewModel,
-            onDismiss = { isCreatingDeployment = false },
-            modifier = modifier,
-        )
-
-        isCreatingPod -> CreatePodOverlay(
-            homeViewModel = homeViewModel,
-            onDismiss = { isCreatingPod = false },
-            modifier = modifier,
-        )
-
-        isCreatingService -> CreateServiceOverlay(
-            homeViewModel = homeViewModel,
-            onDismiss = { isCreatingService = false },
-            modifier = modifier,
-        )
 
         else -> {
             MainTopLevelScaffold(

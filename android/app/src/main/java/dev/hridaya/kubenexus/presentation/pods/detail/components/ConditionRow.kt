@@ -32,16 +32,28 @@ fun ConditionRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(
                 text = condition.type,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Normal,
             )
-            if (!condition.reason.isNullOrBlank()) {
+            val reason = condition.reason
+            if (!reason.isNullOrBlank()) {
                 Text(
-                    text = "Reason: ${condition.reason}",
+                    text = "Reason: $reason",
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val lastTransitionTime = condition.lastTransitionTime
+            if (!lastTransitionTime.isNullOrBlank()) {
+                Text(
+                    text = lastTransitionTime,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

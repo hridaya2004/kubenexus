@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,12 +21,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -122,78 +127,101 @@ fun ServiceDetailScreen(
             )
         },
     ) { innerPadding ->
-        Column(
+        val pullToRefreshState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { onAction(ServiceDetailUiAction.Refresh) },
+            state = pullToRefreshState,
+            indicator = {
+                if (!uiState.isRefreshing) {
+                    PullToRefreshDefaults.Indicator(
+                        state = pullToRefreshState,
+                        isRefreshing = false,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding),
         ) {
-            if (portForwardUiState.activeForwards.isNotEmpty()) {
-                ActivePortForwardChipsRow(
-                    forwards = portForwardUiState.activeForwards,
-                    onStopClick = onPortForwardStop,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
-
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(28.dp),
-                            strokeWidth = 3.dp,
-                        )
-                    }
+            Column(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                if (uiState.isRefreshing) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                uiState.errorMessage != null && uiState.service == null -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth(),
+                if (portForwardUiState.activeForwards.isNotEmpty()) {
+                    ActivePortForwardChipsRow(
+                        forwards = portForwardUiState.activeForwards,
+                        onStopClick = onPortForwardStop,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+
+                when {
+                    uiState.isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                text = uiState.errorMessage.orEmpty(),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(28.dp),
+                                strokeWidth = 3.dp,
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedButton(
-                                onClick = { onAction(ServiceDetailUiAction.Refresh) },
-                                shape = MaterialTheme.shapes.medium,
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .padding(horizontal = 16.dp),
+                        }
+                    }
+
+                    uiState.errorMessage != null && uiState.service == null -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(text = "Retry", style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    text = uiState.errorMessage.orEmpty(),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                OutlinedButton(
+                                    onClick = { onAction(ServiceDetailUiAction.Refresh) },
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .padding(horizontal = 16.dp),
+                                ) {
+                                    Text(text = "Retry", style = MaterialTheme.typography.labelLarge)
+                                }
                             }
                         }
                     }
-                }
 
-                else -> uiState.service?.let { service ->
-                    ServiceDetailContent(
-                        service = service,
-                        onPortForwardClick = {
-                            onAction(
-                                ServiceDetailUiAction.ShowPortForwardDialog(
-                                    true
+                    else -> uiState.service?.let { service ->
+                        ServiceDetailContent(
+                            service = service,
+                            lastRefreshedAt = uiState.lastRefreshedAt,
+                            onPortForwardClick = {
+                                onAction(
+                                    ServiceDetailUiAction.ShowPortForwardDialog(
+                                        true
+                                    )
                                 )
-                            )
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
@@ -214,6 +242,7 @@ fun ServiceDetailScreen(
 @Composable
 private fun ServiceDetailContent(
     service: ServiceDetails,
+    lastRefreshedAt: Long? = null,
     onPortForwardClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -226,6 +255,7 @@ private fun ServiceDetailContent(
     ) {
         ServiceOverviewCard(
             service = service,
+            lastRefreshedAt = lastRefreshedAt,
             modifier = Modifier.fillMaxWidth(),
         )
 

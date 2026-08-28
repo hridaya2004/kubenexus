@@ -487,6 +487,12 @@ class PodDetailViewModelTest {
             labelSelector: String,
         ): Result<List<Pod>> = Result.Success(emptyList())
 
+        override suspend fun getPodsBySelector(
+            clusterId: String?,
+            namespace: String?,
+            labelSelector: String,
+        ): Result<List<Pod>> = Result.Success(emptyList())
+
         override suspend fun describePod(
             clusterId: String?,
             namespace: String,

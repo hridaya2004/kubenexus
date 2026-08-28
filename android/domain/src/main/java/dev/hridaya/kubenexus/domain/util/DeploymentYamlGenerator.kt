@@ -12,8 +12,8 @@ import dev.hridaya.kubenexus.domain.model.DeploymentDraft
  * never out of sync with what is created. The manifest is assembled as an
  * ordered structure and serialized by yamlkt's dynamic block-style encoder,
  * which preserves key order instead of relying on hand-appended lines. Labels
- * and selector intentionally match (`app: <name>`) so a Service added later
- * can target the workload.
+ * and selector intentionally match (`app: <name>`) so a Service added together
+ * or later targets the workload.
  */
 object DeploymentYamlGenerator {
 
@@ -50,6 +50,35 @@ object DeploymentYamlGenerator {
             ),
         )
 
-        return renderK8sManifest(deploymentManifest)
+        val deploymentYaml = renderK8sManifest(deploymentManifest)
+
+        if (draft.serviceType == DeploymentDraft.SERVICE_TYPE_NONE || draft.serviceType.isBlank()) {
+            return deploymentYaml
+        }
+
+        val servicePorts = listOf(
+            linkedMapOf(
+                "port" to draft.servicePort,
+                "targetPort" to draft.containerPort,
+            ),
+        )
+
+        val serviceManifest = linkedMapOf<String, Any>(
+            "apiVersion" to "v1",
+            "kind" to "Service",
+            "metadata" to linkedMapOf(
+                "name" to draft.name,
+                "namespace" to draft.namespace,
+                "labels" to linkedMapOf("app" to draft.name),
+            ),
+            "spec" to linkedMapOf(
+                "selector" to linkedMapOf("app" to draft.name),
+                "type" to draft.serviceType,
+                "ports" to servicePorts,
+            ),
+        )
+
+        val serviceYaml = renderK8sManifest(serviceManifest)
+        return "${deploymentYaml.trimEnd()}\n---\n$serviceYaml"
     }
 }

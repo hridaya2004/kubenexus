@@ -52,4 +52,32 @@ interface DeploymentRepository {
      * read from the persisted sync_metadata table.
      */
     fun getLastRefreshedStream(clusterId: String?): Flow<Long?>
+
+    /**
+     * Scales the deployment's replica count.
+     */
+    suspend fun scaleDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+        replicas: Int,
+    ): Result<Unit>
+
+    /**
+     * Triggers a rolling restart of the deployment.
+     */
+    suspend fun restartDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit>
+
+    /**
+     * Deletes the deployment from the cluster and cache.
+     */
+    suspend fun deleteDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit>
 }

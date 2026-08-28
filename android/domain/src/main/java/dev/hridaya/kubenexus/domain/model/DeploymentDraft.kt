@@ -16,6 +16,8 @@ data class DeploymentDraft(
     val image: String = "",
     val replicas: Int = DEFAULT_REPLICAS,
     val containerPort: Int = DEFAULT_CONTAINER_PORT,
+    val serviceType: String = SERVICE_TYPE_NONE,
+    val servicePort: Int = DEFAULT_SERVICE_PORT,
 ) {
 
     fun validate(): Map<String, String> {
@@ -52,12 +54,27 @@ data class DeploymentDraft(
             errors["containerPort"] = "Port must be between $MIN_PORT and $MAX_PORT"
         }
 
+        if (serviceType !in SERVICE_TYPES) {
+            errors["serviceType"] = "Service type must be None, ClusterIP, or NodePort"
+        }
+
+        if (serviceType != SERVICE_TYPE_NONE) {
+            if (servicePort !in MIN_PORT..MAX_PORT) {
+                errors["servicePort"] = "Service port must be between $MIN_PORT and $MAX_PORT"
+            }
+        }
+
         return errors
     }
 
     companion object {
         const val DEFAULT_REPLICAS = 1
         const val DEFAULT_CONTAINER_PORT = 80
+        const val DEFAULT_SERVICE_PORT = 80
+        const val SERVICE_TYPE_NONE = "None"
+        const val SERVICE_TYPE_CLUSTER_IP = "ClusterIP"
+        const val SERVICE_TYPE_NODE_PORT = "NodePort"
+        val SERVICE_TYPES = listOf(SERVICE_TYPE_NONE, SERVICE_TYPE_CLUSTER_IP, SERVICE_TYPE_NODE_PORT)
         const val MIN_REPLICAS = 1
         const val MAX_REPLICAS = 500
         const val MIN_PORT = 1

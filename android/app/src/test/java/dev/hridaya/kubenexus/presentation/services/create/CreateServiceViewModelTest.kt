@@ -8,6 +8,8 @@ import dev.hridaya.kubenexus.domain.model.CommandExecResult
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
+import dev.hridaya.kubenexus.domain.model.ServiceDetails
+import dev.hridaya.kubenexus.domain.model.ServiceSummary
 import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.repository.ServiceRepository
@@ -262,7 +264,7 @@ class CreateServiceViewModelTest {
         assertEquals("team-a", state.namespace)
         assertFalse(state.isSubmitting)
         assertEquals(
-            "Couldn't create the service. Please try again in a moment.",
+            "forbidden: services is forbidden",
             state.errorMessage,
         )
     }
@@ -347,12 +349,12 @@ private class FakeServiceRepository : ServiceRepository {
     override fun getServicesStream(
         clusterId: String?,
         namespace: String?,
-    ): Flow<List<dev.hridaya.kubenexus.domain.model.ServiceSummary>> {
-        return kotlinx.coroutines.flow.flowOf(emptyList())
+    ): Flow<List<ServiceSummary>> {
+        return flowOf(emptyList())
     }
 
     override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
-        return kotlinx.coroutines.flow.flowOf(null)
+        return flowOf(null)
     }
 
     override suspend fun syncServices(clusterId: String?, namespace: String?): Result<Unit> {
@@ -363,7 +365,7 @@ private class FakeServiceRepository : ServiceRepository {
         clusterId: String?,
         namespace: String,
         name: String,
-    ): Result<dev.hridaya.kubenexus.domain.model.ServiceDetails> {
+    ): Result<ServiceDetails> {
         return Result.Error(AppError.NotFound("Not exercised in this test"))
     }
 }
@@ -392,6 +394,12 @@ private class FakePodRepository : PodRepository {
 
     override suspend fun listPodsBySelector(
         rawKubeconfig: String,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>> = Result.Success(emptyList())
+
+    override suspend fun getPodsBySelector(
+        clusterId: String?,
         namespace: String?,
         labelSelector: String,
     ): Result<List<Pod>> = Result.Success(emptyList())

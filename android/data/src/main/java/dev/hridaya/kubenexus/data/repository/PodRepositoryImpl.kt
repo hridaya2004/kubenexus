@@ -116,6 +116,19 @@ class PodRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getPodsBySelector(
+        clusterId: String?,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>> = withContext(dispatcherProvider.io) {
+        if (clusterId == null) return@withContext Result.Error(AppError.NotFound("No cluster selected"))
+        val cluster = clusterDao.getClusterById(clusterId)
+            ?: return@withContext Result.Error(AppError.NotFound("Cluster '$clusterId' not found"))
+
+        val decryptedKubeconfig = encryptor.decrypt(cluster.rawKubeconfig)
+        listPodsBySelector(decryptedKubeconfig, namespace, labelSelector)
+    }
+
     override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> {
         return withContext(dispatcherProvider.io) {
             if (clusterId == null) {

@@ -1,6 +1,11 @@
 # Gomobile compiled AAR and its sources jar (IDE doc/param attachment only)
 app/libs/kubenexus.aar
 app/libs/kubenexus-sources.jar
+data/libs/kubenexus.aar
+data/libs/kubenexus-sources.jar
+**/libs/*.aar
+**/libs/*-sources.jar
+!**/libs/.gitkeep
 
 # Ghostty JNI lib
 app/src/main/jniLibs/arm64-v8a/libghostty_jni.so

@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/yaml"
 )
 
@@ -319,6 +321,72 @@ func NamespacesResource() *GroupVersionResource {
 // EventsResource returns the identifier for core/v1 events.
 func EventsResource() *GroupVersionResource {
 	return NewGroupVersionResource("", "v1", "events")
+}
+
+// DeploymentsResource returns the identifier for apps/v1 deployments.
+func DeploymentsResource() *GroupVersionResource {
+	return NewGroupVersionResource("apps", "v1", "deployments")
+}
+
+// PatchResource applies a JSON merge patch to any object by name and returns the updated object as JSON.
+func (c *Client) PatchResource(gvr *GroupVersionResource, namespace, name, patchJSON string) (string, error) {
+	if c == nil || c.dynamic == nil {
+		return "", fmt.Errorf("client is not configured")
+	}
+	resource, err := gvr.validate()
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(name) == "" {
+		return "", fmt.Errorf("name is required")
+	}
+	if strings.TrimSpace(patchJSON) == "" {
+		return "", fmt.Errorf("patch is required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	var patched *unstructured.Unstructured
+	if namespace == "" {
+		patched, err = c.dynamic.Resource(resource).Patch(ctx, name, types.MergePatchType, []byte(patchJSON), metav1.PatchOptions{})
+	} else {
+		patched, err = c.dynamic.Resource(resource).Namespace(namespace).Patch(ctx, name, types.MergePatchType, []byte(patchJSON), metav1.PatchOptions{})
+	}
+	if err != nil {
+		return "", fmt.Errorf("patching %s %q: %w", resource.String(), name, err)
+	}
+
+	stripManagedFields(patched)
+
+	data, err := patched.MarshalJSON()
+	if err != nil {
+		return "", fmt.Errorf("marshaling patched %s %q: %w", resource.String(), name, err)
+	}
+	return string(data), nil
+}
+
+// ScaleDeployment updates the replica count for an apps/v1 Deployment in namespace.
+func (c *Client) ScaleDeployment(namespace, name string, replicas int64) error {
+	if replicas < 0 {
+		return fmt.Errorf("replicas cannot be negative")
+	}
+	patchJSON := fmt.Sprintf(`{"spec":{"replicas":%d}}`, replicas)
+	_, err := c.PatchResource(DeploymentsResource(), namespace, name, patchJSON)
+	return err
+}
+
+// RestartDeployment triggers a rolling restart for an apps/v1 Deployment by updating the kubectl.kubernetes.io/restartedAt annotation.
+func (c *Client) RestartDeployment(namespace, name string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	patchJSON := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":%q}}}}}`, now)
+	_, err := c.PatchResource(DeploymentsResource(), namespace, name, patchJSON)
+	return err
+}
+
+// DeleteDeployment deletes an apps/v1 Deployment by name in namespace.
+func (c *Client) DeleteDeployment(namespace, name string) error {
+	return c.DeleteResource(DeploymentsResource(), namespace, name, nil)
 }
 
 // EventsForJSON lists events referring to a specific object. This replaces the

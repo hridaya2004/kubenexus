@@ -13,6 +13,8 @@ data class CreateDeploymentUiState(
     val image: String = "",
     val replicas: String = DeploymentDraft.DEFAULT_REPLICAS.toString(),
     val containerPort: String = DeploymentDraft.DEFAULT_CONTAINER_PORT.toString(),
+    val serviceType: String = DeploymentDraft.SERVICE_TYPE_NONE,
+    val servicePort: String = DeploymentDraft.DEFAULT_SERVICE_PORT.toString(),
     val fieldErrors: Map<String, String> = emptyMap(),
     val availableNamespaces: List<String> = emptyList(),
     val showCreateNamespaceDialog: Boolean = false,
@@ -34,6 +36,8 @@ sealed interface CreateDeploymentUiAction {
     data class ImageChanged(val value: String) : CreateDeploymentUiAction
     data class ReplicasChanged(val value: String) : CreateDeploymentUiAction
     data class ContainerPortChanged(val value: String) : CreateDeploymentUiAction
+    data class ServiceTypeSelected(val serviceType: String) : CreateDeploymentUiAction
+    data class ServicePortChanged(val value: String) : CreateDeploymentUiAction
     data class NamespaceSelected(val namespace: String) : CreateDeploymentUiAction
     data object PreviewSubmitted : CreateDeploymentUiAction
     data object BackToFormClicked : CreateDeploymentUiAction

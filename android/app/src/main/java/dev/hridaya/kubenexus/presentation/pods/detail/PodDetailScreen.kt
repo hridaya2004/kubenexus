@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,12 +17,15 @@ import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -108,6 +112,9 @@ fun PodDetailScreen(
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
+            if (uiState.isRefreshing) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
 
             PrimaryTabRow(
                 selectedTabIndex = uiState.selectedTab.ordinal,
@@ -144,9 +151,20 @@ fun PodDetailScreen(
 
             when (uiState.selectedTab) {
                 PodDetailTab.DESCRIBE -> {
+                    val pullToRefreshState = rememberPullToRefreshState()
                     PullToRefreshBox(
                         isRefreshing = uiState.isRefreshing,
                         onRefresh = { onAction(PodDetailUiAction.RefreshDescribe) },
+                        state = pullToRefreshState,
+                        indicator = {
+                            if (!uiState.isRefreshing) {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullToRefreshState,
+                                    isRefreshing = false,
+                                    modifier = Modifier.align(Alignment.TopCenter),
+                                )
+                            }
+                        },
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         DescribeTabContent(

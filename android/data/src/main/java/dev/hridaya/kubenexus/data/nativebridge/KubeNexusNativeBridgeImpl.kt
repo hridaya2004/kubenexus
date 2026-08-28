@@ -391,6 +391,34 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             clientFor(rawKubeconfig).createResource(deploymentsResource, namespace, manifestYaml)
         }
 
+    override fun scaleDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+        replicas: Int,
+    ): Result<Unit> =
+        nativeCatching("Failed to scale deployment '$name' to $replicas replicas") {
+            clientFor(rawKubeconfig).scaleDeployment(namespace, name, replicas.toLong())
+        }
+
+    override fun restartDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<Unit> =
+        nativeCatching("Failed to restart deployment '$name'") {
+            clientFor(rawKubeconfig).restartDeployment(namespace, name)
+        }
+
+    override fun deleteDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<Unit> =
+        nativeCatching("Failed to delete deployment '$name'") {
+            clientFor(rawKubeconfig).deleteDeployment(namespace, name)
+        }
+
     override fun createPod(
         rawKubeconfig: String,
         namespace: String,

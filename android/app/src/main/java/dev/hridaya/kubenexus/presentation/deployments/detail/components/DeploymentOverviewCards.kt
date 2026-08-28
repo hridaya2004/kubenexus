@@ -17,21 +17,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.core.common.util.TimeFormatter
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 
 @Composable
 internal fun DeploymentStatusCard(
     deployment: DeploymentSummary,
+    details: DeploymentDetails? = null,
+    lastRefreshedAt: Long? = null,
     modifier: Modifier = Modifier,
 ) {
-    // Guarded against divide-by-zero: a Deployment scaled to zero replicas
-    // simply shows an empty rollout bar instead of crashing on NaN.
-    val rolloutFraction = if (deployment.desiredReplicas > 0) {
-        deployment.readyReplicas.toFloat() / deployment.desiredReplicas.toFloat()
+    val desired = details?.desiredReplicas ?: deployment.desiredReplicas
+    val ready = details?.readyReplicas ?: deployment.readyReplicas
+    val available = details?.availableReplicas ?: deployment.availableReplicas
+    val updated = details?.updatedReplicas ?: ready
+
+    val rolloutFraction = if (desired > 0) {
+        ready.toFloat() / desired.toFloat()
     } else {
         0f
     }
@@ -42,12 +50,16 @@ internal fun DeploymentStatusCard(
         modifier = modifier,
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Box(
                     modifier = Modifier
                         .size(10.dp)
@@ -89,20 +101,75 @@ internal fun DeploymentStatusCard(
                     .padding(top = 4.dp),
             )
 
-            Text(
-                text = "${deployment.readyReplicas}/${deployment.desiredReplicas} ready · " +
-                        "${deployment.availableReplicas} available",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                ReplicaStatItem(
+                    label = "Desired",
+                    count = desired,
+                    modifier = Modifier.weight(1f),
+                )
+                ReplicaStatItem(
+                    label = "Ready",
+                    count = ready,
+                    modifier = Modifier.weight(1f),
+                )
+                ReplicaStatItem(
+                    label = "Available",
+                    count = available,
+                    modifier = Modifier.weight(1f),
+                )
+                ReplicaStatItem(
+                    label = "Updated",
+                    count = updated,
+                    modifier = Modifier.weight(1f),
+                )
+            }
 
-            Text(
-                text = DateUtils.getRelativeTimeSpanString(deployment.creationTimestampMillis)
-                    .toString(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = DateUtils.getRelativeTimeSpanString(deployment.creationTimestampMillis)
+                        .toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (lastRefreshedAt != null) {
+                    Text(
+                        text = TimeFormatter.formatLastRefreshed(lastRefreshedAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun ReplicaStatItem(
+    label: String,
+    count: Int,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
+    ) {
+        Text(
+            text = "$count",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

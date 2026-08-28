@@ -3,10 +3,13 @@ package dev.hridaya.kubenexus.presentation.deployments
 import androidx.lifecycle.viewModelScope
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.domain.model.CommandExecResult
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
+import dev.hridaya.kubenexus.domain.model.TerminalSession
 import dev.hridaya.kubenexus.domain.repository.DeploymentRepository
 import dev.hridaya.kubenexus.domain.repository.PodRepository
 import dev.hridaya.kubenexus.domain.usecase.GetDeploymentsLastRefreshedUseCase
@@ -19,6 +22,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -154,16 +158,14 @@ class DeploymentsViewModelTest {
 
     @Test
     fun `refresh passes cluster and namespace through to sync`() = vmTest { viewModel ->
+        fakeRepository.syncCalls.clear()
         viewModel.onAction(DeploymentsUiAction.Refresh)
         advanceUntilIdle()
         viewModel.onAction(DeploymentsUiAction.Refresh)
         advanceUntilIdle()
 
-        // One sync from the helper's lifecycle-start equivalent plus two from
-        // the explicit actions below.
         assertEquals(
             listOf(
-                Pair<String?, String?>("c-1", "team-a"),
                 Pair<String?, String?>("c-1", "team-a"),
                 Pair<String?, String?>("c-1", "team-a"),
             ),
@@ -193,6 +195,22 @@ class DeploymentsViewModelTest {
         assertEquals(1, viewModel.uiState.value.deployments.size)
         assertEquals(beforeSyncCalls, fakeRepository.syncCalls.size)
     }
+
+    @Test
+    fun `auto fetch triggers when cache is empty on launch`() = runTest(testDispatcher) {
+        val viewModel = DeploymentsViewModel(
+            clusterId = "c-1",
+            initialNamespace = "team-a",
+            getNamespacesUseCase = GetNamespacesUseCase(InertPodRepository),
+            syncDeploymentsUseCase = SyncDeploymentsUseCase(fakeRepository),
+            getDeploymentsStreamUseCase = GetDeploymentsStreamUseCase(fakeRepository),
+            getDeploymentsLastRefreshedUseCase = GetDeploymentsLastRefreshedUseCase(fakeRepository),
+        )
+        advanceUntilIdle()
+        assertTrue(fakeRepository.syncCalls.isNotEmpty())
+        assertEquals(Pair<String?, String?>("c-1", "team-a"), fakeRepository.syncCalls.first())
+        viewModel.viewModelScope.cancel()
+    }
 }
 
 private class FakeDeploymentsRepository : DeploymentRepository {
@@ -214,7 +232,7 @@ private class FakeDeploymentsRepository : DeploymentRepository {
     }
 
     override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
-        return kotlinx.coroutines.flow.flowOf(null)
+        return flowOf(null)
     }
 
     override suspend fun syncDeployments(
@@ -234,7 +252,7 @@ private class FakeDeploymentsRepository : DeploymentRepository {
         clusterId: String?,
         namespace: String,
         name: String,
-    ): Result<dev.hridaya.kubenexus.domain.model.DeploymentDetails> =
+    ): Result<DeploymentDetails> =
         Result.Error(AppError.NotFound("Not exercised in this test"))
 
     override suspend fun createFromManifest(
@@ -243,26 +261,48 @@ private class FakeDeploymentsRepository : DeploymentRepository {
     ): Result<Unit> {
         throw UnsupportedOperationException("not used in this test")
     }
+
+    override suspend fun scaleDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+        replicas: Int,
+    ): Result<Unit> = Result.Success(Unit)
+
+    override suspend fun restartDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = Result.Success(Unit)
+
+    override suspend fun deleteDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = Result.Success(Unit)
 }
 
-/**
- * The view model only consumes namespace options from the pods repository;
- * every other member stays inert so accidental use fails loudly.
- */
 private object InertPodRepository : PodRepository {
     override fun getPodsStream(clusterId: String?, namespace: String?): Flow<List<Pod>> =
         emptyFlow()
 
     override fun getNamespacesStream(clusterId: String?): Flow<List<String>> = emptyFlow()
-    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = emptyFlow()
-    override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> =
-        Result.Success(Unit)
-
     override suspend fun listPodsBySelector(
         rawKubeconfig: String,
         namespace: String?,
         labelSelector: String,
     ): Result<List<Pod>> = Result.Success(emptyList())
+
+    override suspend fun getPodsBySelector(
+        clusterId: String?,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>> = Result.Success(emptyList())
+
+    override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> = emptyFlow()
+
+    override suspend fun refreshWorkloads(clusterId: String?, namespace: String?): Result<Unit> =
+        Result.Success(Unit)
 
     override suspend fun describePod(
         clusterId: String?,
@@ -279,14 +319,13 @@ private object InertPodRepository : PodRepository {
         clusterId: String?,
         namespace: String,
         podName: String,
-    ): Result<PodMetricSample?> = Result.Error(AppError.NotFound("inert"))
+    ): Result<PodMetricSample?> = Result.Success(null)
 
     override suspend fun deletePod(
         clusterId: String?,
         namespace: String,
-        podName: String
-    ): Result<Unit> =
-        Result.Success(Unit)
+        podName: String,
+    ): Result<Unit> = Result.Success(Unit)
 
     override suspend fun deleteNamespace(clusterId: String?, namespace: String): Result<Unit> =
         Result.Success(Unit)
@@ -296,9 +335,8 @@ private object InertPodRepository : PodRepository {
 
     override suspend fun createPodFromManifest(
         clusterId: String?,
-        manifestYaml: String
-    ): Result<Unit> =
-        Result.Success(Unit)
+        manifestYaml: String,
+    ): Result<Unit> = Result.Success(Unit)
 
     override suspend fun getPodLogs(
         clusterId: String?,
@@ -323,7 +361,7 @@ private object InertPodRepository : PodRepository {
         containerName: String,
         command: String,
         stdin: String,
-    ): Result<dev.hridaya.kubenexus.domain.model.CommandExecResult> =
+    ): Result<CommandExecResult> =
         Result.Error(AppError.NotFound("inert"))
 
     override suspend fun startTerminalSession(
@@ -335,7 +373,7 @@ private object InertPodRepository : PodRepository {
         onStderr: (String) -> Unit,
         onError: (String) -> Unit,
         onDone: () -> Unit,
-    ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
+    ): Result<TerminalSession> =
         Result.Error(AppError.NotFound("inert"))
 
     override suspend fun startExecSession(
@@ -349,6 +387,6 @@ private object InertPodRepository : PodRepository {
         onStderr: (String) -> Unit,
         onError: (String) -> Unit,
         onDone: () -> Unit,
-    ): Result<dev.hridaya.kubenexus.domain.model.TerminalSession> =
+    ): Result<TerminalSession> =
         Result.Error(AppError.NotFound("inert"))
 }

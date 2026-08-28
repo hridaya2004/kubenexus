@@ -12,6 +12,7 @@ import dev.hridaya.kubenexus.data.source.local.entity.ClusterEntity
 import dev.hridaya.kubenexus.data.source.local.entity.NamespaceEntity
 import dev.hridaya.kubenexus.data.source.local.entity.PodEntity
 import dev.hridaya.kubenexus.data.source.local.entity.SyncMetadataEntity
+import dev.hridaya.kubenexus.domain.model.Pod
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -171,6 +172,24 @@ class PodRepositoryImplTest {
             assertEquals("connection reset by peer", error.message)
         }
 
+    @Test
+    fun `getPodsBySelector decrypts kubeconfig and passes selector to bridge`() =
+        runTest(testDispatcher) {
+            seedCluster(id = "c-1", rawKubeconfig = encryptor.encrypt(sampleKubeconfig))
+            recordingBridge.listPodsResultToReturn = Result.Success(emptyList())
+
+            val result = repository.getPodsBySelector(
+                clusterId = "c-1",
+                namespace = "web",
+                labelSelector = "app=nginx",
+            )
+
+            assertTrue(result is Result.Success)
+            assertEquals(sampleKubeconfig, recordingBridge.capturedListPodsKubeconfig)
+            assertEquals("web", recordingBridge.capturedListPodsNamespace)
+            assertEquals("app=nginx", recordingBridge.capturedListPodsSelector)
+        }
+
     private fun seedCluster(id: String, rawKubeconfig: String) {
         fakeDao.clusters[id] = ClusterEntity(
             id = id,
@@ -195,9 +214,26 @@ class PodRepositoryImplTest {
         var capturedKubeconfig: String? = null
         var capturedNamespace: String? = null
         var capturedManifest: String? = null
-
         var resultToReturn: Result<String>? = null
         var errorToThrow: Throwable? = null
+
+        var capturedListPodsKubeconfig: String? = null
+        var capturedListPodsNamespace: String? = null
+        var capturedListPodsSelector: String? = null
+        var listPodsResultToReturn: Result<List<Pod>>? = null
+
+        override fun listPods(
+            rawKubeconfig: String,
+            namespace: String?,
+            labelSelector: String,
+            limit: Long,
+        ): Result<List<Pod>> {
+            capturedListPodsKubeconfig = rawKubeconfig
+            capturedListPodsNamespace = namespace
+            capturedListPodsSelector = labelSelector
+            errorToThrow?.let { throw it }
+            return listPodsResultToReturn ?: Result.Success(emptyList())
+        }
 
         override fun createPod(
             rawKubeconfig: String,

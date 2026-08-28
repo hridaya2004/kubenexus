@@ -5,6 +5,8 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.domain.model.CommandExecResult
+import dev.hridaya.kubenexus.domain.model.DeploymentDetails
+import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.domain.model.Pod
 import dev.hridaya.kubenexus.domain.model.PodDetails
 import dev.hridaya.kubenexus.domain.model.PodMetricSample
@@ -242,9 +244,28 @@ class CreateDeploymentViewModelTest {
         assertEquals("team-a", state.namespace)
         assertFalse(state.isSubmitting)
         assertEquals(
-            "Couldn't create the deployment. Please try again in a moment.",
+            "forbidden: deployments is forbidden",
             state.errorMessage,
         )
+    }
+
+    @Test
+    fun `service selection and port are included in preview yaml`() = vmTest { viewModel ->
+        fillValidForm(viewModel)
+        viewModel.onAction(CreateDeploymentUiAction.ServiceTypeSelected("NodePort"))
+        viewModel.onAction(CreateDeploymentUiAction.ServicePortChanged("9090"))
+
+        viewModel.onAction(CreateDeploymentUiAction.PreviewSubmitted)
+
+        val state = viewModel.uiState.value
+        assertEquals(CreateDeploymentStep.REVIEW, state.step)
+        assertNotNull(state.generatedYaml)
+        val yaml = state.generatedYaml!!.replace("'", "")
+        assertTrue(yaml.contains("kind: Deployment"))
+        assertTrue(yaml.contains("kind: Service"))
+        assertTrue(yaml.contains("type: NodePort"))
+        assertTrue(yaml.contains("port: 9090"))
+        assertTrue(yaml.contains("targetPort: 8080"))
     }
 
     @Test
@@ -326,19 +347,19 @@ private class FakeDeploymentRepository : DeploymentRepository {
     override suspend fun getDeployments(
         clusterId: String?,
         namespace: String?,
-    ): Result<List<dev.hridaya.kubenexus.domain.model.DeploymentSummary>> {
+    ): Result<List<DeploymentSummary>> {
         return Result.Success(emptyList())
     }
 
     override fun getDeploymentsStream(
         clusterId: String?,
         namespace: String?,
-    ): Flow<List<dev.hridaya.kubenexus.domain.model.DeploymentSummary>> {
-        return kotlinx.coroutines.flow.flowOf(emptyList())
+    ): Flow<List<DeploymentSummary>> {
+        return flowOf(emptyList())
     }
 
     override fun getLastRefreshedStream(clusterId: String?): Flow<Long?> {
-        return kotlinx.coroutines.flow.flowOf(null)
+        return flowOf(null)
     }
 
     override suspend fun syncDeployments(
@@ -352,9 +373,28 @@ private class FakeDeploymentRepository : DeploymentRepository {
         clusterId: String?,
         namespace: String,
         name: String,
-    ): Result<dev.hridaya.kubenexus.domain.model.DeploymentDetails> {
+    ): Result<DeploymentDetails> {
         return Result.Error(AppError.NotFound("Not exercised in this test"))
     }
+
+    override suspend fun scaleDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+        replicas: Int,
+    ): Result<Unit> = Result.Success(Unit)
+
+    override suspend fun restartDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = Result.Success(Unit)
+
+    override suspend fun deleteDeployment(
+        clusterId: String?,
+        namespace: String,
+        name: String,
+    ): Result<Unit> = Result.Success(Unit)
 }
 
 /** Only [createNamespace] is exercised here; everything else is inert. */
@@ -370,6 +410,12 @@ private class FakePodRepository : PodRepository {
 
     override suspend fun listPodsBySelector(
         rawKubeconfig: String,
+        namespace: String?,
+        labelSelector: String,
+    ): Result<List<Pod>> = Result.Success(emptyList())
+
+    override suspend fun getPodsBySelector(
+        clusterId: String?,
         namespace: String?,
         labelSelector: String,
     ): Result<List<Pod>> = Result.Success(emptyList())

@@ -188,7 +188,8 @@ class CreateServiceViewModel @AssistedInject constructor(
                 }
 
                 is Result.Error -> _uiState.update {
-                    it.copy(isSubmitting = false, errorMessage = APPLY_ERROR_MESSAGE)
+                    val errorMsg = result.error.message.takeIf { msg -> msg.isNotBlank() } ?: APPLY_ERROR_MESSAGE
+                    it.copy(isSubmitting = false, errorMessage = errorMsg)
                 }
 
                 is Result.Loading -> Unit

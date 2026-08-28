@@ -170,6 +170,34 @@ interface KubeNexusNativeBridge {
     ): Result<String>
 
     /**
+     * Scales an apps/v1 Deployment to [replicas] count.
+     */
+    fun scaleDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+        replicas: Int,
+    ): Result<Unit>
+
+    /**
+     * Triggers a rolling restart for an apps/v1 Deployment by updating the restartedAt annotation.
+     */
+    fun restartDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<Unit>
+
+    /**
+     * Deletes an apps/v1 Deployment by name in [namespace].
+     */
+    fun deleteDeployment(
+        rawKubeconfig: String,
+        namespace: String,
+        name: String,
+    ): Result<Unit>
+
+    /**
      * Creates a new v1 Pod by applying [manifestYaml] (YAML or JSON) and
      * returns the created object verbatim as JSON.
      *

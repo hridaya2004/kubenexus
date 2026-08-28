@@ -33,6 +33,9 @@ interface DeploymentDao {
     @Query("DELETE FROM deployments WHERE id IN (:ids)")
     suspend fun deleteDeploymentsByIds(ids: List<String>)
 
+    @Query("DELETE FROM deployments WHERE clusterId = :clusterId AND namespace = :namespace AND name = :name")
+    suspend fun deleteDeployment(clusterId: String, namespace: String, name: String)
+
     /**
      * Replaces the cached set for [namespace] (or the whole cluster when null)
      * in one transaction: rows the live list no longer contains are deleted,

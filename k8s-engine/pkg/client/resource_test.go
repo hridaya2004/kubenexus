@@ -304,3 +304,35 @@ func TestEventsForJSON_RequiresInvolvedObject(t *testing.T) {
 		t.Error("EventsForJSON() with empty name expected error, got nil")
 	}
 }
+
+func TestDeploymentsResource(t *testing.T) {
+	gvr := DeploymentsResource()
+	if gvr.Group != "apps" || gvr.Version != "v1" || gvr.Resource != "deployments" {
+		t.Errorf("DeploymentsResource() = %+v, want apps/v1/deployments", gvr)
+	}
+}
+
+func TestDeploymentMethods_UnconfiguredClient(t *testing.T) {
+	c := &Client{timeout: defaultTimeout}
+
+	if _, err := c.PatchResource(DeploymentsResource(), "default", "nginx", "{}"); err == nil {
+		t.Error("PatchResource() on unconfigured client expected error, got nil")
+	}
+	if err := c.ScaleDeployment("default", "nginx", 3); err == nil {
+		t.Error("ScaleDeployment() on unconfigured client expected error, got nil")
+	}
+	if err := c.RestartDeployment("default", "nginx"); err == nil {
+		t.Error("RestartDeployment() on unconfigured client expected error, got nil")
+	}
+	if err := c.DeleteDeployment("default", "nginx"); err == nil {
+		t.Error("DeleteDeployment() on unconfigured client expected error, got nil")
+	}
+}
+
+func TestScaleDeployment_NegativeReplicas(t *testing.T) {
+	c := &Client{timeout: defaultTimeout}
+	if err := c.ScaleDeployment("default", "nginx", -1); err == nil {
+		t.Error("ScaleDeployment() with negative replicas expected error, got nil")
+	}
+}
+

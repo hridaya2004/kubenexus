@@ -12,6 +12,8 @@ class DeploymentDraftTest {
         image = "nginx:1.27",
         replicas = 2,
         containerPort = 8080,
+        serviceType = "None",
+        servicePort = 80,
     )
 
     @Test
@@ -93,5 +95,25 @@ class DeploymentDraftTest {
             emptyMap<String, String>(),
             validDraft().copy(containerPort = 65535).validate(),
         )
+    }
+
+    @Test
+    fun `serviceType must be one of the supported types`() {
+        assertTrue(validDraft().copy(serviceType = "InvalidType").validate().containsKey("serviceType"))
+        assertTrue(validDraft().copy(serviceType = "None").validate().isEmpty())
+        assertTrue(validDraft().copy(serviceType = "ClusterIP").validate().isEmpty())
+        assertTrue(validDraft().copy(serviceType = "NodePort").validate().isEmpty())
+    }
+
+    @Test
+    fun `servicePort must be a valid port when service is enabled`() {
+        val invalidPort = validDraft().copy(serviceType = "ClusterIP", servicePort = 0).validate()
+        assertTrue(invalidPort.containsKey("servicePort"))
+
+        val validPort = validDraft().copy(serviceType = "ClusterIP", servicePort = 80).validate()
+        assertTrue(validPort.isEmpty())
+
+        val noneTypeWithZeroPort = validDraft().copy(serviceType = "None", servicePort = 0).validate()
+        assertTrue(noneTypeWithZeroPort.isEmpty())
     }
 }

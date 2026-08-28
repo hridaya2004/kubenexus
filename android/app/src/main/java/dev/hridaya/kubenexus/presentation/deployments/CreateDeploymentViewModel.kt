@@ -66,6 +66,8 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             is CreateDeploymentUiAction.ImageChanged -> reduceField { it.copy(image = action.value) }
             is CreateDeploymentUiAction.ReplicasChanged -> reduceField { it.copy(replicas = action.value) }
             is CreateDeploymentUiAction.ContainerPortChanged -> reduceField { it.copy(containerPort = action.value) }
+            is CreateDeploymentUiAction.ServiceTypeSelected -> reduceField { it.copy(serviceType = action.serviceType) }
+            is CreateDeploymentUiAction.ServicePortChanged -> reduceField { it.copy(servicePort = action.value) }
             is CreateDeploymentUiAction.NamespaceSelected -> reduceField { it.copy(namespace = action.namespace) }
 
             is CreateDeploymentUiAction.PreviewSubmitted -> previewYaml()
@@ -152,7 +154,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             }
 
             is Result.Error -> _uiState.update {
-                it.copy(errorMessage = PREVIEW_ERROR_MESSAGE)
+                it.copy(errorMessage = result.error.message.takeIf { msg -> msg.isNotBlank() } ?: PREVIEW_ERROR_MESSAGE)
             }
 
             is Result.Loading -> Unit
@@ -187,7 +189,8 @@ class CreateDeploymentViewModel @AssistedInject constructor(
                 }
 
                 is Result.Error -> _uiState.update {
-                    it.copy(isSubmitting = false, errorMessage = APPLY_ERROR_MESSAGE)
+                    val errorMsg = result.error.message.takeIf { msg -> msg.isNotBlank() } ?: APPLY_ERROR_MESSAGE
+                    it.copy(isSubmitting = false, errorMessage = errorMsg)
                 }
 
                 is Result.Loading -> Unit
@@ -206,7 +209,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
 
         _uiState.update { it.copy(isCreatingNamespace = true, newNamespaceError = null) }
         viewModelScope.launch(dispatcherProvider.io) {
-            when (createNamespaceUseCase(clusterId, name)) {
+            when (val result = createNamespaceUseCase(clusterId, name)) {
                 is Result.Success -> {
                     // Append without refetching and land the draft in the new namespace.
                     _uiState.update { current ->
@@ -228,7 +231,7 @@ class CreateDeploymentViewModel @AssistedInject constructor(
                 is Result.Error -> _uiState.update {
                     it.copy(
                         isCreatingNamespace = false,
-                        newNamespaceError = NAMESPACE_ERROR_MESSAGE
+                        newNamespaceError = NAMESPACE_ERROR_MESSAGE,
                     )
                 }
 
@@ -257,12 +260,15 @@ class CreateDeploymentViewModel @AssistedInject constructor(
     ): Pair<DeploymentDraft, Map<String, String>> {
         val parsedReplicas = state.replicas.trim().toIntOrNull()
         val parsedContainerPort = state.containerPort.trim().toIntOrNull()
+        val parsedServicePort = state.servicePort.trim().toIntOrNull()
         val draft = DeploymentDraft(
             name = state.name,
             namespace = state.namespace,
             image = state.image,
             replicas = parsedReplicas ?: DeploymentDraft.DEFAULT_REPLICAS,
             containerPort = parsedContainerPort ?: DeploymentDraft.DEFAULT_CONTAINER_PORT,
+            serviceType = state.serviceType,
+            servicePort = parsedServicePort ?: DeploymentDraft.DEFAULT_SERVICE_PORT,
         )
         val allErrors = buildMap {
             if (state.replicas.isNotBlank() && parsedReplicas == null) {
@@ -270,6 +276,9 @@ class CreateDeploymentViewModel @AssistedInject constructor(
             }
             if (state.containerPort.isNotBlank() && parsedContainerPort == null) {
                 put("containerPort", "Port must be a whole number")
+            }
+            if (state.serviceType != DeploymentDraft.SERVICE_TYPE_NONE && state.servicePort.isNotBlank() && parsedServicePort == null) {
+                put("servicePort", "Service port must be a whole number")
             }
             putAll(draft.validate())
         }

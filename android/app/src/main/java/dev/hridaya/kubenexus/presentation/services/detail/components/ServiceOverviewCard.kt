@@ -25,8 +25,8 @@ import dev.hridaya.kubenexus.domain.model.ServiceDetails
 @Composable
 internal fun ServiceOverviewCard(
     service: ServiceDetails,
-    lastRefreshedAt: Long? = null,
     modifier: Modifier = Modifier,
+    lastRefreshedAt: Long? = null,
 ) {
     Card(
         shape = MaterialTheme.shapes.medium,

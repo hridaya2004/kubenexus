@@ -101,6 +101,7 @@ internal fun DeploymentPodsSection(
                     pods.forEach { pod ->
                         PodCard(
                             pod = pod,
+                            showNamespace = false,
                             onClick = { onPodClick(pod) },
                         )
                     }

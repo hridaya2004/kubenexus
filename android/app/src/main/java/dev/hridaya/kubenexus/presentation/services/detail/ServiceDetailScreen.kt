@@ -242,9 +242,9 @@ fun ServiceDetailScreen(
 @Composable
 private fun ServiceDetailContent(
     service: ServiceDetails,
-    lastRefreshedAt: Long? = null,
     onPortForwardClick: () -> Unit,
     modifier: Modifier = Modifier,
+    lastRefreshedAt: Long? = null,
 ) {
     Column(
         modifier = modifier

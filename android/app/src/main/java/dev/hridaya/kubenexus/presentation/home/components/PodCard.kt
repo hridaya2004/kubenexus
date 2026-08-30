@@ -35,7 +35,12 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 
 @Composable
-fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun PodCard(
+    pod: Pod,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    showNamespace: Boolean = true,
+) {
     val statusColors = LocalStatusColors.current
     Card(
         modifier = modifier
@@ -81,19 +86,21 @@ fun PodCard(pod: Pod, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                if (showNamespace) {
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                Surface(
-                    shape = MaterialTheme.shapes.extraSmall,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ) {
-                    Text(
-                        text = pod.namespace,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ) {
+                        Text(
+                            text = pod.namespace,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
                 }
             }
 

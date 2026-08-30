@@ -30,6 +30,7 @@ import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 internal fun DeploymentCard(
     deployment: DeploymentSummary,
     modifier: Modifier = Modifier,
+    showNamespace: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     Card(
@@ -69,8 +70,10 @@ internal fun DeploymentCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                NamespaceChip(namespace = deployment.namespace)
+                if (showNamespace) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    NamespaceChip(namespace = deployment.namespace)
+                }
             }
 
             Text(

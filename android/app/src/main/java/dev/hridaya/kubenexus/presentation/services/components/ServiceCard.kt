@@ -27,6 +27,7 @@ import dev.hridaya.kubenexus.domain.model.ServiceSummary
 internal fun ServiceCard(
     service: ServiceSummary,
     modifier: Modifier = Modifier,
+    showNamespace: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     Card(
@@ -55,8 +56,10 @@ internal fun ServiceCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 ServiceTypeBadge(type = service.type)
-                Spacer(modifier = Modifier.width(8.dp))
-                NamespaceChip(namespace = service.namespace)
+                if (showNamespace) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    NamespaceChip(namespace = service.namespace)
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

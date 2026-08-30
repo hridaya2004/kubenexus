@@ -29,9 +29,9 @@ import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 @Composable
 internal fun DeploymentStatusCard(
     deployment: DeploymentSummary,
+    modifier: Modifier = Modifier,
     details: DeploymentDetails? = null,
     lastRefreshedAt: Long? = null,
-    modifier: Modifier = Modifier,
 ) {
     val desired = details?.desiredReplicas ?: deployment.desiredReplicas
     val ready = details?.readyReplicas ?: deployment.readyReplicas

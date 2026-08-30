@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.ui.theme
 
+import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.DeviceFontFamilyName
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -147,3 +148,23 @@ val LabelSmallFamily = createDeviceFontFamily(
 )
 
 val GoogleSansFlex = TitleLargeEmphasized
+
+val AppTypography = Typography().let { base ->
+    Typography(
+        displayLarge = base.displayLarge.copy(fontFamily = DisplayLargeFamily),
+        displayMedium = base.displayMedium.copy(fontFamily = DisplayMediumFamily),
+        displaySmall = base.displaySmall.copy(fontFamily = DisplaySmallFamily),
+        headlineLarge = base.headlineLarge.copy(fontFamily = HeadlineLargeFamily),
+        headlineMedium = base.headlineMedium.copy(fontFamily = HeadlineMediumFamily),
+        headlineSmall = base.headlineSmall.copy(fontFamily = HeadlineSmallFamily),
+        titleLarge = base.titleLarge.copy(fontFamily = TitleLargeEmphasized),
+        titleMedium = base.titleMedium.copy(fontFamily = TitleMediumFamily),
+        titleSmall = base.titleSmall.copy(fontFamily = TitleSmallFamily),
+        bodyLarge = base.bodyLarge.copy(fontFamily = BodyLargeFamily),
+        bodyMedium = base.bodyMedium.copy(fontFamily = BodyMediumFamily),
+        bodySmall = base.bodySmall.copy(fontFamily = BodySmallFamily),
+        labelLarge = base.labelLarge.copy(fontFamily = LabelLargeFamily),
+        labelMedium = base.labelMedium.copy(fontFamily = LabelMediumFamily),
+        labelSmall = base.labelSmall.copy(fontFamily = LabelSmallFamily),
+    )
+}

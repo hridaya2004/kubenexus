@@ -60,7 +60,7 @@ jobs:
           path: |
             ~/go/bin/gomobile
             ~/go/bin/gobind
-          key: gomobile-${{ runner.os }}-${{ steps.setup-go.outputs.go-version }}
+          key: gomobile-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
 
       - name: Install gomobile
         if: steps.cache-gomobile.outputs.cache-hit != 'true'

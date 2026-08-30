@@ -153,6 +153,10 @@ fun PodsScreen(
                     }
 
                     else -> {
+                        val isAllNamespaces = remember(uiState.selectedNamespace) {
+                            uiState.selectedNamespace.equals("All Namespaces", ignoreCase = true) ||
+                                uiState.selectedNamespace.isBlank()
+                        }
                         LazyColumn(
                             contentPadding = PaddingValues(
                                 start = 16.dp,
@@ -166,6 +170,7 @@ fun PodsScreen(
                             items(filteredPods, key = { it.id }) { pod ->
                                 PodCard(
                                     pod = pod,
+                                    showNamespace = isAllNamespaces,
                                     onClick = { onNavigateToPodDetail(pod) },
                                 )
                             }

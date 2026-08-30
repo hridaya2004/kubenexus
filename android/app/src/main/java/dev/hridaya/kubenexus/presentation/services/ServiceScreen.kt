@@ -196,6 +196,10 @@ fun ServicesScreen(
                     }
 
                     else -> {
+                        val isAllNamespaces = remember(uiState.selectedNamespace) {
+                            uiState.selectedNamespace.equals(ALL_NAMESPACES_FILTER, ignoreCase = true) ||
+                                uiState.selectedNamespace.isBlank()
+                        }
                         LazyColumn(
                             contentPadding = PaddingValues(
                                 start = 16.dp,
@@ -209,6 +213,7 @@ fun ServicesScreen(
                             items(filteredServices, key = { it.id }) { service ->
                                 ServiceCard(
                                     service = service,
+                                    showNamespace = isAllNamespaces,
                                     onClick = { onServiceClick(service) },
                                 )
                             }

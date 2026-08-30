@@ -192,6 +192,10 @@ fun DeploymentsScreen(
                     }
 
                     else -> {
+                        val isAllNamespaces = remember(uiState.selectedNamespace) {
+                            uiState.selectedNamespace.equals(ALL_NAMESPACES_FILTER, ignoreCase = true) ||
+                                uiState.selectedNamespace.isBlank()
+                        }
                         LazyColumn(
                             contentPadding = PaddingValues(
                                 start = 16.dp,
@@ -205,6 +209,7 @@ fun DeploymentsScreen(
                             items(filteredDeployments, key = { it.id }) { deployment ->
                                 DeploymentCard(
                                     deployment = deployment,
+                                    showNamespace = isAllNamespaces,
                                     onClick = { onDeploymentClick(deployment) },
                                 )
                             }

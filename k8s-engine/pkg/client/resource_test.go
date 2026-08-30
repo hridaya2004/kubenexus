@@ -335,4 +335,3 @@ func TestScaleDeployment_NegativeReplicas(t *testing.T) {
 		t.Error("ScaleDeployment() with negative replicas expected error, got nil")
 	}
 }
-

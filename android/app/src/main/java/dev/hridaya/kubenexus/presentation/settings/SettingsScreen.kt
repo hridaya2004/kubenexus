@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DataObject
 import androidx.compose.material.icons.outlined.Hub
@@ -39,6 +38,7 @@ import dev.hridaya.kubenexus.presentation.settings.components.ModuleInfo
 import dev.hridaya.kubenexus.presentation.settings.components.ModulesCard
 import dev.hridaya.kubenexus.presentation.settings.components.PreferenceNavigationCard
 import dev.hridaya.kubenexus.presentation.settings.components.PreferenceSwitchCard
+import dev.hridaya.kubenexus.presentation.common.Github
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalAmoledDark
 import dev.hridaya.kubenexus.ui.theme.LocalOnAmoledDarkChange
@@ -137,19 +137,6 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "About",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                )
-            }
-
-            item {
-                AboutCard(versionName = BuildConfig.VERSION_NAME)
-            }
-
-            item {
-                Text(
                     text = "Modules & Versions",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
@@ -195,10 +182,23 @@ fun SettingsScreen(
             }
 
             item {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "About",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+
+            item {
+                AboutCard(versionName = BuildConfig.VERSION_NAME)
+            }
+
+            item {
                 PreferenceNavigationCard(
-                    icon = Icons.Outlined.Code,
+                    icon = Github,
                     title = "GitHub",
-                    subtitle = "https://github.com/hridaya2004/kubenexus",
                     onClick = {
                         val intent = Intent(
                             Intent.ACTION_VIEW,

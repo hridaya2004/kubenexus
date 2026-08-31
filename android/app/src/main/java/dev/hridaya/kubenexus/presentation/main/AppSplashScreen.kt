@@ -1,5 +1,6 @@
 package dev.hridaya.kubenexus.presentation.main
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -16,8 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.presentation.common.KubeNexusLogo
 
 /**
  * Shown while the initial pods + namespaces sync runs, so the first frame the
@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun AppSplashScreen(
-    logo: ImageVector,
+    logo: ImageVector = KubeNexusLogo,
     modifier: Modifier = Modifier,
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
@@ -34,21 +34,21 @@ fun AppSplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Icon(
+                Image(
                     imageVector = logo,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(64.dp),
+                    contentDescription = "KubeNexus Logo",
+                    modifier = Modifier.size(150.dp),
                 )
-                Spacer(Modifier.height(16.dp))
                 Text(
                     text = "KubeNexus",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Spacer(Modifier.height(24.dp))
-                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                CircularProgressIndicator(
+                    modifier = Modifier.size(36.dp),
+                    strokeWidth = 3.5.dp,
+                )
             }
         }
     }

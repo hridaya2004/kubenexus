@@ -8,10 +8,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.animation.Crossfade
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import dev.hridaya.kubenexus.presentation.common.KubeNexusLogo
+import kotlinx.coroutines.delay
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -76,13 +81,26 @@ class MainActivity : ComponentActivity() {
                     themeMode = themeMode,
                     amoledDark = amoledDark,
                 ) {
+                    var isMinSplashDurationElapsed by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) {
+                        delay(3000L)
+                        isMinSplashDurationElapsed = true
+                    }
+
                     val homeState by viewModel.uiState.collectAsStateWithLifecycle()
-                    if (homeState.isLoading) {
-                        AppSplashScreen(logo = Icons.Outlined.Dns)
-                    } else {
-                        MainScreen(
-                            homeViewModel = viewModel,
-                        )
+                    val showSplash = homeState.isLoading || !isMinSplashDurationElapsed
+
+                    Crossfade(
+                        targetState = showSplash,
+                        label = "SplashScreenTransition",
+                    ) { isSplash ->
+                        if (isSplash) {
+                            AppSplashScreen(logo = KubeNexusLogo)
+                        } else {
+                            MainScreen(
+                                homeViewModel = viewModel,
+                            )
+                        }
                     }
                 }
             }

@@ -2,21 +2,66 @@ const std = @import("std");
 const builtin = @import("builtin");
 const ndk = @import("src/ndk.zig");
 
-const default_build_targets: []const std.Target.Query = &.{
-    .{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .android, .android_api_level = 35 },
-};
+fn parseMinSdk(src: []const u8) ?u32 {
+    const needle = "minSdk";
+    var i: usize = 0;
+    while (std.mem.indexOfPos(u8, src, i, needle)) |pos| {
+        var j = pos + needle.len;
+        while (j < src.len and (src[j] == ' ' or src[j] == '\t' or src[j] == '=')) : (j += 1) {}
+        const start = j;
+        while (j < src.len and src[j] >= '0' and src[j] <= '9') : (j += 1) {}
+        if (j > start) {
+            if (std.fmt.parseInt(u32, src[start..j], 10)) |v| return v else |_| {}
+        }
+        i = pos + needle.len;
+    }
+    return null;
+}
+
+fn resolveAndroidApiLevel(b: *std.Build) u32 {
+    if (b.option(u32, "android-api", "Android API level (defaults to $ANDROID_API_LEVEL, $ANDROID_MIN_SDK, or gradle minSdk)")) |v| return v;
+    if (b.graph.environ_map.get("ANDROID_API_LEVEL")) |s| {
+        return std.fmt.parseInt(u32, std.mem.trim(u8, s, " \t\r\n"), 10) catch @panic("invalid ANDROID_API_LEVEL: expected integer");
+    }
+    if (b.graph.environ_map.get("ANDROID_MIN_SDK")) |s| {
+        return std.fmt.parseInt(u32, std.mem.trim(u8, s, " \t\r\n"), 10) catch @panic("invalid ANDROID_MIN_SDK: expected integer");
+    }
+    if (readGradleMinSdk(b)) |v| return v;
+    std.debug.panic("cannot determine Android API level: pass -Dandroid-api, set ANDROID_API_LEVEL, or ensure android/app/build.gradle.kts contains `minSdk = <n>`", .{});
+}
+
+fn readGradleMinSdk(b: *std.Build) ?u32 {
+    const root = b.build_root.path orelse ".";
+    const candidates: []const []const u8 = &.{
+        b.pathResolve(&.{ root, "../android/app/build.gradle.kts" }),
+        b.pathResolve(&.{ root, "android/app/build.gradle.kts" }),
+        "../android/app/build.gradle.kts",
+        "android/app/build.gradle.kts",
+    };
+    for (candidates) |path| {
+        const content = std.Io.Dir.cwd().readFileAlloc(b.graph.io, path, b.allocator, .limited(1 << 20)) catch continue;
+        defer b.allocator.free(content);
+        if (parseMinSdk(content)) |v| return v;
+    }
+    return null;
+}
 
 fn resolveBuildTargets(b: *std.Build) []const std.Target.Query {
+    const default_api = resolveAndroidApiLevel(b);
     const maybe_target = b.option(
         []const u8,
         "target",
-        "Android target triple (default: all supported ABIs)",
-    ) orelse return default_build_targets;
+        "Android target triple (default: arm64-v8a at gradle minSdk)",
+    ) orelse {
+        const targets = b.allocator.alloc(std.Target.Query, 1) catch @panic("OOM");
+        targets[0] = .{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .android, .android_api_level = default_api };
+        return targets;
+    };
 
     var query = std.Target.Query.parse(.{ .arch_os_abi = maybe_target }) catch |err| {
         std.debug.panic("invalid -Dtarget '{s}': {s}", .{ maybe_target, @errorName(err) });
     };
-    if (query.android_api_level == null) query.android_api_level = 24;
+    if (query.android_api_level == null) query.android_api_level = default_api;
 
     const targets = b.allocator.alloc(std.Target.Query, 1) catch @panic("OOM");
     targets[0] = query;

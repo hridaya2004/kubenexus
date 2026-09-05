@@ -124,6 +124,16 @@ fn buildNativeLibrary(
     root_module.addIncludePath(.{ .cwd_relative = target_include_dir });
 
     const api_dir = b.fmt("{d}", .{android_api_version});
+    // Recent NDK headers require __ANDROID_MIN_SDK_VERSION__ (Zig's
+    // translate-c uses an unversioned triple and doesn't define it) and use
+    // `[_Nullable N]` annotations that Zig's translate-c cannot parse, so
+    // provide/neutralize them for all C code in this module. Values derive
+    // from the resolved target, never from hardcoded versions.
+    root_module.addCMacro("__ANDROID_MIN_SDK_VERSION__", api_dir);
+    root_module.addCMacro("_Nullable", "");
+    root_module.addCMacro("_Nonnull", "");
+    root_module.addCMacro("_Null_unspecified", "");
+
     const lib_dir = b.pathJoin(&.{ ndk_sysroot, "usr", "lib", android_target, api_dir });
     root_module.addLibraryPath(.{ .cwd_relative = lib_dir });
     root_module.linkSystemLibrary("log", .{});

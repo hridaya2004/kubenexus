@@ -85,25 +85,45 @@ fn ndkPrebuiltTag() []const u8 {
     return std.fmt.comptimePrint("{s}-{s}", .{ os_part, arch_part });
 }
 
+fn isNdkDir(b: *std.Build, candidate: []const u8) bool {
+    const toolchains_path = b.pathJoin(&.{ candidate, "toolchains", "llvm" });
+    if (std.Io.Dir.openDirAbsolute(b.graph.io, toolchains_path, .{})) |dir| {
+        dir.close(b.graph.io);
+        return true;
+    } else |_| return false;
+}
+
+fn findLatestNdk(b: *std.Build, ndk_dir: []const u8) ?[]const u8 {
+    var best: ?[]const u8 = null;
+    if (std.Io.Dir.openDirAbsolute(b.graph.io, ndk_dir, .{ .iterate = true })) |dir| {
+        defer dir.close(b.graph.io);
+        var iter = dir.iterate();
+        while (iter.next(b.graph.io) catch null) |entry| {
+            if (entry.kind != .directory) continue;
+            const candidate = b.pathJoin(&.{ ndk_dir, entry.name });
+            if (!isNdkDir(b, candidate)) continue;
+            if (best == null or std.mem.order(u8, entry.name, std.fs.path.basename(best.?)) == .gt) {
+                best = candidate;
+            }
+        }
+    } else |_| return null;
+    return best;
+}
+
 fn resolveNdkHome(b: *std.Build, ndk_root: []const u8) []const u8 {
     if (ndk_root.len == 0) return ndk_root;
 
-    const toolchains_path = b.pathJoin(&.{ ndk_root, "toolchains", "llvm" });
-    if (std.Io.Dir.openDirAbsolute(b.graph.io, toolchains_path, .{})) |dir| {
-        dir.close(b.graph.io);
-        return ndk_root;
-    } else |_| {
-        if (std.Io.Dir.openDirAbsolute(b.graph.io, ndk_root, .{ .iterate = true })) |dir| {
-            defer dir.close(b.graph.io);
-            var iter = dir.iterate();
-            while (iter.next(b.graph.io) catch null) |entry| {
-                if (entry.kind != .directory) continue;
-                return b.pathJoin(&.{ ndk_root, entry.name });
-            }
-        } else |_| {}
-    }
+    if (isNdkDir(b, ndk_root)) return ndk_root;
+    if (findLatestNdk(b, ndk_root)) |latest| return latest;
 
     return ndk_root;
+}
+
+fn resolveSdkRoot(b: *std.Build) []const u8 {
+    if (b.graph.environ_map.get("ANDROID_HOME")) |sdk| return sdk;
+    if (b.graph.environ_map.get("ANDROID_SDK_ROOT")) |sdk| return sdk;
+    if (b.graph.environ_map.get("HOME")) |home| return b.pathJoin(&.{ home, "Android", "Sdk" });
+    std.debug.panic("cannot locate Android SDK: set ANDROID_HOME or ANDROID_SDK_ROOT", .{});
 }
 
 fn buildNativeLibrary(
@@ -119,15 +139,12 @@ fn buildNativeLibrary(
 
     const ndk_root = b.graph.environ_map.get("ANDROID_NDK_HOME") orelse
         b.graph.environ_map.get("ANDROID_NDK_ROOT") orelse blk: {
-        if (b.graph.environ_map.get("ANDROID_HOME") orelse b.graph.environ_map.get("ANDROID_SDK_ROOT")) |sdk| {
-            break :blk b.pathJoin(&.{ sdk, "ndk", "27.0.12077973" });
-        }
-        if (b.graph.environ_map.get("HOME")) |home| {
-            break :blk b.pathJoin(&.{ home, "Android", "Sdk", "ndk", "27.0.12077973" });
-        }
-        std.debug.panic("ANDROID_NDK_HOME or ANDROID_NDK_ROOT must be set", .{});
+        break :blk b.pathJoin(&.{ resolveSdkRoot(b), "ndk" });
     };
     const ndk_home = resolveNdkHome(b, ndk_root);
+    if (!isNdkDir(b, ndk_home)) {
+        std.debug.panic("Android NDK not found at '{s}': set ANDROID_NDK_HOME or install an NDK under <sdk>/ndk", .{ndk_home});
+    }
 
     const android_target = ndk.getAndroidTriple(target.result) catch {
         std.debug.panic("target must be Android", .{});

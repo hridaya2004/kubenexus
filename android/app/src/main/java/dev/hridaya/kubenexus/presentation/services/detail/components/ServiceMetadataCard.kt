@@ -10,10 +10,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.presentation.common.components.MetadataKeyValueRow
 
-/** Labels and annotations rendered as monospace key/value sections. */
+/** Labels and annotations rendered as monospace key/value sections with collapsible JSON support. */
 @Composable
 internal fun ServiceMetadataCard(
     labels: Map<String, String>,
@@ -44,7 +44,7 @@ internal fun ServiceMetadataCard(
                 )
             } else {
                 labels.forEach { (labelKey, labelValue) ->
-                    MetadataRow(keyText = labelKey, valueText = labelValue)
+                    MetadataKeyValueRow(key = labelKey, value = labelValue)
                 }
             }
 
@@ -62,33 +62,9 @@ internal fun ServiceMetadataCard(
                 )
             } else {
                 annotations.forEach { (annotationKey, annotationValue) ->
-                    MetadataRow(keyText = annotationKey, valueText = annotationValue)
+                    MetadataKeyValueRow(key = annotationKey, value = annotationValue)
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun MetadataRow(
-    keyText: String,
-    valueText: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Text(
-            text = keyText,
-            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = valueText,
-            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 12.dp),
-        )
     }
 }

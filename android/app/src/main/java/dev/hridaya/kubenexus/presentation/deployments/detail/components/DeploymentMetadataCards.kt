@@ -15,8 +15,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.presentation.common.components.MetadataKeyValueRow
 
 private const val MAX_VISIBLE_ENTRIES = 4
 
@@ -72,7 +72,7 @@ private fun DeploymentKeyValueCard(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             visibleEntries.forEach { (entryKey, entryValue) ->
-                KeyValueRow(entryKey = entryKey, entryValue = entryValue)
+                MetadataKeyValueRow(key = entryKey, value = entryValue)
             }
             if (entries.size > MAX_VISIBLE_ENTRIES) {
                 TextButton(onClick = { showAllEntries = !showAllEntries }) {
@@ -83,31 +83,5 @@ private fun DeploymentKeyValueCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun KeyValueRow(
-    entryKey: String,
-    entryValue: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Text(
-            text = entryKey,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = entryValue,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 12.dp),
-        )
     }
 }

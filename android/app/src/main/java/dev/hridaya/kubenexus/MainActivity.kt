@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.hridaya.kubenexus.presentation.common.KubeNexusLogo
 import kotlinx.coroutines.delay
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -95,7 +94,7 @@ class MainActivity : ComponentActivity() {
                         label = "SplashScreenTransition",
                     ) { isSplash ->
                         if (isSplash) {
-                            AppSplashScreen(logo = KubeNexusLogo)
+                            AppSplashScreen()
                         } else {
                             MainScreen(
                                 homeViewModel = viewModel,

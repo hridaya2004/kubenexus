@@ -15,9 +15,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import dev.hridaya.kubenexus.presentation.common.KubeNexusLogo
+import dev.hridaya.kubenexus.R
 
 /**
  * Shown while the initial pods + namespaces sync runs, so the first frame the
@@ -25,8 +25,8 @@ import dev.hridaya.kubenexus.presentation.common.KubeNexusLogo
  */
 @Composable
 fun AppSplashScreen(
-    logo: ImageVector = KubeNexusLogo,
     modifier: Modifier = Modifier,
+    logoResId: Int = R.drawable.ic_kubenexus_logo,
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -35,7 +35,7 @@ fun AppSplashScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Image(
-                    imageVector = logo,
+                    painter = painterResource(id = logoResId),
                     contentDescription = "KubeNexus Logo",
                     modifier = Modifier.size(150.dp),
                 )

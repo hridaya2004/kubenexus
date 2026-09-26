@@ -36,3 +36,11 @@
 
 # Keep generic signatures for reflection
 -keepattributes Signature
+
+# Strip verbose and debug logging from release builds. Those calls carry cluster names,
+# contexts and server addresses, which have no place in a shipped build's logcat (the
+# in-app log viewer can export it). Warnings and errors, already sanitized, are kept.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}

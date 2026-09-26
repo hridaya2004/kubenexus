@@ -98,4 +98,91 @@ class LogSanitizerTest {
         assertEquals("", LogSanitizer.sanitize(null))
         assertEquals("", LogSanitizer.sanitize(""))
     }
+
+    @Test
+    fun `sanitize redacts json and key=value credentials`() {
+        val input = "{\"token\":\"abc123\",\"user\":\"x\"} --token=t0ps3cret password=hunter2&next=1 " +
+            "\"client_secret\": \"s3\""
+        val output = LogSanitizer.sanitize(input)
+
+        assertEquals(
+            """{"token":"[REDACTED]","user":"x"} --token=[REDACTED] password=[REDACTED]&next=1 "client_secret": "[REDACTED]"""",
+            output,
+        )
+    }
+
+    @Test
+    fun `sanitize redacts a value whose closing quote was cut off`() {
+        val output = LogSanitizer.sanitize("config {\"api_key\": \"k-9f8e7d")
+
+        assertEquals("config {\"api_key\": \"[REDACTED]", output)
+    }
+
+    @Test
+    fun `sanitize redacts a quoted value containing spaces in full`() {
+        val output = LogSanitizer.sanitize("""password: "correct horse battery"""")
+
+        assertEquals("""password: "[REDACTED]"""", output)
+    }
+
+    @Test
+    fun `sanitize redacts bare jwts aws key ids and base64 pem`() {
+        val jwt = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjEifQ.eyJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQifQ.c2lnbmF0dXJl"
+        val input = "sa=$jwt key=AKIAIOSFODNN7EXAMPLE tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCg=="
+        val output = LogSanitizer.sanitize(input)
+
+        assertFalse(output.contains("eyJzdWIi"))
+        assertFalse(output.contains("AKIAIOSFODNN7EXAMPLE"))
+        assertFalse(output.contains("LS0tLS1CRUdJ"))
+        assertTrue(output.contains("[REDACTED JWT]"))
+        assertTrue(output.contains("[REDACTED AWS KEY ID]"))
+        assertTrue(output.contains("tls.key: [REDACTED BASE64 PEM]"))
+    }
+
+    @Test
+    fun `sanitize redacts userinfo credentials for any url scheme`() {
+        val output = LogSanitizer.sanitize("dial postgres://app:pa55w0rd@db:5432/app and REDIS://u:p@cache:6379")
+
+        assertEquals("dial postgres://app:[REDACTED]@db:5432/app and REDIS://u:[REDACTED]@cache:6379", output)
+    }
+
+    @Test
+    fun `sanitize leaves ordinary kubernetes messages alone`() {
+        val inputs = listOf(
+            "secretName: db-creds",
+            "tokens: 5 used",
+            "MountVolume.SetUp failed for volume \"creds\" : secret \"db\" not found",
+            "token_count=12",
+        )
+        inputs.forEach { assertEquals(it, LogSanitizer.sanitize(it)) }
+    }
+
+    @Test
+    fun `sanitize is idempotent`() {
+        val inputs = listOf(
+            "token: abc",
+            "{\"password\":\"p w\"}",
+            "Bearer abc.def",
+            "https://u:p@h/x",
+            "client-key-data: LS0tLS1CRUdJTiBSU0E=",
+        )
+        inputs.forEach { input ->
+            val once = LogSanitizer.sanitize(input)
+            assertEquals(once, LogSanitizer.sanitize(once))
+        }
+    }
+
+    @Test
+    fun `withStackTrace sanitizes the throwable's message and causes`() {
+        val cause = IllegalStateException("upstream said token: cause-secret")
+        val error = RuntimeException("request failed with Bearer abc.def.ghi", cause)
+
+        val output = LogSanitizer.withStackTrace("Loading pods failed", error)
+
+        assertTrue(output.startsWith("Loading pods failed\n"))
+        assertTrue(output.contains("java.lang.RuntimeException"))
+        assertTrue(output.contains("Caused by: java.lang.IllegalStateException"))
+        assertFalse(output.contains("cause-secret"))
+        assertFalse(output.contains("abc.def.ghi"))
+    }
 }

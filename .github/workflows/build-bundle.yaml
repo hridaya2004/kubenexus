@@ -1,4 +1,4 @@
-name: Build APKs
+name: Build Android App Bundle
 
 on:
   workflow_dispatch:
@@ -9,10 +9,12 @@ concurrency:
 
 env:
   NDK_VERSION: 30.0.16138531
+  BUNDLETOOL_VERSION: 1.18.3
+  BUNDLETOOL_SHA256: a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29
 
 jobs:
   build:
-    name: Build Debug and Release APKs
+    name: Build Release AAB
     runs-on: ubuntu-latest
 
     env:
@@ -96,24 +98,105 @@ jobs:
       - name: Make Gradlew executable
         run: chmod +x ./android/gradlew
 
-      - name: Build Debug and Release APKs
+      - name: Set up bundletool
+        run: |
+          curl -sSL --retry 3 -o "$RUNNER_TEMP/bundletool.jar" \
+            "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+          echo "${BUNDLETOOL_SHA256}  $RUNNER_TEMP/bundletool.jar" | sha256sum --check
+          echo "BUNDLETOOL_JAR=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
+
+      - name: Build Release AAB
         run: make build
 
-      - name: Upload Debug APK
-        id: upload-debug-apk
+      # An AAB cannot be side-loaded, so also emit installable APKs from it.
+      # They are signed with the same debug key Gradle signs the AAR/AAB with,
+      # so they install and update over each other.
+      - name: Generate installable APKs from the AAB
+        run: |
+          set -euo pipefail
+
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          DIST="dist"
+          KEYSTORE="android/app/debug.keystore"
+
+          rm -rf "$DIST" && mkdir -p "$DIST"
+
+          SIGN_ARGS=(
+            --ks="$KEYSTORE"
+            --ks-key-alias=androiddebugkey
+            --ks-pass=pass:android
+            --key-pass=pass:android
+          )
+
+          # bundletool only warns when output is unsigned; treat that as fatal
+          # so an un-signable keystore fails the build instead of shipping
+          # APKs that cannot be installed.
+          build_apks() {
+            local log
+            if ! log=$(java -jar "$BUNDLETOOL_JAR" build-apks "$@" 2>&1); then
+              echo "$log"
+              return 1
+            fi
+            if grep -q "won't be signed" <<<"$log"; then
+              echo "$log"
+              echo "::error::bundletool produced unsigned APKs"
+              return 1
+            fi
+          }
+
+          # One universal APK, installable on any supported device.
+          build_apks \
+            --bundle="$AAB" \
+            --output="$RUNNER_TEMP/universal.apks" \
+            --mode=universal \
+            --overwrite \
+            "${SIGN_ARGS[@]}"
+          unzip -o -q "$RUNNER_TEMP/universal.apks" -d "$RUNNER_TEMP/universal"
+          cp "$RUNNER_TEMP/universal/universal.apk" "$DIST/kubenexus-universal.apk"
+
+          # Per-ABI sets, each a master split plus that ABI's native split.
+          # bundletool has no per-ABI standalone mode, so zip each pair.
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            spec="$RUNNER_TEMP/spec-$abi.json"
+            printf '{"supportedAbis":["%s"],"screenDensity":480,"sdkVersion":35,"supportedLocales":["en"]}\n' \
+              "$abi" > "$spec"
+
+            build_apks \
+              --bundle="$AAB" \
+              --output="$RUNNER_TEMP/$abi.apks" \
+              --device-spec="$spec" \
+              --optimize-for=abi \
+              --overwrite \
+              "${SIGN_ARGS[@]}"
+
+            unzip -o -q "$RUNNER_TEMP/$abi.apks" -d "$RUNNER_TEMP/$abi"
+            (cd "$RUNNER_TEMP/$abi/splits" && zip -q -r "$GITHUB_WORKSPACE/$DIST/kubenexus-$abi-apks.zip" .)
+          done
+
+          ls -la "$DIST"
+
+      - name: Upload Release AAB
+        id: upload-release-aab
         uses: actions/upload-artifact@v7
         with:
-          name: kubenexus-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: kubenexus-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
           retention-days: 1
           if-no-files-found: error
 
-      - name: Upload Release APK
-        id: upload-release-apk
+      - name: Upload Universal APK
         uses: actions/upload-artifact@v7
         with:
-          name: kubenexus-release-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          name: kubenexus-universal-apk
+          path: dist/kubenexus-universal.apk
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload per-ABI APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: kubenexus-per-abi-apks
+          path: dist/kubenexus-*-apks.zip
           retention-days: 1
           if-no-files-found: error
 
@@ -126,21 +209,25 @@ jobs:
           RUN_ID="${{ github.run_id }}"
 
           ARTIFACTS_JSON=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/artifacts")
-
           BASE_URL="${{ github.server_url }}/${REPO}/actions/runs/${RUN_ID}/artifacts"
-          DEBUG_URL=$(echo "$ARTIFACTS_JSON" | jq -r '.artifacts[] | select(.name=="kubenexus-debug-apk") | .id' | sed "s|^|${BASE_URL}/|")
-          RELEASE_URL=$(echo "$ARTIFACTS_JSON" | jq -r '.artifacts[] | select(.name=="kubenexus-release-apk") | .id' | sed "s|^|${BASE_URL}/|")
 
-          echo "debug_url=${DEBUG_URL}" >> "$GITHUB_OUTPUT"
-          echo "release_url=${RELEASE_URL}" >> "$GITHUB_OUTPUT"
+          for name in kubenexus-release-aab kubenexus-universal-apk kubenexus-per-abi-apks; do
+            id=$(echo "$ARTIFACTS_JSON" | jq -r --arg n "$name" '.artifacts[] | select(.name==$n) | .id' | head -1)
+            if [ -z "$id" ] || [ "$id" = "null" ]; then
+              echo "::warning::Artifact $name not found in run $RUN_ID"
+              continue
+            fi
+            echo "${name}_url=${BASE_URL}/${id}" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Send Artifact Links to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
-          DEBUG_ARTIFACT_URL: ${{ steps.get-artifact-urls.outputs.debug_url }}
-          RELEASE_ARTIFACT_URL: ${{ steps.get-artifact-urls.outputs.release_url }}
+          AAB_URL: ${{ steps.get-artifact-urls.outputs.kubenexus-release-aab_url }}
+          UNIVERSAL_URL: ${{ steps.get-artifact-urls.outputs.kubenexus-universal-apk_url }}
+          PER_ABI_URL: ${{ steps.get-artifact-urls.outputs.kubenexus-per-abi-apks_url }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "::warning::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set. Skipping Telegram notification."
@@ -152,13 +239,11 @@ jobs:
           COMMIT_SHA=$(git rev-parse --short HEAD)
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          DEBUG_URL="${DEBUG_ARTIFACT_URL:-$RUN_URL}"
-          RELEASE_URL="${RELEASE_ARTIFACT_URL:-$RUN_URL}"
-
           TEXT="<b>KubeNexus Build Completed</b>"$'\n\n'
           TEXT+="<b>Artifacts:</b>"$'\n'
-          TEXT+="- <a href=\"${DEBUG_URL}\">kubenexus-debug-apk</a>"$'\n'
-          TEXT+="- <a href=\"${RELEASE_URL}\">kubenexus-release-apk</a>"$'\n\n'
+          TEXT+="- <a href=\"${UNIVERSAL_URL:-$RUN_URL}\">kubenexus-universal-apk</a> <i>(install on any device)</i>"$'\n'
+          TEXT+="- <a href=\"${PER_ABI_URL:-$RUN_URL}\">kubenexus-per-abi-apks</a> <i>(arm64-v8a / armeabi-v7a / x86_64 / x86)</i>"$'\n'
+          TEXT+="- <a href=\"${AAB_URL:-$RUN_URL}\">kubenexus-release-aab</a> <i>(for Play)</i>"$'\n\n'
           TEXT+="<b>Build Details:</b>"$'\n'
           TEXT+="- <b>Branch:</b> <code>${{ github.ref_name }}</code>"$'\n'
           TEXT+="- <b>Commit:</b> <code>${COMMIT_SHA}</code> - ${COMMIT_MSG_ESCAPED}"$'\n'

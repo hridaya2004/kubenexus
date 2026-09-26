@@ -27,7 +27,7 @@ GO_CORE_SOURCES   := $(shell find $(CORE_DIR) -type f \( -name '*.go' -o -name '
 GHOSTTY_SOURCES   := $(shell find $(TERMINAL_DIR)/src -type f 2>/dev/null) $(TERMINAL_DIR)/build.zig $(TERMINAL_DIR)/build.zig.zon
 
 .DEFAULT_GOAL := help
-.PHONY: help jni k8s-engine ghostty debug release build bundle lint fmt test \
+.PHONY: help jni k8s-engine ghostty debug release build bundle bundle-debug lint fmt test \
         clean clean-jni install install-debug install-release \
         k8s-clean k8s-test k8s-lint k8s-fmt ghostty-fmt generate-kube-openapi-spec
 
@@ -69,7 +69,7 @@ k8s-engine: ## Build kubenexus.aar from k8s-engine Go source and copy to android
 	@touch -c $(AAR_TARGET)
 	@echo "Updated $(ANDROID_DIR)/data/libs/kubenexus.aar"
 
-ghostty: ## Cross-compile libghostty_jni.so for Android (arm64-v8a) using Zig
+ghostty: ## Cross-compile libghostty_jni.so for all Android ABIs using Zig
 	cd $(TERMINAL_DIR) && zig build -Doptimize=ReleaseSmall jni
 	@touch -c $(GHOSTTY_SO_TARGET)
 	@echo "Built libghostty_jni.so in $(ANDROID_DIR)/app/src/main/jniLibs"
@@ -103,14 +103,16 @@ generate-kube-openapi-spec: ## Re-record live cluster payloads into k8s-engine (
 debug: jni ## Build debug APK
 	$(GRADLE) assembleDebug
 
-release: jni ## Build release APK
+release: jni ## Build release APK (all ABIs, universal)
 	$(GRADLE) assembleRelease
 
-build: jni ## Build both debug and release APKs
-	$(GRADLE) assembleDebug assembleRelease
-
-bundle: jni ## Build release Android App Bundle (AAB)
+bundle: jni ## Build signed release Android App Bundle (AAB) for Play
 	$(GRADLE) bundleRelease
+
+bundle-debug: jni ## Build debug Android App Bundle (AAB)
+	$(GRADLE) bundleDebug
+
+build: bundle ## Build the signed release AAB (default CI build)
 
 install: install-debug ## Install debug APK on connected device (alias)
 

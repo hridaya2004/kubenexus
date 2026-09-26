@@ -69,7 +69,10 @@ android {
         buildConfigField("String", "CLIENT_GO_COMMIT_SHA", "\"$clientGoCommitSha\"")
 
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            // Ship every ABI the JNI bridges are built for (arm64-v8a,
+            // armeabi-v7a, x86_64, x86) so the AAB can be split per device.
+            // Removing the filter would also pull in ABIs we do not compile.
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

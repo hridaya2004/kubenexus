@@ -46,26 +46,37 @@ fn readGradleMinSdk(b: *std.Build) ?u32 {
     return null;
 }
 
+fn parseTargetQuery(triple: []const u8, default_api: u32) std.Target.Query {
+    var query = std.Target.Query.parse(.{ .arch_os_abi = std.mem.trim(u8, triple, " \t") }) catch |err| {
+        std.debug.panic("invalid -Dtarget '{s}': {s}", .{ triple, @errorName(err) });
+    };
+    if (query.android_api_level == null) query.android_api_level = default_api;
+    return query;
+}
+
+fn defaultTargetQueries(b: *std.Build, default_api: u32) []const std.Target.Query {
+    const specs = [_][]const u8{ "aarch64-linux-android", "arm-linux-androideabi", "x86_64-linux-android", "x86-linux-android" };
+    const targets = b.allocator.alloc(std.Target.Query, specs.len) catch @panic("OOM");
+    for (specs, targets) |spec, *target| target.* = parseTargetQuery(spec, default_api);
+    return targets;
+}
+
 fn resolveBuildTargets(b: *std.Build) []const std.Target.Query {
     const default_api = resolveAndroidApiLevel(b);
     const maybe_target = b.option(
         []const u8,
         "target",
-        "Android target triple (default: arm64-v8a at gradle minSdk)",
-    ) orelse {
-        const targets = b.allocator.alloc(std.Target.Query, 1) catch @panic("OOM");
-        targets[0] = .{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .android, .android_api_level = default_api };
-        return targets;
-    };
+        "Comma-separated Android target triples (default: arm64-v8a, armeabi-v7a, x86_64, x86 at gradle minSdk)",
+    ) orelse return defaultTargetQueries(b, default_api);
 
-    var query = std.Target.Query.parse(.{ .arch_os_abi = maybe_target }) catch |err| {
-        std.debug.panic("invalid -Dtarget '{s}': {s}", .{ maybe_target, @errorName(err) });
-    };
-    if (query.android_api_level == null) query.android_api_level = default_api;
-
-    const targets = b.allocator.alloc(std.Target.Query, 1) catch @panic("OOM");
-    targets[0] = query;
-    return targets;
+    var targets = std.ArrayList(std.Target.Query).empty;
+    var it = std.mem.splitScalar(u8, maybe_target, ',');
+    while (it.next()) |triple| {
+        if (std.mem.trim(u8, triple, " \t").len == 0) continue;
+        targets.append(b.allocator, parseTargetQuery(triple, default_api)) catch @panic("OOM");
+    }
+    if (targets.items.len == 0) std.debug.panic("no valid targets in -Dtarget '{s}'", .{maybe_target});
+    return targets.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
 fn ndkPrebuiltTag() []const u8 {
@@ -204,7 +215,10 @@ fn buildNativeLibrary(
 
     const lib = b.addLibrary(.{
         .linkage = .dynamic,
-        .name = "ghostty_jni",
+        // ABI-suffixed so the default install step does not collide when
+        // several targets are built in one invocation. The jni step below
+        // renames the artifact back to libghostty_jni.so per ABI directory.
+        .name = b.fmt("ghostty_jni_{s}", .{ndk.getOutputDir(target.result) catch unreachable}),
         .root_module = root_module,
     });
     lib.link_function_sections = true;

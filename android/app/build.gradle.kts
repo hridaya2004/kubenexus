@@ -214,22 +214,26 @@ aboutLibraries {
             "CC0-1.0",
             "OFL-1.1",
             "Zlib",
-            "GPL-2.0-only",
             "Public Domain",
             "mit-with-copyrights",
+            "go-bsd-3-clause",
+            "go-module-notices",
+            "wuffs-mit",
+            "zig-mit",
         )
 
         // Native components reference these by SPDX id and AboutLibraries pulls the canonical
         // text from spdx.org. MIT and BSD are the exception: those licence bodies carry a
         // "<year> <owner>" placeholder, and both require the project's real copyright notice, so
-        // config/licenses/ supplies those two with the notices filled in.
+        // config/licenses/ supplies them with the notices filled in. Only licences a shipped
+        // component actually uses are listed, so the licences screen shows no stray texts.
         additionalLicenses.addAll(
             "Apache-2.0",
-            "CC0-1.0",
-            "OFL-1.1",
-            "Zlib",
-            "GPL-2.0-only",
             "mit-with-copyrights",
+            "go-bsd-3-clause",
+            "go-module-notices",
+            "wuffs-mit",
+            "zig-mit",
         )
     }
 

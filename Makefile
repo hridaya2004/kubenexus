@@ -69,7 +69,7 @@ $(GHOSTTY_SO_TARGET) &: $(GHOSTTY_SOURCES)
 
 jni: verify-ndk $(AAR_TARGET) $(GHOSTTY_SO_TARGET) ## Ensure native JNI libraries (k8s-engine and Ghostty) are built
 
-verify-jni: ## Fail unless every ABI has its native library in jniLibs and in the AAR
+verify-jni: ## Fail unless every ABI has its native library in jniLibs and the AAR, all 16 KB aligned
 	@missing=""; \
 	for abi in $(GHOSTTY_ABIS); do \
 	  [ -f "$(ANDROID_DIR)/app/src/main/jniLibs/$$abi/libghostty_jni.so" ] || missing="$$missing jniLibs/$$abi"; \
@@ -79,6 +79,20 @@ verify-jni: ## Fail unless every ABI has its native library in jniLibs and in th
 	done; \
 	if [ -n "$$missing" ]; then echo "ERROR: missing native libs for:$$missing"; exit 1; fi; \
 	echo "OK: native libs present for $(GHOSTTY_ABIS) in jniLibs and $(notdir $(AAR_TARGET))"
+	@# Google Play rejects apps targeting Android 15+ whose native libs have LOAD segments
+	@# aligned below 16 KB. Check every shipped .so, including the ones inside the AAR.
+	@readelf="$(firstword $(wildcard $(ANDROID_NDK_ROOT)/toolchains/llvm/prebuilt/*/bin/llvm-readelf))"; \
+	if [ -z "$$readelf" ]; then echo "ERROR: llvm-readelf not found under $(ANDROID_NDK_ROOT)"; exit 1; fi; \
+	tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	unzip -q -o "$(AAR_TARGET)" 'jni/*' -d "$$tmp"; \
+	misaligned=""; \
+	for so in $(ANDROID_DIR)/app/src/main/jniLibs/*/*.so "$$tmp"/jni/*/*.so; do \
+	  for align in $$("$$readelf" -lW "$$so" | awk '$$1 == "LOAD" { print $$NF }'); do \
+	    if [ "$$(printf '%d' "$$align")" -lt 16384 ]; then misaligned="$$misaligned $${so#$$tmp/}($$align)"; break; fi; \
+	  done; \
+	done; \
+	if [ -n "$$misaligned" ]; then echo "ERROR: LOAD segments aligned below 16 KB:$$misaligned"; exit 1; fi; \
+	echo "OK: every native lib has 16 KB-aligned LOAD segments"
 
 verify-ndk: ## Fail unless the NDK AGP was told to use is the one installed here
 	@if [ -z "$(GRADLE_NDK_VERSION)" ]; then \

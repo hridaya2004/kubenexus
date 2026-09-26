@@ -226,6 +226,10 @@ fn buildNativeLibrary(
     lib.link_data_sections = true;
     lib.link_gc_sections = true;
     lib.link_eh_frame_hdr = false;
+    // Google Play requires 16 KB-aligned LOAD segments for apps targeting Android 15+.
+    // LLD only defaults to that on arm64 (64 KB); x86_64 and x86 would otherwise get 4 KB.
+    lib.link_z_max_page_size = 16384;
+    lib.link_z_common_page_size = 16384;
     lib.lto = .thin;
     root_module.strip = false;
     root_module.unwind_tables = .none;

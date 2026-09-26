@@ -133,11 +133,7 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             Log.d(TAG, "Successfully initialized Go runtime Seq context and Client package")
         } catch (t: Throwable) {
             initialized = false
-            Log.e(
-                TAG,
-                "Failed to initialize native Go runtime: ${LogSanitizer.sanitize(t.message)}",
-                t,
-            )
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to initialize native Go runtime", t))
         }
     }
 
@@ -148,7 +144,7 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             Client.touch()
             true
         } catch (t: Throwable) {
-            Log.e(TAG, "Failed to touch native Client: ${LogSanitizer.sanitize(t.message)}", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to touch native Client: ${LogSanitizer.sanitize(t.message)}", t))
             false
         }
     }
@@ -164,7 +160,7 @@ class KubeNexusNativeBridgeImpl @Inject constructor(
             ensureInitialized()
             Result.Success(block())
         } catch (t: Throwable) {
-            Log.e(TAG, "$errorMsg: ${LogSanitizer.sanitize(t.message)}", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("$errorMsg: ${LogSanitizer.sanitize(t.message)}", t))
             Result.Error(AppError.Unknown(t.message ?: errorMsg, t))
         }
     }

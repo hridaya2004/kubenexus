@@ -58,7 +58,7 @@ class ServiceRepositoryImpl @Inject constructor(
             }
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to create service for cluster '$clusterId': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to create service for cluster '$clusterId': $sanitizedMsg", t))
             Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create service" }))
         }
     }
@@ -116,7 +116,7 @@ class ServiceRepositoryImpl @Inject constructor(
             Result.Success(Unit)
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to sync services for cluster '$clusterId': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to sync services for cluster '$clusterId': $sanitizedMsg", t))
             Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to connect to cluster API" }))
         }
     }
@@ -146,7 +146,7 @@ class ServiceRepositoryImpl @Inject constructor(
             }
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to describe service '$name': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to describe service '$name': $sanitizedMsg", t))
             Result.Error(
                 AppError.Network(sanitizedMsg.ifEmpty { "Failed to describe service from cluster API" }),
             )

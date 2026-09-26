@@ -64,7 +64,7 @@ class DeploymentRepositoryImpl @Inject constructor(
             Result.Success(Unit)
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to create deployment for cluster '$clusterId': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to create deployment for cluster '$clusterId': $sanitizedMsg", t))
             Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to create deployment" }))
         }
     }
@@ -90,7 +90,7 @@ class DeploymentRepositoryImpl @Inject constructor(
             }
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to load deployments for cluster '$clusterId': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to load deployments for cluster '$clusterId': $sanitizedMsg", t))
             Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to load deployments" }))
         }
     }
@@ -148,7 +148,7 @@ class DeploymentRepositoryImpl @Inject constructor(
             Result.Success(Unit)
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to sync deployments for cluster '$clusterId': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to sync deployments for cluster '$clusterId': $sanitizedMsg", t))
             Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to connect to cluster API" }))
         }
     }
@@ -178,7 +178,7 @@ class DeploymentRepositoryImpl @Inject constructor(
             }
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to describe deployment '$name': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to describe deployment '$name': $sanitizedMsg", t))
             Result.Error(
                 AppError.Network(sanitizedMsg.ifEmpty { "Failed to describe deployment from cluster API" }),
             )
@@ -211,7 +211,7 @@ class DeploymentRepositoryImpl @Inject constructor(
             }
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to scale deployment '$name': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to scale deployment '$name': $sanitizedMsg", t))
             Result.Error(
                 AppError.Network(sanitizedMsg.ifEmpty { "Failed to scale deployment from cluster API" }),
             )
@@ -243,7 +243,7 @@ class DeploymentRepositoryImpl @Inject constructor(
             }
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to restart deployment '$name': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to restart deployment '$name': $sanitizedMsg", t))
             Result.Error(
                 AppError.Network(sanitizedMsg.ifEmpty { "Failed to restart deployment from cluster API" }),
             )
@@ -276,7 +276,7 @@ class DeploymentRepositoryImpl @Inject constructor(
             }
         } catch (t: Throwable) {
             val sanitizedMsg = LogSanitizer.sanitize(t.message)
-            Log.e(TAG, "Failed to delete deployment '$name': $sanitizedMsg", t)
+            Log.e(TAG, LogSanitizer.withStackTrace("Failed to delete deployment '$name': $sanitizedMsg", t))
             Result.Error(
                 AppError.Network(sanitizedMsg.ifEmpty { "Failed to delete deployment from cluster API" }),
             )

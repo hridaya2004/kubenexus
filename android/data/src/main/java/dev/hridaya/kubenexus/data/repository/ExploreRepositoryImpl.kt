@@ -100,7 +100,7 @@ class ExploreRepositoryImpl @Inject constructor(
                 }
             } catch (t: Throwable) {
                 val sanitizedMsg = LogSanitizer.sanitize(t.message)
-                Log.e(TAG, "Failed to fetch API resources: $sanitizedMsg", t)
+                Log.e(TAG, LogSanitizer.withStackTrace("Failed to fetch API resources: $sanitizedMsg", t))
                 Result.Error(AppError.Network(sanitizedMsg.ifEmpty { "Failed to discover API resources" }))
             }
         }

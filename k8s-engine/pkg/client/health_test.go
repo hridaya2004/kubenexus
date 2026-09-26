@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -28,22 +27,10 @@ func TestClient_HealthChecks(t *testing.T) {
 		_, _ = w.Write([]byte(`{"major":"1","minor":"30","gitVersion":"v1.30.0"}`))
 	})
 
-	server := httptest.NewServer(mux)
+	server := httptest.NewTLSServer(mux)
 	defer server.Close()
 
-	kubeconfig := fmt.Sprintf(`
-apiVersion: v1
-clusters:
-- cluster:
-    server: %s
-  name: test
-contexts:
-- context:
-    cluster: test
-  name: test
-current-context: test
-kind: Config
-`, server.URL)
+	kubeconfig := tlsKubeconfig(server)
 
 	client, err := NewClient(kubeconfig)
 	if err != nil {
@@ -96,22 +83,10 @@ func TestClient_HealthChecks_Unhealthy(t *testing.T) {
 		_, _ = w.Write([]byte("unhealthy"))
 	})
 
-	server := httptest.NewServer(mux)
+	server := httptest.NewTLSServer(mux)
 	defer server.Close()
 
-	kubeconfig := fmt.Sprintf(`
-apiVersion: v1
-clusters:
-- cluster:
-    server: %s
-  name: test
-contexts:
-- context:
-    cluster: test
-  name: test
-current-context: test
-kind: Config
-`, server.URL)
+	kubeconfig := tlsKubeconfig(server)
 
 	client, err := NewClient(kubeconfig)
 	if err != nil {

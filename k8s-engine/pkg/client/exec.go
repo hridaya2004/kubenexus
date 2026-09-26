@@ -229,7 +229,7 @@ func (c *Client) Exec(namespace, podName, container, command, stdin string) (*Ex
 	}
 
 	opts := &corev1.PodExecOptions{
-		Command: []string{"/bin/sh", "-c", cmdTrimmed},
+		Command: commandArgv(cmdTrimmed),
 		Stdout:  true,
 		Stderr:  true,
 		TTY:     false,
@@ -291,6 +291,20 @@ func (c *Client) Exec(namespace, podName, container, command, stdin string) (*Ex
 	return result, nil
 }
 
+// shellMetacharacters are the characters that make a command need a shell to run.
+const shellMetacharacters = " \t\n|&;<>()$`\\\"'*?[]#~=%{}!"
+
+// commandArgv turns a command string into the exec argv. A single word with nothing a
+// shell would interpret, such as "/bin/bash" or "/busybox/sh", is run directly so it
+// works in images without /bin/sh (distroless :debug ships only /busybox/sh). Anything
+// else is a command line and goes through /bin/sh -c.
+func commandArgv(command string) []string {
+	if !strings.ContainsAny(command, shellMetacharacters) {
+		return []string{command}
+	}
+	return []string{"/bin/sh", "-c", command}
+}
+
 // StartTerminal starts an interactive shell session (/bin/sh) with a TTY for an
 // Android terminal emulator.
 func (c *Client) StartTerminal(namespace, podName, container string, callback ExecCallback) (*ExecSession, error) {
@@ -310,7 +324,7 @@ func (c *Client) StartExecSession(namespace, podName, container, command string,
 	}
 
 	opts := &corev1.PodExecOptions{
-		Command: []string{"/bin/sh", "-c", cmdTrimmed},
+		Command: commandArgv(cmdTrimmed),
 		Stdin:   true,
 		Stdout:  true,
 		Stderr:  !tty,

@@ -321,6 +321,27 @@ func TestStartExecSession_DefaultsBlankCommandToShell(t *testing.T) {
 	}
 }
 
+func TestCommandArgv(t *testing.T) {
+	tests := []struct {
+		command string
+		want    []string
+	}{
+		{"/bin/bash", []string{"/bin/bash"}},
+		{"/busybox/sh", []string{"/busybox/sh"}},
+		{"uname", []string{"uname"}},
+		{"ls -la", []string{"/bin/sh", "-c", "ls -la"}},
+		{"cat /etc/os-release | head -1", []string{"/bin/sh", "-c", "cat /etc/os-release | head -1"}},
+		{"echo $HOME", []string{"/bin/sh", "-c", "echo $HOME"}},
+		{"ls*", []string{"/bin/sh", "-c", "ls*"}},
+	}
+	for _, tt := range tests {
+		got := commandArgv(tt.command)
+		if strings.Join(got, "\x00") != strings.Join(tt.want, "\x00") {
+			t.Errorf("commandArgv(%q) = %q, want %q", tt.command, got, tt.want)
+		}
+	}
+}
+
 func TestExecSession_ClosedOperations(t *testing.T) {
 	s := &ExecSession{}
 	if err := s.Close(); err != nil {

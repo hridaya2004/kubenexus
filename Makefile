@@ -13,15 +13,9 @@ export ANDROID_NDK_ROOT ?= $(ANDROID_NDK_HOME)
 export ANDROID_HOME     ?= $(HOME)/Android/Sdk
 export ANDROID_SDK_ROOT ?= $(ANDROID_HOME)
 
-# Module Commit SHAs (propagated to build artifacts & versioning)
-export KUBENEXUS_APP_COMMIT_SHA            ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-export KUBENEXUS_LIBGHOSTTY_COMMIT_SHA     ?= $(shell grep -oP 'ghostty#[a-f0-9]+' $(TERMINAL_DIR)/build.zig.zon 2>/dev/null | cut -d'#' -f2 | cut -c1-7 || echo a746d0f)
-export KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA ?= $(shell git log -n 1 --format=%h -- $(TERMINAL_DIR) 2>/dev/null || echo unknown)
-export KUBENEXUS_GO_CORE_COMMIT_SHA        ?= $(shell git log -n 1 --format=%h -- $(CORE_DIR) 2>/dev/null || echo unknown)
-export KUBENEXUS_CLIENT_GO_COMMIT_SHA      ?= 44a8af2
-
 AAR_TARGET        := $(ANDROID_DIR)/data/libs/kubenexus.aar
-GHOSTTY_SO_TARGET := $(ANDROID_DIR)/app/src/main/jniLibs/arm64-v8a/libghostty_jni.so
+GHOSTTY_ABIS      := arm64-v8a armeabi-v7a x86_64 x86
+GHOSTTY_SO_TARGET := $(foreach abi,$(GHOSTTY_ABIS),$(ANDROID_DIR)/app/src/main/jniLibs/$(abi)/libghostty_jni.so)
 
 GO_CORE_SOURCES   := $(shell find $(CORE_DIR) -type f \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' -o -name '*.sh' \) -not -name '*_test.go' 2>/dev/null)
 GHOSTTY_SOURCES   := $(shell find $(TERMINAL_DIR)/src -type f 2>/dev/null) $(TERMINAL_DIR)/build.zig $(TERMINAL_DIR)/build.zig.zon
@@ -52,11 +46,25 @@ $(AAR_TARGET): $(GO_CORE_SOURCES)
 	@echo "kubenexus.aar missing or k8s-engine changed. Rebuilding k8s-engine native bridge..."
 	$(MAKE) k8s-engine
 
-$(GHOSTTY_SO_TARGET): $(GHOSTTY_SOURCES)
-	@echo "libghostty_jni.so missing or terminal-native changed. Rebuilding Ghostty JNI library with Zig..."
+# Grouped target (&:), so a single zig build satisfies all four ABIs while any one of them going
+# missing or stale re-triggers the build. A plain ':' rule over a list would either run zig once
+# per ABI or, worse, treat the whole set as satisfied from arm64-v8a alone.
+$(GHOSTTY_SO_TARGET) &: $(GHOSTTY_SOURCES)
+	@echo "libghostty_jni.so missing or stale for some ABI. Rebuilding Ghostty JNI library with Zig..."
 	$(MAKE) ghostty
 
 jni: $(AAR_TARGET) $(GHOSTTY_SO_TARGET) ## Ensure native JNI libraries (k8s-engine and Ghostty) are built
+
+verify-jni: ## Fail unless every ABI has its native library in jniLibs and in the AAR
+	@missing=""; \
+	for abi in $(GHOSTTY_ABIS); do \
+	  [ -f "$(ANDROID_DIR)/app/src/main/jniLibs/$$abi/libghostty_jni.so" ] || missing="$$missing jniLibs/$$abi"; \
+	done; \
+	for abi in $(GHOSTTY_ABIS); do \
+	  unzip -l "$(AAR_TARGET)" 2>/dev/null | grep -q "jni/$$abi/libkubenexus_client.so" || missing="$$missing aar/$$abi"; \
+	done; \
+	if [ -n "$$missing" ]; then echo "ERROR: missing native libs for:$$missing"; exit 1; fi; \
+	echo "OK: native libs present for $(GHOSTTY_ABIS) in jniLibs and $(notdir $(AAR_TARGET))"
 
 k8s-engine: ## Build kubenexus.aar from k8s-engine Go source and copy to android libs
 	$(MAKE) -C $(CORE_DIR) build-android
@@ -72,7 +80,7 @@ k8s-engine: ## Build kubenexus.aar from k8s-engine Go source and copy to android
 ghostty: ## Cross-compile libghostty_jni.so for all Android ABIs using Zig
 	cd $(TERMINAL_DIR) && zig build -Doptimize=ReleaseSmall jni
 	@touch -c $(GHOSTTY_SO_TARGET)
-	@echo "Built libghostty_jni.so in $(ANDROID_DIR)/app/src/main/jniLibs"
+	@echo "Built libghostty_jni.so for $(GHOSTTY_ABIS) in $(ANDROID_DIR)/app/src/main/jniLibs"
 
 ghostty-fmt: ## Format terminal native Zig source code
 	cd $(TERMINAL_DIR) && zig fmt build.zig src/

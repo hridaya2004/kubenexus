@@ -92,6 +92,12 @@ jobs:
       - name: Build JNI native libraries
         run: make jni
 
+      # The jniLibs cache is keyed on source hashes only, so a cache restored from a partial
+      # build can leave an ABI missing while make still considers the set satisfied. This is the
+      # last point where that is still cheap to catch.
+      - name: Verify native libraries for all ABIs
+        run: make verify-jni
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 

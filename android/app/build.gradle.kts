@@ -15,45 +15,55 @@ android {
 
     val repoDir = project.rootDir.parentFile ?: project.rootDir
 
-    fun getGitCommitSha(path: String? = null): String {
-        return try {
-            val execOutput = providers.exec {
-                workingDir = repoDir
-                if (path != null) {
-                    commandLine("git", "log", "-n", "1", "--format=%h", "--", path)
-                } else {
-                    commandLine("git", "rev-parse", "--short", "HEAD")
-                }
-            }.standardOutput.asText.get().trim()
-            if (execOutput.isNotEmpty()) execOutput else "unknown"
-        } catch (e: Exception) {
-            "unknown"
-        }
-    }
-
-    fun extractGhosttyZonSha(): String {
-        return try {
-            val zonFile = File(repoDir, "terminal-native/build.zig.zon")
-            if (zonFile.exists()) {
-                val content = zonFile.readText()
-                val match = Regex("""github\.com/ghostty-org/ghostty#([a-f0-9]+)""").find(content)
-                match?.groupValues?.get(1)?.take(7) ?: "a746d0f"
+    fun gitCommitSha(path: String? = null): String? = try {
+        providers.exec {
+            workingDir = repoDir
+            if (path != null) {
+                commandLine("git", "log", "-n", "1", "--format=%h", "--", path)
             } else {
-                "a746d0f"
+                commandLine("git", "rev-parse", "--short", "HEAD")
             }
-        } catch (e: Exception) {
-            "a746d0f"
-        }
+        }.standardOutput.asText.get().trim().ifEmpty { null }
+    } catch (e: Exception) {
+        null
     }
 
-    val appCommitSha = System.getenv("KUBENEXUS_APP_COMMIT_SHA") ?: getGitCommitSha()
-    val libghosttyCommitSha =
-        System.getenv("KUBENEXUS_LIBGHOSTTY_COMMIT_SHA") ?: extractGhosttyZonSha()
-    val ghosttyBridgeCommitSha =
-        System.getenv("KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA") ?: getGitCommitSha("terminal-native")
-    val goCoreCommitSha =
-        System.getenv("KUBENEXUS_GO_CORE_COMMIT_SHA") ?: getGitCommitSha("k8s-engine")
-    val clientGoCommitSha = System.getenv("KUBENEXUS_CLIENT_GO_COMMIT_SHA") ?: "44a8af2"
+    fun pinnedGhosttySha(): String? = File(repoDir, "terminal-native/build.zig.zon")
+        .takeIf { it.isFile }
+        ?.let { Regex("""github\.com/ghostty-org/ghostty#([a-f0-9]+)""").find(it.readText()) }
+        ?.groupValues?.get(1)
+        ?.take(7)
+
+    fun pinnedClientGoVersion(): String? = File(repoDir, "k8s-engine/go.mod")
+        .takeIf { it.isFile }
+        ?.let { Regex("""k8s\.io/client-go v([^\s]+)""").find(it.readText()) }
+        ?.groupValues?.get(1)
+
+    fun resolved(what: String, envVar: String, derive: () -> String?): String =
+        System.getenv(envVar)?.trim()?.ifEmpty { null }
+            ?: derive()
+            ?: throw GradleException(
+                "Could not determine $what. Build from a git checkout with the submodules present, " +
+                    "or set $envVar explicitly."
+            )
+
+    val appCommitSha = resolved("the app commit SHA", "KUBENEXUS_APP_COMMIT_SHA") { gitCommitSha() }
+    val libghosttyCommitSha = resolved(
+        "the pinned libghostty commit",
+        "KUBENEXUS_LIBGHOSTTY_COMMIT_SHA",
+    ) { pinnedGhosttySha() }
+    val ghosttyBridgeCommitSha = resolved(
+        "the terminal-native commit SHA",
+        "KUBENEXUS_GHOSTTY_BRIDGE_COMMIT_SHA",
+    ) { gitCommitSha("terminal-native") }
+    val goCoreCommitSha = resolved(
+        "the k8s-engine commit SHA",
+        "KUBENEXUS_GO_CORE_COMMIT_SHA",
+    ) { gitCommitSha("k8s-engine") }
+    val clientGoVersion = resolved(
+        "the k8s.io/client-go version from k8s-engine/go.mod",
+        "KUBENEXUS_CLIENT_GO_VERSION",
+    ) { pinnedClientGoVersion() }
 
     defaultConfig {
         applicationId = "dev.hridaya.kubenexus"
@@ -66,7 +76,7 @@ android {
         buildConfigField("String", "LIBGHOSTTY_COMMIT_SHA", "\"$libghosttyCommitSha\"")
         buildConfigField("String", "GHOSTTY_BRIDGE_COMMIT_SHA", "\"$ghosttyBridgeCommitSha\"")
         buildConfigField("String", "GO_CORE_COMMIT_SHA", "\"$goCoreCommitSha\"")
-        buildConfigField("String", "CLIENT_GO_COMMIT_SHA", "\"$clientGoCommitSha\"")
+        buildConfigField("String", "CLIENT_GO_VERSION", "\"$clientGoVersion\"")
 
         ndk {
             // Ship every ABI the JNI bridges are built for (arm64-v8a,

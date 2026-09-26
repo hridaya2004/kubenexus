@@ -39,7 +39,7 @@ import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 data class ModuleInfo(
     val title: String,
     val subtitle: String,
-    val commitSha: String,
+    val version: String,
     val icon: ImageVector,
 )
 
@@ -66,13 +66,13 @@ fun ModulesCard(
                             context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         clipboard?.setPrimaryClip(
                             ClipData.newPlainText(
-                                "Commit SHA",
-                                module.commitSha
+                                "Version",
+                                module.version
                             )
                         )
                         Toast.makeText(
                             context,
-                            "Copied ${module.title} commit SHA (${module.commitSha})",
+                            "Copied ${module.title} (${module.version})",
                             Toast.LENGTH_SHORT,
                         ).show()
                     },
@@ -131,7 +131,7 @@ fun ModuleInfoItem(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = module.commitSha,
+                text = module.version,
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.SemiBold,
@@ -157,7 +157,7 @@ private fun ModulesCardPreview() {
                 ModuleInfo(
                     title = "Android App",
                     subtitle = "dev.hridaya.kubenexus",
-                    commitSha = "abc1234",
+                    version = "abc1234",
                     icon = Icons.Outlined.Android,
                 ),
             ),

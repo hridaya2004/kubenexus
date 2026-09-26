@@ -23,10 +23,10 @@ internal fun Modifier.terminalGestures(
     onSelectionChange: (TerminalSelection?) -> Unit,
     onTap: () -> Unit,
     onScroll: (delta: Int, x: Float, y: Float) -> Unit,
-): Modifier = pointerInput(Unit) {
+): Modifier = pointerInput(cellWidth, cellHeight, touchSlopPx, longPressTimeoutMs) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
-        val downTime = System.currentTimeMillis()
+        var lastEventUptime = down.uptimeMillis
         var accumulatedScrollY = 0f
         var isDrag = false
         var isSelecting = false
@@ -47,32 +47,49 @@ internal fun Modifier.terminalGestures(
                 )
         }
 
+        fun beginSelection() {
+            isSelecting = true
+            val wordRange = snapshot()?.wordAt(initialAnchor)
+            if (wordRange != null) {
+                onSelectionChange(
+                    TerminalSelection(
+                        wordRange.first,
+                        wordRange.last
+                    )
+                )
+            } else {
+                onSelectionChange(
+                    TerminalSelection(
+                        initialAnchor,
+                        initialAnchor
+                    )
+                )
+            }
+        }
+
         while (true) {
-            val event = awaitPointerEvent()
+            val awaitingLongPress = !isSelecting && !isDrag && initialAnchor >= 0
+            val event = if (awaitingLongPress) {
+                // A finger held still produces no events, so the long press is timed here rather
+                // than noticed on the next move; otherwise holding and lifting counted as a tap.
+                val remaining = longPressTimeoutMs - (lastEventUptime - down.uptimeMillis)
+                withTimeoutOrNull(remaining.coerceAtLeast(0L)) { awaitPointerEvent() }
+            } else {
+                awaitPointerEvent()
+            }
+            if (event == null) {
+                beginSelection()
+                continue
+            }
             val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            lastEventUptime = change.uptimeMillis
 
             if (change.pressed) {
-                val elapsed = System.currentTimeMillis() - downTime
+                val elapsed = change.uptimeMillis - down.uptimeMillis
                 val dragDistance = change.position - down.position
 
                 if (!isSelecting && !isDrag && elapsed >= longPressTimeoutMs && initialAnchor >= 0) {
-                    isSelecting = true
-                    val wordRange = snapshot()?.wordAt(initialAnchor)
-                    if (wordRange != null) {
-                        onSelectionChange(
-                            TerminalSelection(
-                                wordRange.first,
-                                wordRange.last
-                            )
-                        )
-                    } else {
-                        onSelectionChange(
-                            TerminalSelection(
-                                initialAnchor,
-                                initialAnchor
-                            )
-                        )
-                    }
+                    beginSelection()
                 }
 
                 if (isSelecting) {

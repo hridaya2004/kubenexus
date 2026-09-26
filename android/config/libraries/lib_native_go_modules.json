@@ -1,0 +1,16 @@
+{
+  "uniqueId": "dev.hridaya.kubenexus:native-go-modules",
+  "name": "Go modules in the Kubernetes engine",
+  "description": "Third-party Go modules compiled into the Go engine alongside client-go: github.com/davecgh/go-spew, github.com/emicklei/go-restful/v3, github.com/fxamacker/cbor/v2, github.com/go-logr/logr, github.com/go-openapi/jsonpointer, github.com/go-openapi/jsonreference, github.com/go-openapi/swag, github.com/google/gnostic-models, github.com/google/uuid, github.com/gorilla/websocket, github.com/josharian/intern, github.com/json-iterator/go, github.com/mailru/easyjson, github.com/moby/spdystream, github.com/modern-go/concurrent, github.com/modern-go/reflect2, github.com/munnerz/goautoneg, github.com/spf13/pflag, github.com/x448/float16, go.yaml.in/yaml/v2, go.yaml.in/yaml/v3, golang.org/x/net, golang.org/x/oauth2, golang.org/x/sys, golang.org/x/term, golang.org/x/text, golang.org/x/time, google.golang.org/protobuf, gopkg.in/evanphx/json-patch.v4, gopkg.in/inf.v0, gopkg.in/yaml.v3.",
+  "website": "https://pkg.go.dev",
+  "licenses": [
+    "Apache-2.0",
+    "go-module-notices"
+  ],
+  "developers": [
+    {
+      "name": "The Go module authors"
+    }
+  ],
+  "tag": "native"
+}

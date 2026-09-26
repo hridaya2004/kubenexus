@@ -1,0 +1,16 @@
+{
+  "uniqueId": "dev.hridaya.kubenexus:native-wuffs",
+  "name": "Wuffs",
+  "description": "Wrangling Untrusted File Formats Safely: image decoding compiled into the terminal engine through libghostty. Dual-licensed MIT or Apache-2.0; used here under MIT.",
+  "website": "https://github.com/google/wuffs",
+  "licenses": [
+    "wuffs-mit"
+  ],
+  "developers": [
+    {
+      "name": "The Wuffs Authors",
+      "organisationUrl": "https://github.com/google/wuffs"
+    }
+  ],
+  "tag": "native"
+}

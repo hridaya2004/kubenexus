@@ -36,7 +36,7 @@ GRADLE_NDK_VERSION  := $(shell sed -n 's/^ *ndkVersion = "\(.*\)"$$/\1/p' $(ANDR
 .PHONY: help jni k8s-engine ghostty debug release build bundle bundle-debug lint fmt test \
         clean clean-jni install install-debug install-release \
         k8s-clean k8s-test k8s-lint k8s-fmt ghostty-fmt generate-kube-openapi-spec \
-        licenses licenses-clean \
+        licenses licenses-clean go-notices \
         verify-jni verify-ndk
 
 # ------------------------------------------------------------------------------
@@ -217,6 +217,9 @@ licenses: ## Generate the licence compliance report (override with LICENSES_DIR=
 	done
 	@echo ""
 	@echo "Report: $(LICENSES_REPORT)  (also kubenexus-licenses.csv, and per-dependency copies under dependencies/)"
+
+go-notices: ## Regenerate in-app licences for the Go code in libkubenexus_client.so (after dependency changes)
+	python3 $(CORE_DIR)/scripts/generate_go_notices.py
 
 licenses-clean: ## Remove the generated licence report
 	rm -rf $(LICENSES_DIR)

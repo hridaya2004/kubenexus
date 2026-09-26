@@ -187,7 +187,8 @@ fn buildNativeLibrary(
         .target = target,
         .optimize = optimize,
         .link_libc = true,
-        .strip = true,
+        // Unstripped: AGP strips the shipped copy and keeps the symbols for Play.
+        .strip = false,
         .unwind_tables = .none,
         .omit_frame_pointer = true,
     });
@@ -226,7 +227,7 @@ fn buildNativeLibrary(
     lib.link_gc_sections = true;
     lib.link_eh_frame_hdr = false;
     lib.lto = .thin;
-    root_module.strip = true;
+    root_module.strip = false;
     root_module.unwind_tables = .none;
     root_module.omit_frame_pointer = true;
 

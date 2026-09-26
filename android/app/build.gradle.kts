@@ -12,7 +12,9 @@ android {
         version = release(37)
     }
 
-    ndkVersion = "27.0.12077973"
+    // Must match ANDROID_NDK_HOME in the Makefile. If it names an NDK that is not installed, AGP
+    // ships the native libs unstripped and emits no debug symbols. `make verify-ndk` checks it.
+    ndkVersion = "30.0.16138531"
 
     val repoDir = project.rootDir.parentFile ?: project.rootDir
 
@@ -126,6 +128,9 @@ android {
         }
 
         release {
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             isDebuggable = false
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true

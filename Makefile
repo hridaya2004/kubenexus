@@ -28,11 +28,16 @@ LICENSES_OUT       := $(if $(filter /%,$(LICENSES_DIR)),$(LICENSES_DIR),$(CURDIR
 # file travels on its own. Rename to something self-describing.
 LICENSES_REPORT    := $(LICENSES_OUT)/kubenexus-licenses.txt
 
+# The NDK version android/app/build.gradle.kts asks for, read from there so the two can only
+# disagree if that file itself is wrong.
+GRADLE_NDK_VERSION  := $(shell sed -n 's/^ *ndkVersion = "\(.*\)"$$/\1/p' $(ANDROID_DIR)/app/build.gradle.kts)
+
 .DEFAULT_GOAL := help
 .PHONY: help jni k8s-engine ghostty debug release build bundle bundle-debug lint fmt test \
         clean clean-jni install install-debug install-release \
         k8s-clean k8s-test k8s-lint k8s-fmt ghostty-fmt generate-kube-openapi-spec \
-        licenses licenses-clean
+        licenses licenses-clean \
+        verify-jni verify-ndk
 
 # ------------------------------------------------------------------------------
 # Help
@@ -62,7 +67,7 @@ $(GHOSTTY_SO_TARGET) &: $(GHOSTTY_SOURCES)
 	@echo "libghostty_jni.so missing or stale for some ABI. Rebuilding Ghostty JNI library with Zig..."
 	$(MAKE) ghostty
 
-jni: $(AAR_TARGET) $(GHOSTTY_SO_TARGET) ## Ensure native JNI libraries (k8s-engine and Ghostty) are built
+jni: verify-ndk $(AAR_TARGET) $(GHOSTTY_SO_TARGET) ## Ensure native JNI libraries (k8s-engine and Ghostty) are built
 
 verify-jni: ## Fail unless every ABI has its native library in jniLibs and in the AAR
 	@missing=""; \
@@ -74,6 +79,20 @@ verify-jni: ## Fail unless every ABI has its native library in jniLibs and in th
 	done; \
 	if [ -n "$$missing" ]; then echo "ERROR: missing native libs for:$$missing"; exit 1; fi; \
 	echo "OK: native libs present for $(GHOSTTY_ABIS) in jniLibs and $(notdir $(AAR_TARGET))"
+
+verify-ndk: ## Fail unless the NDK AGP was told to use is the one installed here
+	@if [ -z "$(GRADLE_NDK_VERSION)" ]; then \
+		echo "ERROR: could not read ndkVersion from $(ANDROID_DIR)/app/build.gradle.kts"; exit 1; \
+	fi
+	@if [ ! -d "$(ANDROID_NDK_ROOT)" ]; then \
+		echo "ERROR: NDK not installed at $(ANDROID_NDK_ROOT)"; exit 1; \
+	fi
+	@if [ "$(notdir $(ANDROID_NDK_ROOT))" != "$(GRADLE_NDK_VERSION)" ]; then \
+		echo "ERROR: $(ANDROID_DIR)/app/build.gradle.kts asks for NDK $(GRADLE_NDK_VERSION) but ANDROID_NDK_ROOT is $(ANDROID_NDK_ROOT)"; \
+		echo "       Without a matching NDK, AGP cannot strip native libs, so it ships them as-is and emits no debug symbols."; \
+		exit 1; \
+	fi
+	@echo "OK: NDK $(GRADLE_NDK_VERSION) matches $(ANDROID_DIR)/app/build.gradle.kts"
 
 k8s-engine: ## Build kubenexus.aar from k8s-engine Go source and copy to android libs
 	$(MAKE) -C $(CORE_DIR) build-android

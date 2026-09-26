@@ -54,6 +54,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.3 // indirect
 )
 
-replace k8s.io/client-go => github.com/hridaya2004/client-go v0.36.3
-
 tool golang.org/x/mobile/cmd/gobind

@@ -59,13 +59,17 @@ internal fun LogLinesList(
                         parseAnsiToAnnotatedString(line, highlightQuery)
                     }
 
+                    // Unwrapped lines sit in a horizontal scroll, where the row's width is
+                    // unbounded: a weight there measures the text at zero width, so it only
+                    // applies when wrapping, as in the Logcat list.
                     Text(
                         text = parsedLine,
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                         ),
                         color = TerminalText,
-                        modifier = Modifier.weight(1f),
+                        softWrap = wrapLines,
+                        modifier = if (wrapLines) Modifier.weight(1f) else Modifier,
                     )
                 }
             }

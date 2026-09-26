@@ -7,7 +7,7 @@ CORE_DIR     := k8s-engine
 TERMINAL_DIR := terminal-native
 GRADLE       := ./$(ANDROID_DIR)/gradlew -p $(ANDROID_DIR)
 
-ANDROID_NDK_HOME ?= $(HOME)/Android/Sdk/ndk/30.0.16138531
+ANDROID_NDK_HOME ?= $(HOME)/Android/Sdk/ndk/30.0.16248370
 export ANDROID_NDK_HOME
 export ANDROID_NDK_ROOT ?= $(ANDROID_NDK_HOME)
 export ANDROID_HOME     ?= $(HOME)/Android/Sdk

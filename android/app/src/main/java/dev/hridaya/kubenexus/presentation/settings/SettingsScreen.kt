@@ -27,10 +27,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import dev.hridaya.kubenexus.BuildConfig
+import dev.hridaya.kubenexus.R
 import dev.hridaya.kubenexus.domain.model.ThemeMode
 import dev.hridaya.kubenexus.presentation.settings.components.AboutCard
 import dev.hridaya.kubenexus.presentation.settings.components.AppThemeModePreferenceWidget
@@ -38,7 +40,6 @@ import dev.hridaya.kubenexus.presentation.settings.components.ModuleInfo
 import dev.hridaya.kubenexus.presentation.settings.components.ModulesCard
 import dev.hridaya.kubenexus.presentation.settings.components.PreferenceNavigationCard
 import dev.hridaya.kubenexus.presentation.settings.components.PreferenceSwitchCard
-import dev.hridaya.kubenexus.presentation.common.Github
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 import dev.hridaya.kubenexus.ui.theme.LocalAmoledDark
 import dev.hridaya.kubenexus.ui.theme.LocalOnAmoledDarkChange
@@ -197,7 +198,7 @@ fun SettingsScreen(
 
             item {
                 PreferenceNavigationCard(
-                    icon = Github,
+                    painter = painterResource(R.drawable.github),
                     title = "GitHub",
                     onClick = {
                         val intent = Intent(

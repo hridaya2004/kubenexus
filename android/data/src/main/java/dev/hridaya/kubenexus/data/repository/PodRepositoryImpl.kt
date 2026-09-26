@@ -41,6 +41,10 @@ class NativeTerminalSession(private val session: client.ExecSession) : TerminalS
         session.writeBytes(bytes)
     }
 
+    override fun resize(columns: Int, rows: Int) {
+        session.resize(columns, rows)
+    }
+
     override fun close() {
         session.close()
     }

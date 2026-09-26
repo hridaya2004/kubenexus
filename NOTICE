@@ -1,0 +1,101 @@
+KubeNexus
+Copyright 2026 Hridaya Prajapati
+
+This product includes software developed by third parties. KubeNexus is
+licensed under the Apache License, Version 2.0; the bundled and linked
+components below are licensed separately and separately as noted.
+
+This file satisfies the attribution requirements of the Apache License,
+Version 2.0, Section 4(d).
+
+--------------------------------------------------------------------------------
+Ghostty — terminal emulator core (libghostty)
+--------------------------------------------------------------------------------
+Compiled into the application as native code.
+Upstream: https://github.com/ghostty-org/ghostty
+License: MIT
+Copyright (c) 2024 Mitchell Hashimoto, Ghostty contributors
+
+The full MIT license text is reproduced in legal/THIRD-PARTY-NOTICES.md and is
+displayed in the application's "Open source licenses" screen. The notice must
+remain in all copies or substantial portions of the software, including the
+shipped application binary.
+
+Embedding is expressly supported by the Ghostty project.
+
+--------------------------------------------------------------------------------
+Kubernetes client libraries
+--------------------------------------------------------------------------------
+Upstream: https://github.com/kubernetes
+License: Apache License, Version 2.0
+Copyright The Kubernetes Authors
+
+Modules: k8s.io/api, k8s.io/apimachinery, k8s.io/client-go, k8s.io/streaming,
+k8s.io/klog/v2, k8s.io/kube-openapi, k8s.io/utils, sigs.k8s.io/yaml,
+sigs.k8s.io/json, sigs.k8s.io/randfill, sigs.k8s.io/structured-merge-diff/v6
+
+The full Apache License, Version 2.0 text is reproduced in
+legal/LICENSE-Apache-2.0.txt and is displayed in the application's "Open source
+licenses" screen.
+
+No source file from these modules has been modified. The k8s.io/client-go
+dependency resolves to the upstream release tag v0.36.3 unmodified.
+
+--------------------------------------------------------------------------------
+Vendored native dependencies (Zig)
+--------------------------------------------------------------------------------
+Upstream sources are vendored under terminal-native/zig-pkg/.
+
+  aro ................. MIT, Copyright (c) 2021 Veikka Tuominen
+  uucode .............. MIT
+  translate_c ......... MIT, Copyright (c) Zig contributors
+  Wuffs ............... MIT OR Apache-2.0, Copyright 2023 The Wuffs Authors
+  zlib ................ zlib, Copyright (C) 1995-2022 Jean-loup Gailly and
+                        Mark Adler
+  (one package) ....... CC0 1.0 Universal
+  Nerd Fonts .......... SIL Open Font License 1.1
+  afl++ ............... GPL-2.0 (BUILD-TIME ONLY — not linked into the
+                        distributed application; see legal/THIRD-PARTY-NOTICES.md)
+
+--------------------------------------------------------------------------------
+Android and JVM dependencies
+--------------------------------------------------------------------------------
+AndroidX and Jetpack (Core KTX, Lifecycle, Activity Compose, Navigation Compose,
+Room, DataStore, Compose, Compose Material3, Compose Adaptive, Window Size
+Class) ................................. Apache License 2.0
+Kotlin standard library, coroutines,
+  kotlinx.serialization ................... Apache License 2.0
+Dagger Hilt ............................. Apache License 2.0
+LeakCanary .............................. Apache License 2.0 (debug builds only)
+net.mamoe.yamlkt, org.json,
+  javax.inject ........................... see module metadata
+
+The app contains no advertising, analytics, or crash-reporting SDKs.
+
+--------------------------------------------------------------------------------
+Full details
+--------------------------------------------------------------------------------
+Complete license texts, copyright notices, pinned upstream versions and
+commit hashes, and generation instructions for the full transitive dependency
+set are recorded in:
+
+  legal/THIRD-PARTY-NOTICES.md
+
+--------------------------------------------------------------------------------
+Trademarks
+--------------------------------------------------------------------------------
+KubeNexus, its name, logo and icons are reserved marks of Hridaya Prajapati and
+are not licensed under Apache-2.0. See the Additional Notice in LICENSE and
+TRADEMARK-NOTICE.md.
+
+"Kubernetes" is a registered trademark of LF Projects, LLC and is used here
+descriptively only. KubeNexus is not affiliated with, endorsed by, or sponsored
+by The Linux Foundation, LF Projects, or the Kubernetes project.
+
+"Ghostty" is the property of the Ghostty project and is used descriptively to
+identify the origin of the bundled terminal engine.
+
+--------------------------------------------------------------------------------
+Contact
+--------------------------------------------------------------------------------
+Licensing questions: see the contact address in legal/PRIVACY-POLICY.md

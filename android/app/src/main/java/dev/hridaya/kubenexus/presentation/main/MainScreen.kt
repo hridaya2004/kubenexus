@@ -17,6 +17,7 @@ import dev.hridaya.kubenexus.presentation.deployments.detail.DeploymentDetailVie
 import dev.hridaya.kubenexus.presentation.home.HomeUiEffect
 import dev.hridaya.kubenexus.presentation.home.HomeViewModel
 import dev.hridaya.kubenexus.presentation.home.ManageClustersScreen
+import dev.hridaya.kubenexus.presentation.licenses.OpenSourceLicensesScreen
 import dev.hridaya.kubenexus.presentation.logcat.LogcatRoute
 import dev.hridaya.kubenexus.presentation.logcat.LogcatViewModel
 import dev.hridaya.kubenexus.presentation.navigation.Destination
@@ -41,6 +42,7 @@ fun MainScreen(
     var isViewingDeployments by rememberSaveable { mutableStateOf(false) }
     var isViewingServices by rememberSaveable { mutableStateOf(false) }
     var isViewingLogcat by rememberSaveable { mutableStateOf(false) }
+    var isViewingOpenSourceLicenses by rememberSaveable { mutableStateOf(false) }
     var isCreatingDeployment by rememberSaveable { mutableStateOf(false) }
     var isCreatingPod by rememberSaveable { mutableStateOf(false) }
     var isCreatingService by rememberSaveable { mutableStateOf(false) }
@@ -62,6 +64,7 @@ fun MainScreen(
                 isViewingDeployments = false
                 isViewingServices = false
                 isViewingLogcat = false
+                isViewingOpenSourceLicenses = false
                 isCreatingDeployment = false
                 isCreatingPod = false
                 isCreatingService = false
@@ -267,6 +270,14 @@ fun MainScreen(
             )
         }
 
+        isViewingOpenSourceLicenses -> {
+            BackHandler { isViewingOpenSourceLicenses = false }
+            OpenSourceLicensesScreen(
+                onNavigateBack = { isViewingOpenSourceLicenses = false },
+                modifier = modifier,
+            )
+        }
+
         else -> {
             MainTopLevelScaffold(
                 homeViewModel = homeViewModel,
@@ -280,6 +291,7 @@ fun MainScreen(
                 onNavigateToCreateDeployment = { isCreatingDeployment = true },
                 onNavigateToCreateService = { isCreatingService = true },
                 onNavigateToLogcat = { isViewingLogcat = true },
+                onNavigateToOpenSourceLicenses = { isViewingOpenSourceLicenses = true },
                 activeForwardCount = portForwardSessionsState.activeCount,
                 onOpenPortForwardSessions = { showPortForwardSessions = true },
                 modifier = modifier,

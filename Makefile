@@ -20,10 +20,19 @@ GHOSTTY_SO_TARGET := $(foreach abi,$(GHOSTTY_ABIS),$(ANDROID_DIR)/app/src/main/j
 GO_CORE_SOURCES   := $(shell find $(CORE_DIR) -type f \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' -o -name '*.sh' \) -not -name '*_test.go' 2>/dev/null)
 GHOSTTY_SOURCES   := $(shell find $(TERMINAL_DIR)/src -type f 2>/dev/null) $(TERMINAL_DIR)/build.zig $(TERMINAL_DIR)/build.zig.zon
 
+LICENSES_DIR      ?= legal/compliance
+# Gradle resolves a relative exportPath against its own project dir (android/), not the repo root,
+# so anchor it here. An absolute LICENSES_DIR is used as given.
+LICENSES_OUT       := $(if $(filter /%,$(LICENSES_DIR)),$(LICENSES_DIR),$(CURDIR)/$(LICENSES_DIR))
+# The plugin names its output export.txt/export.csv, which says nothing about what it is if the
+# file travels on its own. Rename to something self-describing.
+LICENSES_REPORT    := $(LICENSES_OUT)/kubenexus-licenses.txt
+
 .DEFAULT_GOAL := help
 .PHONY: help jni k8s-engine ghostty debug release build bundle bundle-debug lint fmt test \
         clean clean-jni install install-debug install-release \
-        k8s-clean k8s-test k8s-lint k8s-fmt ghostty-fmt generate-kube-openapi-spec
+        k8s-clean k8s-test k8s-lint k8s-fmt ghostty-fmt generate-kube-openapi-spec \
+        licenses licenses-clean
 
 # ------------------------------------------------------------------------------
 # Help
@@ -142,6 +151,42 @@ lint: ## Run Android Lint checks
 
 fmt: k8s-fmt ghostty-fmt ## Apply formatting across Go, Zig, and Android
 	$(GRADLE) lintFix
+
+# ------------------------------------------------------------------------------
+# Licences
+# ------------------------------------------------------------------------------
+
+licenses: ## Generate the licence compliance report (override with LICENSES_DIR=...)
+	@echo "Generating licence report into $(LICENSES_DIR)/ ..."
+	$(GRADLE) :app:exportComplianceLibrariesRelease -PaboutLibraries.exportPath=$(LICENSES_OUT)
+	@test -f $(LICENSES_OUT)/export.txt || { echo "ERROR: nothing generated in $(LICENSES_OUT)"; exit 1; }
+	@mv $(LICENSES_OUT)/export.txt $(LICENSES_REPORT)
+	@mv $(LICENSES_OUT)/export.csv $(LICENSES_OUT)/kubenexus-licenses.csv
+	@echo ""
+	@echo "Libraries: $$(sed -n '/^LIBRARIES:/,/^LICENSES:/p' $(LICENSES_REPORT) | grep -c ';')"
+	@echo ""
+	@echo "Licences in use:"
+	@sed -n '/^LIBRARIES:/,/^LICENSES:/p' $(LICENSES_REPORT) | grep ';' \
+		| cut -d';' -f3 | tr ',' '\n' | sed 's/^ *//' | sort -u | sed 's/^/  /'
+	@echo ""
+	@echo "Native components (not visible to Gradle, declared in android/config):"
+	@sed -n '/^LIBRARIES:/,/^LICENSES:/p' $(LICENSES_REPORT) \
+		| grep 'dev.hridaya.kubenexus' | cut -d';' -f1,3 | sed 's/^/  /'
+	@for section in "ARTIFACTS WITHOUT LICENSE" "UNKNOWN LICENSES"; do \
+		entries=$$(awk -v want="$$section:" '$$0 == want {body=1; next} \
+			body && /^[A-Z][A-Z /-]*:$$/ {exit} body {print}' $(LICENSES_REPORT) \
+			| sed '/^$$/d'); \
+		if [ -z "$$entries" ]; then \
+			echo ""; echo "$$section: none"; \
+		else \
+			echo ""; echo "$$section — review these:"; echo "$$entries" | sed 's/^/  /'; \
+		fi; \
+	done
+	@echo ""
+	@echo "Report: $(LICENSES_REPORT)  (also kubenexus-licenses.csv, and per-dependency copies under dependencies/)"
+
+licenses-clean: ## Remove the generated licence report
+	rm -rf $(LICENSES_DIR)
 
 # ------------------------------------------------------------------------------
 # Cleanup

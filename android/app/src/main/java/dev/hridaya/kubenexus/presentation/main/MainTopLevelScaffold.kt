@@ -30,6 +30,7 @@ internal fun MainTopLevelScaffold(
     onNavigateToCreateDeployment: () -> Unit,
     onNavigateToCreateService: () -> Unit,
     onNavigateToLogcat: () -> Unit,
+    onNavigateToOpenSourceLicenses: () -> Unit,
     activeForwardCount: Int,
     onOpenPortForwardSessions: () -> Unit,
     modifier: Modifier = Modifier,
@@ -93,6 +94,7 @@ internal fun MainTopLevelScaffold(
                 Destination.Settings -> {
                     SettingsScreen(
                         onNavigateToLogcat = onNavigateToLogcat,
+                        onNavigateToOpenSourceLicenses = onNavigateToOpenSourceLicenses,
                     )
                 }
             }

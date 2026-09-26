@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DataObject
+import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +52,7 @@ import dev.hridaya.kubenexus.ui.theme.LocalThemeMode
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     onNavigateToLogcat: () -> Unit = {},
+    onNavigateToOpenSourceLicenses: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val currentThemeMode = LocalThemeMode.current
@@ -198,6 +200,15 @@ fun SettingsScreen(
 
             item {
                 PreferenceNavigationCard(
+                    icon = Icons.Outlined.Gavel,
+                    title = "Open source licenses",
+                    subtitle = "Attribution for bundled and linked components",
+                    onClick = onNavigateToOpenSourceLicenses,
+                )
+            }
+
+            item {
+                PreferenceNavigationCard(
                     painter = painterResource(R.drawable.github),
                     title = "GitHub",
                     onClick = {
@@ -207,6 +218,18 @@ fun SettingsScreen(
                         )
                         context.startActivity(intent)
                     },
+                )
+            }
+
+            item {
+                // "Kubernetes" is a registered mark of LF Projects, LLC; KubeNexus is independent.
+                Text(
+                    text = "KubeNexus is an independent app and is not affiliated with, endorsed " +
+                        "by, or sponsored by The Linux Foundation or the Kubernetes® project. " +
+                        "Kubernetes® is a registered trademark of LF Projects, LLC.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
                 )
             }
         }

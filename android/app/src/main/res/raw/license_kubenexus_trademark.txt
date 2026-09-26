@@ -1,0 +1,52 @@
+KubeNexus — Trademark Notice
+Copyright 2026 Hridaya Prajapati
+
+This notice supplements the Apache License, Version 2.0, under which KubeNexus
+is licensed. The Apache License text is reproduced separately in this application.
+
+1. NO TRADEMARK LICENSE GRANTED. The Apache License expressly does not grant
+   permission to use the trade names, trademarks, service marks, or product names
+   of the Licensor (Section 6). The Licensor additionally reserves all rights in
+   the following, none of which are licensed:
+
+   - the name "KubeNexus" and any confusingly similar mark;
+   - the KubeNexus logo, icon, and all associated artwork and design;
+   - domain names and package identifiers incorporating "kubenexus", including
+     dev.hridaya.kubenexus and any application store listing under that
+     identifier.
+
+2. SCOPE OF THE RESERVATION. You may not use any reserved mark in a way that
+   suggests endorsement, sponsorship, official status, certification, or
+   affiliation with the Licensor or with KubeNexus. You may not register, or
+   attempt to register, any reserved mark, alone or in combination with your own
+   marks, in any jurisdiction or class of goods.
+
+3. ALLOWED NOMINATIVE USE. Nothing here restricts your ability to state
+   factually that your work is based on, derived from, compatible with, or a
+   fork of KubeNexus, provided you do so in accordance with Section 6 of the
+   Apache License and do not use the reserved marks as your own.
+
+4. STORE LISTINGS. If you distribute a modified version on Google Play or any
+   other application store, you must not use the reserved marks, the KubeNexus
+   icon, or any store listing under the reserved package identifiers. You must
+   use your own application name, icon, and package identifier. Continuing to
+   use the reserved marks requires separate written permission from the
+   Licensor, which is not granted by the Apache License.
+
+5. NO ENDORSEMENT. Nothing in the license or the Work shall be construed as
+   endorsement by the Licensor, by The Linux Foundation, by LF Projects, LLC, or
+   by the Kubernetes project.
+
+--------------------------------------------------------------------------------
+Third-party marks
+
+"Kubernetes" is a registered trademark of LF Projects, LLC. It is used in this
+application descriptively only, to state which platform KubeNexus works with.
+
+KubeNexus is not affiliated with, endorsed by, or sponsored by The Linux
+Foundation, LF Projects, LLC, the Cloud Native Computing Foundation, or the
+Kubernetes project.
+
+"Ghostty" is the property of the Ghostty project. It is used descriptively to
+identify the origin of the bundled terminal engine. The Ghostty project does not
+endorse or support KubeNexus.

@@ -37,3 +37,11 @@ terminal-native/zig-out/
 
 # GrayMatter agent memory store
 .graymatter/
+
+# Audit scratch output (play-policy-insights)
+.scratch/
+__pycache__/
+
+# AboutLibraries compliance report. Generated on demand by `make licenses`; the licences that
+# actually ship come from res/raw/aboutlibraries, produced during the Android build.
+legal/compliance/

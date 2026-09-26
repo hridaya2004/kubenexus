@@ -56,7 +56,14 @@ fun AboutCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "A Kubernetes client for Android • v$versionName",
+                    // Registered mark of LF Projects, LLC: adjectival use only, never in the
+                    // product name. See legal/TRADEMARK-NOTICE.md.
+                    text = "Client for Kubernetes® clusters",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "v$versionName",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

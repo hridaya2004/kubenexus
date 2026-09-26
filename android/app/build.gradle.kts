@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.aboutLibraries)
 }
 
 android {
@@ -181,6 +182,65 @@ android {
     }
 }
 
+// Gradle cannot see the vendored Zig tree or the Go modules, so android/config/ declares those
+// components by hand. Add an entry there when a native dependency changes.
+aboutLibraries {
+    collect {
+        configPath = file("../config")
+        fetchRemoteLicense = false
+        fetchRemoteFunding = false
+    }
+
+    export {
+        prettyPrint = true
+    }
+
+    license {
+        strictMode = com.mikepenz.aboutlibraries.plugin.StrictMode.FAIL
+
+        allowedLicenses.addAll(
+            "Apache-2.0",
+            "MIT",
+            "BSD-2-Clause",
+            "BSD-3-Clause",
+            "ISC",
+            "0BSD",
+            "Unlicense",
+            "CC0-1.0",
+            "OFL-1.1",
+            "Zlib",
+            "GPL-2.0-only",
+            "Public Domain",
+            "mit-with-copyrights",
+        )
+
+        // Native components reference these by SPDX id and AboutLibraries pulls the canonical
+        // text from spdx.org. MIT and BSD are the exception: those licence bodies carry a
+        // "<year> <owner>" placeholder, and both require the project's real copyright notice, so
+        // config/licenses/ supplies those two with the notices filled in.
+        additionalLicenses.addAll(
+            "Apache-2.0",
+            "CC0-1.0",
+            "OFL-1.1",
+            "Zlib",
+            "GPL-2.0-only",
+            "mit-with-copyrights",
+        )
+    }
+
+    library {
+        duplicationMode = com.mikepenz.aboutlibraries.plugin.DuplicateMode.MERGE
+    }
+}
+
+// AboutLibraries wants kotlin-stdlib 2.4.10, which the Kotlin 2.2.10 compiler cannot read, so
+// without this pin the module fails to compile. Remove together with a Kotlin 2.4.x upgrade.
+configurations.configureEach {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
+    }
+}
+
 dependencies {
     implementation(
         fileTree(
@@ -219,6 +279,9 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+
+    implementation(libs.aboutlibraries.core)
+    implementation(libs.aboutlibraries.compose.m3)
 
     // Hilt (app still needs @HiltAndroidApp processor)
     implementation(libs.hilt.android)

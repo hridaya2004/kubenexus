@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Resource shrinking keep rules.
+
+  The AboutLibraries plugin generates the dependency/licence metadata into
+  res/raw/aboutlibraries at build time. This module sets isShrinkResources = true, and AGP 9
+  enables optimised resource shrinking by default, so the shrinker can strip that file as
+  apparently-unreferenced. When it does, the in-app "Open source licenses" screen silently
+  renders empty — which is exactly the failure mode that leaves a licence obligation unmet
+  without any error.
+
+  Do not delete this file. If the licences screen ever comes up blank in a release build, this
+  rule is the first thing to check.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/aboutlibraries" />

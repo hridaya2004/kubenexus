@@ -88,7 +88,7 @@ class LogExportHelperTest {
 
     @Test
     fun `pruneExports deletes only exports older than an hour`() {
-        val dir = createTempDir(prefix = "kn-logs")
+        val dir = kotlin.io.path.createTempDirectory("kn-logs").toFile()
         try {
             val now = 10_000_000_000L
             val old = java.io.File(dir, "old.log").apply { writeText("x"); setLastModified(now - 2 * 60 * 60 * 1000L) }

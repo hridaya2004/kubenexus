@@ -1,6 +1,9 @@
 package dev.hridaya.kubenexus.presentation.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +20,7 @@ import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DataObject
 import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.Hub
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -209,15 +213,18 @@ fun SettingsScreen(
 
             item {
                 PreferenceNavigationCard(
+                    icon = Icons.Outlined.PrivacyTip,
+                    title = "Privacy policy",
+                    subtitle = "What KubeNexus stores, sends and never collects",
+                    onClick = { context.openUrl(PRIVACY_POLICY_URL) },
+                )
+            }
+
+            item {
+                PreferenceNavigationCard(
                     painter = painterResource(R.drawable.github),
                     title = "GitHub",
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/hridaya2004/kubenexus".toUri(),
-                        )
-                        context.startActivity(intent)
-                    },
+                    onClick = { context.openUrl(SOURCE_CODE_URL) },
                 )
             }
 
@@ -233,6 +240,21 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+}
+
+/** The published policy, the same URL entered in Play Console. */
+private const val PRIVACY_POLICY_URL =
+    "https://github.com/hridaya2004/kubenexus/blob/main/legal/PRIVACY-POLICY.md"
+
+private const val SOURCE_CODE_URL = "https://github.com/hridaya2004/kubenexus"
+
+/** Opens [url] in a browser, or says so if the device has nothing that can open it. */
+private fun Context.openUrl(url: String) {
+    try {
+        startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(this, "No app on this device can open $url", Toast.LENGTH_LONG).show()
     }
 }
 

@@ -162,7 +162,7 @@ internal fun LogViewerHeaderBar(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Upload to Pastebin") },
+                        text = { Text("Upload to dpaste.org…") },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.CloudUpload,

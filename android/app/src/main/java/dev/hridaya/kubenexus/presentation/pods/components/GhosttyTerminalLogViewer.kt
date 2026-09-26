@@ -56,6 +56,7 @@ fun GhosttyTerminalLogViewer(
     var showSearch by remember { mutableStateOf(false) }
     var wrapLines by remember { mutableStateOf(true) }
     var autoScrollEnabled by remember { mutableStateOf(true) }
+    var confirmUpload by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -109,6 +110,50 @@ fun GhosttyTerminalLogViewer(
         }
     }
 
+    if (confirmUpload) {
+        val provider = LogExportHelper.pasteProvider
+        LogUploadConfirmDialog(
+            lineCount = logs.size,
+            serviceName = provider.name,
+            retention = provider.retention,
+            onDismiss = { confirmUpload = false },
+            onConfirm = {
+                confirmUpload = false
+                val text = logs.joinToString("\n")
+                Toast.makeText(context, "Uploading logs to ${provider.name}...", Toast.LENGTH_SHORT).show()
+                scope.launch {
+                    when (val result = LogExportHelper.uploadToPastebin(text, provider)) {
+                        is Result.Success -> {
+                            val pasteUrl = result.data
+                            LogExportHelper.copyToClipboard(context, pasteUrl, "Pastebin URL")
+                            Toast.makeText(
+                                context,
+                                "Logs uploaded! URL copied to clipboard: $pasteUrl",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, title ?: "Pod logs")
+                                putExtra(Intent.EXTRA_TEXT, pasteUrl)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share Log Link"))
+                        }
+
+                        is Result.Error -> {
+                            Toast.makeText(
+                                context,
+                                "Export failed: ${result.error.message}",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+
+                        Result.Loading -> Unit
+                    }
+                }
+            },
+        )
+    }
+
     Surface(
         color = TerminalBg,
         shape = MaterialTheme.shapes.small,
@@ -144,47 +189,7 @@ fun GhosttyTerminalLogViewer(
                     if (logs.isEmpty()) {
                         Toast.makeText(context, "No logs to export", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "Uploading logs...", Toast.LENGTH_SHORT).show()
-                        scope.launch {
-                            val text = logs.joinToString("\n")
-                            val pasteTitle = title ?: "pod"
-                            when (val result = LogExportHelper.uploadToPastebin(text, pasteTitle)) {
-                                is Result.Success -> {
-                                    val pasteUrl = result.data
-                                    LogExportHelper.copyToClipboard(
-                                        context,
-                                        pasteUrl,
-                                        "Pastebin URL"
-                                    )
-                                    Toast.makeText(
-                                        context,
-                                        "Logs uploaded! URL copied to clipboard: $pasteUrl",
-                                        Toast.LENGTH_LONG,
-                                    ).show()
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_SUBJECT, pasteTitle)
-                                        putExtra(Intent.EXTRA_TEXT, pasteUrl)
-                                    }
-                                    context.startActivity(
-                                        Intent.createChooser(
-                                            shareIntent,
-                                            "Share Log Link"
-                                        )
-                                    )
-                                }
-
-                                is Result.Error -> {
-                                    Toast.makeText(
-                                        context,
-                                        "Export failed: ${result.error.message}",
-                                        Toast.LENGTH_LONG,
-                                    ).show()
-                                }
-
-                                Result.Loading -> Unit
-                            }
-                        }
+                        confirmUpload = true
                     }
                 },
                 onClearLogs = onClearLogs,

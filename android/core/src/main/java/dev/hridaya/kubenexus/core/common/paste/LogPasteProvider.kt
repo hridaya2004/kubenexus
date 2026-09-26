@@ -3,15 +3,21 @@ package dev.hridaya.kubenexus.core.common.paste
 import dev.hridaya.kubenexus.core.common.result.Result
 
 /**
- * Pluggable provider for uploading logs to a remote paste service.
- * Enables seamlessly swapping or adding alternative pastebin backends.
+ * A remote paste service that pod logs can be uploaded to.
+ *
+ * Uploads leave the device and land on a third-party service, so every property the user
+ * must be told before agreeing to an upload is part of the contract.
  */
 interface LogPasteProvider {
-    /** Human-readable provider name (e.g. "dpaste.org", "paste.rs"). */
+    /** Host the logs are sent to, shown to the user before uploading (e.g. "dpaste.org"). */
     val name: String
 
+    /** How long the service keeps an upload, in words (e.g. "7 days"). */
+    val retention: String
+
     /**
-     * Uploads the given [content] with an optional [title] and returns the resulting public URL.
+     * Uploads [content] and returns the public URL of the paste. [content] is sent as given;
+     * callers are responsible for redacting it first.
      */
-    suspend fun upload(content: String, title: String? = null): Result<String>
+    suspend fun upload(content: String): Result<String>
 }

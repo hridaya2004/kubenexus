@@ -76,14 +76,7 @@ fun PodMetricsSection(
 
             Spacer(Modifier.height(10.dp))
 
-            val windowed = remember(samples, selectedRange) {
-                val cutoff = System.currentTimeMillis() - selectedRange.durationMs
-                val filtered = samples.filter { it.timestampMillis >= cutoff }
-                // A short range can hold fewer samples than a fresh poll cycle
-                // provides; falling back to the whole buffer keeps the chart
-                // alive instead of flashing "not enough samples".
-                if (filtered.size >= 2 || samples.isEmpty()) filtered else samples
-            }
+            val windowed = remember(samples, selectedRange) { selectedRange.window(samples) }
             val latest = windowed.lastOrNull()
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

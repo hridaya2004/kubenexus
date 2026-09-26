@@ -16,6 +16,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetServicesStreamUseCase
 import dev.hridaya.kubenexus.domain.usecase.SyncServicesUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -154,6 +155,9 @@ class ServicesViewModel @AssistedInject constructor(
         _uiState.update { it.copy(selectedNamespace = namespace) }
     }
 
+    private var syncJob: Job? = null
+    private var syncJobNamespace: String? = null
+
     /**
      * Friendly, user-facing copy; raw errors are never surfaced to the UI.
      * Deliberately not called from init: the Route's LifecycleStartEffect
@@ -161,7 +165,13 @@ class ServicesViewModel @AssistedInject constructor(
      * syncs on first entry.
      */
     private fun sync() {
-        viewModelScope.launch {
+        // The screen's start and the empty-cache auto-fetch can both ask at once; one sync per
+        // namespace is enough. A different namespace supersedes the running sync.
+        val namespace = _selectedNamespace.value
+        if (syncJob?.isActive == true && syncJobNamespace == namespace) return
+        syncJob?.cancel()
+        syncJobNamespace = namespace
+        syncJob = viewModelScope.launch {
             // First load takes the full spinner; later loads keep the list on
             // screen under the pull-to-refresh indicator.
             _uiState.update { state ->

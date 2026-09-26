@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.DeploymentSummary
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
@@ -49,6 +50,13 @@ fun DeploymentsRoute(
     onNavigateToCreateDeployment: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Sync whenever the screen becomes visible. Room keeps rows across launches, so without
+    // this the list showed whatever was cached last time until the user pulled to refresh.
+    LifecycleStartEffect(viewModel) {
+        viewModel.onAction(DeploymentsUiAction.Refresh)
+        onStopOrDispose { }
+    }
 
     DeploymentsScreen(
         uiState = uiState,

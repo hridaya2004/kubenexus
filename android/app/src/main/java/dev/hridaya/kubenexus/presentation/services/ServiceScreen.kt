@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hridaya.kubenexus.domain.model.ServicePortDetail
 import dev.hridaya.kubenexus.domain.model.ServiceSummary
@@ -59,6 +60,13 @@ fun ServicesRoute(
     onNavigateToCreateService: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Sync whenever the screen becomes visible. Room keeps rows across launches, so without
+    // this the list showed whatever was cached last time until the user pulled to refresh.
+    LifecycleStartEffect(viewModel) {
+        viewModel.onAction(ServicesUiAction.Refresh)
+        onStopOrDispose { }
+    }
 
     ServicesScreen(
         uiState = uiState,

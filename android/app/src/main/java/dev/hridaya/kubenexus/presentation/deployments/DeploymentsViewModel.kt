@@ -16,6 +16,7 @@ import dev.hridaya.kubenexus.domain.usecase.GetNamespacesUseCase
 import dev.hridaya.kubenexus.domain.usecase.SyncDeploymentsUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -146,12 +147,21 @@ class DeploymentsViewModel @AssistedInject constructor(
         }
     }
 
+    private var syncJob: Job? = null
+    private var syncJobNamespace: String? = null
+
     /**
      * Network refresh entry point (pull-to-refresh and lifecycle start). Only
      * writes into Room; the list updates exclusively through the stream emit.
      */
     private fun syncRemoteSnapshot() {
-        viewModelScope.launch {
+        // The screen's start and the empty-cache auto-fetch can both ask at once; one sync per
+        // namespace is enough. A different namespace supersedes the running sync.
+        val namespace = _uiState.value.selectedNamespace
+        if (syncJob?.isActive == true && syncJobNamespace == namespace) return
+        syncJob?.cancel()
+        syncJobNamespace = namespace
+        syncJob = viewModelScope.launch {
             _uiState.update { state ->
                 if (state.deployments.isEmpty() && state.errorMessage == null) {
                     state.copy(isLoading = true, errorMessage = null)

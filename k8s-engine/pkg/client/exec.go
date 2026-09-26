@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -94,15 +95,59 @@ func (s *ExecSession) Close() error {
 	return nil
 }
 
+// callbackWriter forwards stream output to a string callback.
+//
+// Output arrives in arbitrary chunks, and gomobile converts each string to UTF-16,
+// replacing every invalid byte with U+FFFD. A multi-byte character split across two
+// chunks (box drawing, CJK, emoji) would therefore arrive as replacement characters,
+// so an incomplete trailing sequence is held back until the next chunk completes it.
+// A writer is used by a single stream-copy goroutine, so it needs no locking.
 type callbackWriter struct {
-	fn func(string)
+	fn      func(string)
+	pending []byte
 }
 
 func (w *callbackWriter) Write(p []byte) (int, error) {
-	if len(p) > 0 && w.fn != nil {
-		w.fn(string(p))
+	n := len(p)
+	if n == 0 || w.fn == nil {
+		return n, nil
 	}
-	return len(p), nil
+	buf := p
+	if len(w.pending) > 0 {
+		buf = append(w.pending, p...)
+		w.pending = nil
+	}
+	cut := completeUTF8Prefix(buf)
+	if cut < len(buf) {
+		w.pending = append([]byte(nil), buf[cut:]...)
+	}
+	if cut > 0 {
+		w.fn(string(buf[:cut]))
+	}
+	return n, nil
+}
+
+// Flush delivers any held-back bytes. It is called once the stream has ended.
+func (w *callbackWriter) Flush() {
+	if len(w.pending) > 0 && w.fn != nil {
+		w.fn(string(w.pending))
+	}
+	w.pending = nil
+}
+
+// completeUTF8Prefix returns the length of buf without a trailing incomplete UTF-8
+// sequence. Invalid bytes are not held back; only a valid-looking prefix of a
+// multi-byte character at the very end is.
+func completeUTF8Prefix(buf []byte) int {
+	for i := len(buf) - 1; i >= 0 && i >= len(buf)-utf8.UTFMax; i-- {
+		if utf8.RuneStart(buf[i]) {
+			if utf8.FullRune(buf[i:]) {
+				return len(buf)
+			}
+			return i
+		}
+	}
+	return len(buf)
 }
 
 // Exec executes a non-interactive command inside a pod container and returns
@@ -227,9 +272,11 @@ func (c *Client) StartExecSession(namespace, podName, container, command string,
 	}
 
 	stdoutWriter := &callbackWriter{fn: callback.OnStdout}
+	var stderrCallbackWriter *callbackWriter
 	var stderrWriter io.Writer
 	if !tty {
-		stderrWriter = &callbackWriter{fn: callback.OnStderr}
+		stderrCallbackWriter = &callbackWriter{fn: callback.OnStderr}
+		stderrWriter = stderrCallbackWriter
 	}
 
 	go func() {
@@ -247,6 +294,10 @@ func (c *Client) StartExecSession(namespace, podName, container, command string,
 			Stderr: stderrWriter,
 			Tty:    tty,
 		})
+		stdoutWriter.Flush()
+		if stderrCallbackWriter != nil {
+			stderrCallbackWriter.Flush()
+		}
 		if err != nil && sessionCtx.Err() == nil {
 			callback.OnError(err.Error())
 		}

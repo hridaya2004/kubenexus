@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -426,6 +427,59 @@ func TestCallbackWriter(t *testing.T) {
 	_, err = cwNil.Write([]byte("test"))
 	if err != nil {
 		t.Errorf("Write with nil fn error = %v", err)
+	}
+}
+
+// A multi-byte character split across two stream chunks must reach the callback
+// intact rather than as replacement characters.
+func TestCallbackWriter_HoldsBackSplitUTF8(t *testing.T) {
+	var got []string
+	cw := &callbackWriter{fn: func(s string) { got = append(got, s) }}
+
+	box := []byte("┌─┐ 界 🙂")
+	for i := range box {
+		if _, err := cw.Write(box[i : i+1]); err != nil {
+			t.Fatalf("Write() error = %v", err)
+		}
+	}
+	cw.Flush()
+
+	joined := strings.Join(got, "")
+	if joined != string(box) {
+		t.Fatalf("callback received %q, want %q", joined, string(box))
+	}
+	for _, chunk := range got {
+		if !utf8.ValidString(chunk) {
+			t.Errorf("chunk %q is not valid UTF-8; gomobile would turn it into U+FFFD", chunk)
+		}
+	}
+}
+
+// Invalid bytes are passed through rather than held back forever.
+func TestCallbackWriter_PassesInvalidBytesThrough(t *testing.T) {
+	var got []string
+	cw := &callbackWriter{fn: func(s string) { got = append(got, s) }}
+
+	if _, err := cw.Write([]byte{'a', 0xff, 'b'}); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	if len(got) != 1 || got[0] != "a\xffb" {
+		t.Fatalf("got %q, want the chunk delivered unchanged", got)
+	}
+}
+
+// Bytes still held back when the stream ends are delivered by Flush.
+func TestCallbackWriter_FlushDeliversTruncatedTail(t *testing.T) {
+	var got []string
+	cw := &callbackWriter{fn: func(s string) { got = append(got, s) }}
+
+	_, _ = cw.Write([]byte{'o', 'k', 0xe7, 0x95}) // "ok" + first two bytes of 界
+	if len(got) != 1 || got[0] != "ok" {
+		t.Fatalf("before Flush got %q, want [\"ok\"]", got)
+	}
+	cw.Flush()
+	if len(got) != 2 || got[1] != "\xe7\x95" {
+		t.Fatalf("after Flush got %q, want the held-back bytes", got)
 	}
 }
 

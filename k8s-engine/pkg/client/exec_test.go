@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	utilexec "k8s.io/client-go/util/exec"
 )
 
 type mockExecCallback struct {
@@ -196,6 +197,35 @@ func TestExec_ReturnsOutputAlongsideError(t *testing.T) {
 	}
 	if res.Stderr != "permission denied" {
 		t.Errorf("Stderr = %q, want %q", res.Stderr, "permission denied")
+	}
+}
+
+// A non-zero exit is a normal outcome: the output and exit code must come back
+// without an error, because gomobile discards the result whenever an error is returned.
+func TestExec_NonZeroExitReturnsOutputAndCode(t *testing.T) {
+	c := newOfflineClient(t)
+
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				_, _ = options.Stderr.Write([]byte("ls: /nope: No such file or directory"))
+				return utilexec.CodeExitError{
+					Err:  errors.New("command terminated with non-zero exit code: 2"),
+					Code: 2,
+				}
+			},
+		}, nil
+	}
+
+	res, err := c.Exec("default", "pod-1", "c", "ls /nope", "")
+	if err != nil {
+		t.Fatalf("Exec() error = %v, want nil for a command that ran", err)
+	}
+	if res.ExitCode != 2 {
+		t.Errorf("ExitCode = %d, want 2", res.ExitCode)
+	}
+	if !strings.Contains(res.Stderr, "No such file") {
+		t.Errorf("Stderr = %q, want the command's message", res.Stderr)
 	}
 }
 

@@ -1,6 +1,10 @@
 package dev.hridaya.kubenexus.domain.model
 
-data class CommandExecResult(val stdout: String = "", val stderr: String = "")
+data class CommandExecResult(
+    val stdout: String = "",
+    val stderr: String = "",
+    val exitCode: Int = 0,
+)
 
 interface TerminalSession {
     fun write(input: String)

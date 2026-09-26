@@ -517,6 +517,7 @@ class PodRepositoryImpl @Inject constructor(
                     CommandExecResult(
                         stdout = nativeRes.stdout.orEmpty(),
                         stderr = nativeRes.stderr.orEmpty(),
+                        exitCode = nativeRes.exitCode,
                     ),
                 )
             } else {

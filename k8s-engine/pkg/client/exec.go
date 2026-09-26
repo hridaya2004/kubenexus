@@ -13,12 +13,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
+	utilexec "k8s.io/client-go/util/exec"
 )
 
-// ExecResult contains the captured stdout and stderr from a command execution.
+// ExecResult contains the captured stdout and stderr from a command execution, and
+// the command's exit code.
 type ExecResult struct {
-	Stdout string `json:"stdout"`
-	Stderr string `json:"stderr"`
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
+	ExitCode int32  `json:"exitCode"`
 }
 
 // ExecCallback receives streamed output and lifecycle events for an interactive
@@ -273,6 +276,14 @@ func (c *Client) Exec(namespace, podName, container, command, stdin string) (*Ex
 		Stderr: stderr.String(),
 	}
 
+	// A command that ran and exited non-zero is a result, not a failure to execute.
+	// gomobile turns a returned error into an exception and discards the result, so
+	// returning the exit status as an error would lose the output that explains it.
+	var exitErr utilexec.ExitError
+	if errors.As(err, &exitErr) && exitErr.Exited() {
+		result.ExitCode = int32(exitErr.ExitStatus())
+		return result, nil
+	}
 	if err != nil {
 		return result, fmt.Errorf("executing command: %w", err)
 	}

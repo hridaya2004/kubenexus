@@ -4,9 +4,8 @@ KubeNexus is free and open-source software that bundles and links the components
 below. This file satisfies the attribution obligations of the MIT License and
 sections 4(a), 4(c) and 4(d) of the Apache License, Version 2.0.
 
-> **Action required before you publish a build.** KubeNexus currently has **no
-> root `LICENSE` file and no `NOTICE` file**. Both are required — see
-> "Outstanding obligations" at the bottom.
+The root `LICENSE` (Apache-2.0 plus the trademark reservation) and `NOTICE` are in place;
+see "Outstanding obligations" at the bottom for the rest.
 
 ---
 
@@ -127,25 +126,30 @@ is a **registered trademark of LF Projects, LLC**, governed by a separate
 trademark policy. See [TRADEMARK-NOTICE.md](TRADEMARK-NOTICE.md) §1 — this is the
 single highest-risk item in this document.
 
-## 3. Native packages present in the tree but not attributed here
+## 3. What the native libraries actually contain
 
-`terminal-native/zig-pkg/` also contains `translate_c`, `uucode`, `aro`, `wuffs`, `zlib`, `pixels`,
-`nerd_fonts_symbols_only`, and `afl++` under Ghostty's `pkg/`.
+Checked against the built libraries (`llvm-nm` on `libghostty_jni.so`, `go list -deps` for the
+Go engine):
 
-These are **not dependencies KubeNexus introduces.** Zig resolved them transitively through
-`.ghostty`, and each was fetched from `deps.files.ghostty.org` — Ghostty's own dependency host.
-Their licensing is Ghostty's to discharge, under its MIT licence and its `build.zig.zon`. See
-[§4.2](#42-why-only-two-hand-declared-components) for the dependency trace and the binary
-evidence.
+| Library | Linked in | Attributed as |
+|---|---|---|
+| `libghostty_jni.so` | Ghostty (`libghostty-vt`) | Ghostty, MIT |
+| | Wuffs (image decoding; 165 `wuffs_*` symbols) | Wuffs, MIT (dual MIT / Apache-2.0) |
+| | Parts of the Zig standard library | Zig standard library, MIT |
+| `libkubenexus_client.so` (gomobile AAR) | Go runtime and standard library, gomobile's Java/Go glue (`golang.org/x/mobile`, which also ships as the `go.*` classes) | Go runtime, standard library and gomobile bindings, BSD-3-Clause |
+| | `k8s.io/*`, `sigs.k8s.io/*` | Kubernetes Go client libraries, Apache-2.0 |
+| | 27 other Go modules under Apache-2.0, MIT, BSD-2, BSD-3 and ISC | Go modules in the Kubernetes engine, with each module's own licence and NOTICE text |
 
-Two things worth keeping in mind even though nothing is owed to a user for them:
+`terminal-native/zig-pkg/` (fetched by Zig from `build.zig.zon`, not committed) also contains
+`aro`, `translate_c` and `uucode` (build tools), zlib's C sources, `afl++`, fonts and colour
+themes. None of those are in the shipped library: there are no zlib, `inflate`/`deflate`, `afl`
+or font symbols in `libghostty_jni.so`. Two things to watch when bumping the Ghostty pin:
 
-- **`afl++` is GPL-2.0.** It sits inside Ghostty's tree and is not linked into anything we build
-  (no `afl` symbols in `libghostty_jni.so`). If a future Ghostty bump ever made it a linked
-  dependency of the JNI library, the whole distribution would become GPL and could no longer be
-  Apache-2.0. Worth a glance when bumping the Ghostty pin.
-- **Nerd Fonts is `.lazy`** and absent from the binary (`nerd`, `woff2`, `ttf` all zero hits), so
-  the SIL OFL's requirement to ship its text with the font files does not currently apply.
+- **`afl++` is GPL-2.0.** If a future Ghostty ever linked it into the JNI library, the whole
+  distribution would become GPL and could no longer be Apache-2.0. GPL-2.0-only is deliberately
+  not an allowed licence in `app/build.gradle.kts`, and §5 has a symbol check.
+- **Nerd Fonts is `.lazy`** and absent from the binary, so the SIL OFL's requirement to ship
+  its text with the font files does not currently apply.
 
 ## 4. Transitive Go and Kotlin dependencies
 
@@ -156,86 +160,64 @@ by [AboutLibraries](https://github.com/mikepenz/AboutLibraries) 15.2.0 (Apache-2
 plugin collects licence metadata at build time into `res/raw/aboutlibraries`, and the app renders it
 with a Material 3 `LibrariesContainer`.
 
-This matters for a hard reason, not just convenience: Ghostty is statically linked native code, and
-the MIT licence requires its notice to travel with every copy of the software. A notice that lives
-only in this repository does **not** satisfy that. Verified present in a minified, resource-shrunk
-release APK.
+This matters for a hard reason, not just convenience: the native libraries are statically linked,
+and MIT, BSD and ISC all require their notices to travel with every binary copy. A notice that lives
+only in this repository does **not** satisfy that.
 
 The metadata comes from two places, because Gradle only ever sees half of what ships:
 
 | Source | Covers | Mechanism |
 |---|---|---|
 | Gradle resolution | Android/JVM artifacts | automatic |
-| `android/config/libraries/` | Ghostty and the Kubernetes Go client | hand-declared |
+| `android/config/libraries/` | the native components in §3 | declared; the Go ones generated |
 
-### 4.2 Why only two hand-declared components
+### 4.2 Hand-declared native components
 
-`terminal-native/build.zig.zon` declares exactly one dependency:
+`android/config/libraries/` declares the six native components from §3. Two of them are
+generated:
 
-```zig
-.dependencies = .{
-    .ghostty = .{
-        .url = "git+https://github.com/ghostty-org/ghostty#683d8db...",
-```
+- `lib_native_go_runtime.json` and `lib_native_go_modules.json`, with their licence texts
+  `lic_go-bsd-3-clause.json` and `lic_go-module-notices.json`, are written by
+  `k8s-engine/scripts/generate_go_notices.py` (`make go-notices`). It lists the modules the Go
+  client package links, reads each one's `LICENSE` and `NOTICE` files from the module cache, and
+  reproduces in full every licence that is not plain Apache-2.0, plus every NOTICE file. Run it
+  after changing `k8s-engine/go.mod` or the pinned gomobile version.
+- Ghostty, Wuffs, the Zig standard library and the Kubernetes client libraries are declared by
+  hand, with texts taken from their `LICENSE` files.
 
-Everything else under `zig-pkg/` — `translate_c`, `uucode`, `aro`, `wuffs`, `zlib`, `pixels`,
-`nerd_fonts_symbols_only` — was resolved transitively by Zig, and every one is fetched from
-`deps.files.ghostty.org`, Ghostty's own dependency host. `afl++` lives inside Ghostty's own `pkg/`
-directory. Nerd Fonts and the rest are additionally marked `.lazy`, so they are not built for the
-Android target at all.
+**When you add a dependency that ships code, declare it there.** `strictMode = FAIL` in
+`app/build.gradle.kts` stops a release for an unreviewed licence id, but it cannot tell you a
+native component or a copyright notice is missing.
 
-None of that is a dependency we introduce, so it is not re-attributed here. Ghostty's own MIT
-licence and its `build.zig.zon` govern its closure. Declaring a component we merely inherited would
-misattribute it and add rows a user cannot act on.
+### 4.3 Hand-supplied licence texts
 
-Confirmed empirically against the shipped `libghostty_jni.so` (statically linked, only `libc.so`
-dynamic): `ghostty`, `WuffsError`/`wuffs_swizzler` and `BadZlibHeader`/`WrongZlibChecksum` are
-present; `nerd`, `woff2`, `ttf`, `uucode`, `translate_c` and `afl` are all absent. The components
-that are built are covered by Ghostty's attribution.
-
-`golang.org/x/mobile` is our own build tool (gobind, used to expose the Go core to Kotlin). It is
-BSD-3-Clause, used at build time and never distributed, so nothing is owed to a user for it.
-
-### 4.3 The one hand-supplied licence text
-
-`android/config/licenses/` holds a single file. MIT is the only licence in play whose SPDX text
-cannot be used as-is: the body carries a literal `Copyright (c) <year> <copyright holders>`
-placeholder, and the licence requires the project's *actual* copyright notice. Shipping the
-template would satisfy nothing. So the canonical body is stored with the real notice filled in and
-`"spdxId": "MIT"` declared, which is what makes the app show and colour-code it as plain
-**MIT License** rather than a KubeNexus-branded variant.
-
-Everything else — Apache-2.0, BSD-3-Clause, CC0-1.0, OFL-1.1, Zlib, GPL-2.0-only — resolves by
-SPDX id, and AboutLibraries fetches the canonical text from spdx.org at build time.
-
-**When you add a dependency that ships code, add its entry to `config/libraries/` and, if it is
-MIT- or BSD-licensed, its copyright line to `config/licenses/`.** `strictMode = FAIL` in
-`app/build.gradle.kts` will stop a release for an unreviewed licence id, but it cannot tell you a
-copyright notice is missing.
+MIT, BSD and ISC texts carry the project's own copyright line, which the SPDX templates replace with
+a `<year> <copyright holders>` placeholder; shipping the template would satisfy nothing. So
+`android/config/licenses/` holds those texts with the real notices: `mit-with-copyrights`
+(Ghostty), `wuffs-mit`, `zig-mit`, `go-bsd-3-clause` and the generated `go-module-notices`.
+Apache-2.0 resolves by SPDX id. Only licences a shipped component uses are listed in
+`additionalLicenses`, so the screen shows no stray texts.
 
 A known limitation: `BSD-3-Clause` still shows the SPDX template for Gradle-resolved dependencies
 that use it. That is AboutLibraries' behaviour for third-party POMs and is outside this repo's
 control.
 
-### 4.4 Known configuration hazard
+### 4.4 Kotlin stdlib
 
-`app/build.gradle.kts` pins `kotlin-stdlib` back to 2.2.10 via `resolutionStrategy.force`.
-AboutLibraries 15.2.0 is published against stdlib 2.4.10, which the Kotlin 2.2.10 compiler cannot
-read; without the pin the module fails to compile. The block is commented in place. It is version
-skew, not a fix — remove it when the project's Kotlin version moves to 2.4.x.
+AboutLibraries 15.2.0 is published against kotlin-stdlib 2.4.10. The project builds with Kotlin
+2.4.10, so the stdlib resolves to that version and no `resolutionStrategy.force` is needed.
 
 ### 4.5 Kotlin / Android dependencies (first-party, no third-party SDKs)
 
-Every declared dependency resolves to Google/Jetpack first-party artifacts:
-AndroidX (Core, Lifecycle, Activity, Navigation, Room, DataStore, Compose,
-Material3, Adaptive, Window Size Class), Kotlin stdlib/coroutines/serialization,
-Hilt (Apache-2.0), LeakCanary (Apache-2.0, **debug-only — verify it is not in the
-release variant**), `net.mamoe.yamlkt`, `org.json`, `javax.inject`.
+Every declared dependency resolves to Google/Jetpack first-party artifacts or small open-source
+libraries: AndroidX (Core, Lifecycle, Activity, Navigation, Room, DataStore, Compose, Material3, Adaptive,
+Window Size Class), Kotlin stdlib/coroutines/serialization, Hilt (Apache-2.0), snakeyaml-engine
+(Apache-2.0, kubeconfig parsing), AboutLibraries (Apache-2.0), LeakCanary (Apache-2.0,
+**debug-only**), `org.json` (tests only), `javax.inject`.
 
-**No advertising, analytics, or crash-reporting SDKs are present.** This is worth
-keeping true: it is what makes the Data safety form in
-[PRIVACY-POLICY.md](PRIVACY-POLICY.md) Appendix A simple, and it is a genuine
-differentiator. Adding one SDK will invalidate that table.
+**No advertising, analytics, or crash-reporting SDKs are present.** This is worth keeping true:
+it is what keeps the Data safety answers in [PLAY-SUBMISSION.md](PLAY-SUBMISSION.md) short.
+Adding one SDK will invalidate them.
 
 ### 4.6 Generating a compliance export
 
@@ -265,26 +247,21 @@ producing a diff of generated files. The output is renamed to `kubenexus-license
 | 1 | Root `LICENSE` for KubeNexus itself | **Done** — `LICENSE` (Apache-2.0 + trademark reservation) |
 | 2 | Root `NOTICE` file | **Done** — `NOTICE` |
 | 3 | `legal/LICENSE-Apache-2.0.txt` | **Done** — verbatim Apache-2.0 |
-| 4 | Ghostty MIT text reachable in the shipped binary | **Done + verified in a release APK** (§4.1) |
+| 4 | Ghostty, Wuffs and Zig notices reachable in the shipped app | **Done** — licences screen (§4.1) |
 | 5 | Per-file modification notices in the `client-go` fork (§4(b)) | **Not required** — fork verified unmodified (§2.1) |
 | 6 | Remove the no-op `replace` from `k8s-engine/go.mod` | **Done** — depends on upstream directly (§2.1) |
-| 7 | Confirm `afl++` is never linked into a shipped `.so` | **Done** — no `afl` symbols in `libghostty_jni.so`; see the CI check below |
+| 7 | Confirm `afl++` is never linked into a shipped `.so` | **Done** — checked by `make verify-jni` on every CI build |
 | 8 | Confirm LeakCanary is excluded from the release variant | **Unverified** — it is behind `debugImplementation`, so correct today |
-| 9 | Declare a newly shipped native dependency in `config/libraries/` | **Manual** — see §4.3 |
+| 9 | Declare a newly shipped native dependency in `config/libraries/` | **Manual** — see §4.2 |
 | 10 | Produce an audit report on demand | **Done** — `make licenses` (§4.6); output is not committed |
+| 11 | Go runtime and Go module notices in the licences screen | **Done** — generated by `make go-notices` (§4.2); rerun after Go dependency changes |
 
 ### On obligation 7
 
 `afl++` is GPL-2.0 and sits inside Ghostty's tree. It is a fuzzing harness and must never be linked
-into a library we ship. Nothing in the licence screen declares it any more, because it is not our
-dependency, so this CI check is the only safeguard:
-
-```bash
-# Fail if a GPL-licensed symbol ends up in a shipped .so
-for so in android/app/src/main/jniLibs/*/*.so k8s-engine/kubenexus.aar; do
-  strings "$so" 2>/dev/null | grep -qE 'afl_|__afl_' && { echo "GPL code linked into $so"; exit 1; }
-done
-```
+into a library we ship. Nothing in the licence screen declares it, because it is not our
+dependency, so `make verify-jni` (run by CI before every release build) fails if any shipped
+`.so`, including those inside the gomobile AAR, contains `afl_` symbols.
 
 ### On obligation 4
 
@@ -298,7 +275,7 @@ Play reviewer or a user asks.
 ## 6. Verifying before you ship
 
 ```bash
-# Ghostty and vendored Zig deps are present and pinned
+# Ghostty and the Zig packages it pulls in are fetched and pinned
 ls terminal-native/zig-pkg/ | grep -i ghostty
 
 # Confirm the pinned Ghostty commit still matches build.zig.zon

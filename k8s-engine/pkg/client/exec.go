@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -32,7 +33,15 @@ type ExecCallback interface {
 	OnDone()
 }
 
+// errSessionClosed is returned by writes to a session that has ended.
+var errSessionClosed = errors.New("session is closed")
+
 // ExecSession represents an active interactive exec session in a container.
+//
+// mu guards only the closed flag and field reads. It is never held across a pipe
+// write: stdin is an io.Pipe, so a write blocks until the remote side reads it,
+// and holding the lock there would stop Close (and the session's own shutdown)
+// from ever running.
 type ExecSession struct {
 	stdinWriter io.WriteCloser
 	cancel      context.CancelFunc
@@ -42,39 +51,45 @@ type ExecSession struct {
 
 // Write writes string data to the container's standard input.
 func (s *ExecSession) Write(data string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed || s.stdinWriter == nil {
-		return fmt.Errorf("session is closed")
-	}
-	_, err := s.stdinWriter.Write([]byte(data))
-	return err
+	return s.WriteBytes([]byte(data))
 }
 
-// WriteBytes writes raw byte data to the container's standard input.
+// WriteBytes writes raw byte data to the container's standard input. It blocks until
+// the remote side has consumed the data, so callers must not invoke it on a UI thread.
+// Once the session has ended it returns "session is closed".
 func (s *ExecSession) WriteBytes(data []byte) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed || s.stdinWriter == nil {
-		return fmt.Errorf("session is closed")
+	writer, closed := s.stdinWriter, s.closed
+	s.mu.Unlock()
+	if closed || writer == nil {
+		return errSessionClosed
 	}
-	_, err := s.stdinWriter.Write(data)
-	return err
+	if _, err := writer.Write(data); err != nil {
+		if errors.Is(err, io.ErrClosedPipe) || errors.Is(err, errSessionClosed) {
+			return errSessionClosed
+		}
+		return err
+	}
+	return nil
 }
 
-// Close terminates the exec session and releases associated resources.
+// Close terminates the exec session and releases associated resources. It unblocks
+// any write in progress and is safe to call more than once.
 func (s *ExecSession) Close() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closed {
+		s.mu.Unlock()
 		return nil
 	}
 	s.closed = true
-	if s.cancel != nil {
-		s.cancel()
+	cancel, writer := s.cancel, s.stdinWriter
+	s.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
 	}
-	if s.stdinWriter != nil {
-		return s.stdinWriter.Close()
+	if writer != nil {
+		return writer.Close()
 	}
 	return nil
 }
@@ -220,8 +235,10 @@ func (c *Client) StartExecSession(namespace, podName, container, command string,
 	go func() {
 		defer callback.OnDone()
 		defer func() {
+			// Fail pending and future writes before anything else, so a writer blocked
+			// on a stream that never started reading stdin is released.
+			_ = stdinReader.CloseWithError(errSessionClosed)
 			_ = session.Close()
-			_ = stdinReader.Close()
 		}()
 
 		err := exec.StreamWithContext(sessionCtx, remotecommand.StreamOptions{

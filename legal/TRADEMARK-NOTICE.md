@@ -202,7 +202,8 @@ Never reference them.
 
 **App name and identity**
 - [ ] App name is exactly "KubeNexus" — no "Kubernetes" in it
-- [ ] Launcher icon is your own artwork; no Kubernetes, Ghostty, LF, or CNCF marks
+- [x] Launcher icon is your own artwork; no Kubernetes, Ghostty, LF, or CNCF marks
+      (the KubeNexus mark: a hub joined to three nodes, in teal)
 - [ ] Package ID `dev.hridaya.kubenexus` — no trademarked terms
 - [ ] No "Official", "Partner", "Certified", or "Powered by Kubernetes®" claims
       anywhere in the listing
@@ -216,14 +217,15 @@ Never reference them.
 - [ ] Non-endorsement disclaimer present in the listing (see §1.4)
 - [ ] `Kubernetes® is a registered trademark of LF Projects, LLC.` attribution
       present
-- [ ] Same disclaimer present in-app under Settings → About
+- [x] Same disclaimer present in-app under Settings → About
 - [ ] Pricing/payment disclosure accurate if IAP ships (Payments policy §6)
 
 **Code and repo**
 - [ ] No trademarked term in your domain name
-- [ ] `THIRD-PARTY-NOTICES.md` shipped and reachable in-app
-- [ ] Ghostty MIT notice present in the shipped binary
-- [ ] `client-go` fork has per-file modification notices (Apache-2.0 §4(b))
+- [x] Third-party notices reachable in-app (Settings → About → Open source licenses)
+- [x] Ghostty MIT notice present in the shipped app
+- [x] `client-go` consumed unmodified from upstream, so no per-file modification notices
+      are owed (Apache-2.0 §4(b))
 - [ ] No Ghostty fork content presented as upstream Ghostty
 
 **If you need an exception**

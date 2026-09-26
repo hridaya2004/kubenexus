@@ -1,6 +1,6 @@
 # Privacy Policy — KubeNexus
 
-**Last updated: 26 September 2026**
+**Last updated: 27 September 2026**
 
 ---
 
@@ -26,8 +26,8 @@ Your data is never routed through us, because we do not exist as a service.
 
 | | |
 |---|---|
-| Do we collect your data? | **No.** |
-| Do we share your data? | **No.** |
+| Do we collect your data? | **No.** We receive nothing. |
+| Is anything sent to a third party? | **Only if you choose to** upload pod logs to dpaste.org (section 6). |
 | Do we run a server? | **No.** |
 | Do we show ads? | **No.** |
 | Do we use third-party analytics or crash SDKs? | **No.** |
@@ -35,24 +35,26 @@ Your data is never routed through us, because we do not exist as a service.
 
 ## 3. What the app stores on your device
 
-KubeNexus keeps the following **locally**, in a private app sandbox on your
+KubeNexus keeps the following **locally**, in the app's private storage on your
 device only:
 
 | Data | What it is | Why | Where it lives |
 |---|---|---|---|
-| **Cluster credentials** | The kubeconfig you paste or import — server URL, context, and authentication material such as client certificates or bearer tokens | To connect to your cluster | `kubenexus.db` (Room) |
-| **Cluster cache** | Namespaces, pods, services, deployments and API schemas read from your cluster | To display your resources offline and quickly | `kubenexus.db` (Room) |
-| **App logs** | Diagnostic log lines the app writes while running | For you to inspect and export when troubleshooting | On-device log buffer |
+| **Cluster credentials** | The kubeconfig you paste or import: server URL, context, and authentication material such as client certificates or bearer tokens | To connect to your cluster | `kubenexus.db`, encrypted with AES-256-GCM using a key held in the Android Keystore |
+| **Cluster details** | Cluster name, server URL, context, user and namespace, shown in the cluster list | To show and switch between your clusters | `kubenexus.db` |
+| **Cluster cache** | Namespaces, pods, deployments, services and API schemas read from your cluster | To display your resources offline and quickly | `kubenexus.db` |
+| **App logs** | Diagnostic lines the app itself writes while running | For you to inspect and share when troubleshooting | Android's log buffer for this app |
+| **Exported log files** | Log files you share as a file | So the share sheet can hand them to the app you pick | App cache; files older than an hour are deleted the next time you share, and Android may clear the cache at any time |
 | **Preferences** | Theme (light/dark/system) | To remember your choice | Android DataStore |
 
 Cluster credentials are **authentication information**, which Google Play treats
 as personal and sensitive user data. Because you supply it deliberately, for the
-app's core purpose, we treat it as the most sensitive thing we hold.
+app's core purpose, we treat it as the most sensitive thing on the device.
 
 ### What we specifically do *not* do
 
 - We do **not** collect, transmit, or upload your kubeconfig, credentials, or
-  cluster data. There is no destination for it to be sent to.
+  cluster data to us. There is no destination for it to be sent to.
 - We do **not** read your device's IMEI, IMSI, SIM serial, Android Advertising
   ID, or any persistent device identifier.
 - We do **not** collect your contacts, photos, files, location, microphone,
@@ -63,18 +65,22 @@ app's core purpose, we treat it as the most sensitive thing we hold.
 ## 4. Where your data goes on the network
 
 When you use the app, your device connects **directly to the Kubernetes API
-server you configured**. We are not in that path.
+server named in your kubeconfig**. We are not in that path. The app makes no
+other network connections, except the optional log upload described in
+section 6.
 
-The app also connects to:
-
-- **Your cluster's API server** — the address *you* configured. This is the whole
-  point of the app.
-- **Your container registry**, if you use the image-pull features, at the
-  address configured by your cluster.
-
-We set `android:networkSecurityConfig` to **refuse cleartext (unencrypted)
-traffic**, so these connections must use HTTPS. User-installed CA certificates
-are trusted in debug builds only, never in release builds.
+- **Encryption.** The app's Kubernetes client only connects to API servers over
+  HTTPS (TLS) and refuses plain `http://` server addresses. The server's
+  certificate is checked against the certificate authority in your kubeconfig,
+  or against the device's system certificate authorities if the kubeconfig does
+  not include one. If your kubeconfig sets `insecure-skip-tls-verify: true`, the
+  connection is still encrypted, but the server's identity is not verified; that
+  choice is made by your kubeconfig.
+- **Credential plugins.** Kubeconfigs that authenticate through an `exec`
+  credential plugin or an `auth-provider` are not supported: the app does not run
+  commands named in a kubeconfig.
+- **Proxies.** If your kubeconfig names a `proxy-url`, connections to that
+  cluster go through that proxy.
 
 If you are on a managed or corporate network, your administrator may be able to
 see connection metadata. That is between you and them.
@@ -82,23 +88,40 @@ see connection metadata. That is between you and them.
 ## 5. Port forwarding and background operation
 
 KubeNexus can keep Kubernetes **port-forward tunnels** open while the app is in
-the background, using an Android foreground service with a persistent
-notification. While a tunnel is open:
+the background, using an Android foreground service. While a tunnel is open:
 
-- the tunnel carries traffic between your device and your cluster;
+- it listens only on `127.0.0.1` on your device and carries traffic between that
+  address and a pod in your cluster. Other apps on the same device can connect
+  to it; other devices cannot;
 - **we do not observe, log, proxy, or record** any traffic that passes through it;
-- the notification is visible and stoppable by you at any time.
+- an ongoing notification lists open tunnels and offers **Stop All**, if you
+  allow KubeNexus to post notifications. Either way, open tunnels are listed and
+  can be stopped from the port-forward sessions sheet inside the app;
+- Android limits this kind of background work to about 6 hours a day. When the
+  limit is reached, KubeNexus closes its tunnels and, if notifications are
+  allowed, tells you why.
 
 Port forwarding is a first-party feature of the app for your own clusters. The
 app is not a proxy for third parties, and we do not offer, sell, or broker
 access to anyone else's networks.
 
-## 6. Log export and sharing — you control it
+## 6. Sharing and uploading logs — you control it
 
-The app can export diagnostic logs (plain text) **only when you explicitly ask
-it to**, using the standard Android share sheet, so you choose the destination.
-We never initiate a share, and we never receive the file. Files you share are
-then governed by whichever app or service you send them to.
+Nothing leaves the device unless you ask for it.
+
+- **Share as a file.** Pod logs and the app's own logs can be shared as a text
+  file through the standard Android share sheet, so you choose the destination.
+  Files you share are then governed by whichever app or service you send them
+  to.
+- **Upload to dpaste.org.** From a pod's Logs tab you can choose "Upload to
+  dpaste.org…". Before anything is sent, the app asks you to confirm and tells
+  you that the logs shown will be sent to **dpaste.org**, a public paste service
+  that we do not operate, and that **anyone with the link can read them for
+  7 days**. Tokens, passwords and keys that KubeNexus recognises are redacted
+  before upload, but redaction cannot catch every secret, and logs can contain
+  personal or confidential data from your workload. Once uploaded, the paste is
+  kept and deleted by dpaste.org under its own terms; the app cannot delete it
+  sooner. We never receive the logs or the link.
 
 ## 7. Purchases, if we add them
 
@@ -123,19 +146,25 @@ reality at the moment you add them.*
 
 ## 8. Data security
 
-- **Encryption in transit:** all network connections must use HTTPS; cleartext
-  traffic is blocked by the app's network security configuration.
-- **Storage:** credentials and cluster data are stored inside the Android
-  application sandbox, which the operating system isolates from other apps.
-- **Backups:** the credential database is **explicitly excluded** from Android
-  cloud backup and from device-to-device transfer. Your kubeconfig will not be
-  copied into Google's backup service or migrated to a new phone by the system.
+- **Encryption in transit:** cluster connections use TLS, as described in
+  section 4; the optional dpaste.org upload uses HTTPS.
+- **Encryption at rest:** stored kubeconfigs are encrypted with a key kept in the
+  Android Keystore (hardware-backed where the device supports it). The rest of
+  the database is protected by the Android application sandbox, which the
+  operating system isolates from other apps.
+- **Logs:** the app redacts tokens, passwords, keys and certificates it
+  recognises from the error details it writes to its own diagnostic log.
+- **Backups:** the database is **explicitly excluded** from Android cloud backup
+  and from device-to-device transfer. Your kubeconfig will not be copied into
+  Google's backup service or migrated to a new phone by the system.
+- **Clipboard:** when you copy logs, terminal output or error details, the app
+  marks them as sensitive so Android does not show them in its clipboard preview.
 - **Screenshots:** the app does not set `FLAG_SECURE`, so you can take
   screenshots. If you would prefer it not be possible to capture cluster
   credentials on screen, tell us and we will consider enabling it.
-- **No third-party processors.** Because data never leaves your device, we have
-  no sub-processors, no vendors, and no third parties with whom your data is
-  shared.
+- **No processors on our side.** We have no servers, sub-processors or vendors
+  that receive your data. The only third party the app can send data to is
+  dpaste.org, and only when you choose to upload logs there (section 6).
 
 ## 9. Data retention and deletion
 
@@ -144,17 +173,19 @@ We retain nothing, because we receive nothing.
 **Data on your device** is retained until you remove it. You can delete it at any
 time:
 
-- **Delete a single cluster** — removes its stored credentials and cached
-  resources from your device.
-- **Clear cached resources** — removes cached cluster data while keeping
-  credentials.
-- **Clear app logs** — removes the local diagnostic log buffer.
-- **Uninstall KubeNexus** — removes all app data, including `kubenexus.db`.
-- **Revoke access** — the fastest way to invalidate a leaked credential is to
+- **Delete a single cluster** (Manage Clusters): removes its stored credentials
+  and all data cached from it.
+- **Clear cached cluster data** (Settings → Data): removes everything cached
+  from every cluster while keeping your clusters and their credentials.
+- **Clear app logs** (Settings → Diagnostics → Logcat, then the clear button):
+  clears the app's own log buffer.
+- **Uninstall KubeNexus:** removes all app data, including `kubenexus.db`.
+- **Revoke access:** the fastest way to invalidate a leaked credential is to
   revoke the associated token or certificate in your cluster, from any client.
 
-Because the exclusion rules above keep the database out of Android backup,
-uninstalling also leaves nothing behind in a backup.
+Because the backup exclusions above keep the database out of Android backup,
+uninstalling also leaves nothing behind in a backup. Logs you uploaded to
+dpaste.org are deleted by dpaste.org after 7 days (section 6).
 
 ## 10. Account deletion
 
@@ -180,22 +211,23 @@ contact `info.hridayaprajapati@gmail.com` and we will help.
 Depending on where you live, privacy law may give you rights to access, correct,
 delete, or export your personal data, or to object to its processing.
 
-In practice, because your data never leaves your device, **you already hold
-complete control**: it is in an app sandbox only you can read, and you can erase
-it at any time using the controls in section 9. That is a stronger position than
-any request procedure could give you.
+In practice, because your data stays on your device unless you choose to share
+it, **you already hold complete control**: it is in an app sandbox only you can
+read, and you can erase it at any time using the controls in section 9. For logs
+you uploaded to dpaste.org, contact dpaste.org.
 
 If you still have a question or a formal request, email
 `info.hridayaprajapati@gmail.com`. We will respond within 30 days.
 
 Because we do not operate a server and hold no records, we cannot retrieve data
-"about you" from anywhere — there is nowhere it is held.
+"about you" from anywhere — there is nowhere it is held by us.
 
 ## 13. International transfers
 
 We do not transfer personal data internationally, because we do not collect or
 receive personal data at all. Your device talks to your own cluster, wherever
-that cluster happens to be.
+that cluster happens to be. If you upload logs to dpaste.org, they are stored
+wherever dpaste.org operates, under its terms.
 
 If you are in the EEA, UK, or Switzerland, note that the app's handling of data
 on your device remains under your control and is not a transfer by us.
@@ -204,8 +236,9 @@ on your device remains under your control and is not a transfer by us.
 
 KubeNexus includes open-source software, including the Kubernetes Go client and
 the Ghostty terminal emulator core. These components run **on your device** and
-none of them transmit your data to their authors or to anyone else. See
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for the full list and licenses.
+none of them transmit your data to their authors or to anyone else. The app's
+**Settings → About → Open source licenses** screen lists every component with its
+licence; see also [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## 15. Changes to this policy
 
@@ -225,4 +258,5 @@ Material changes will not be applied retroactively without notice.
 - **Security reports:** `info.hridayaprajapati@gmail.com`
 - **Source code:** <https://github.com/hridaya2004/kubenexus>
 - **Published at:** <https://github.com/hridaya2004/kubenexus/blob/main/legal/PRIVACY-POLICY.md>
-  (must be a public, non-geofenced, non-PDF URL)
+  (must be a public, non-geofenced, non-PDF URL; the app links to this address
+  from Settings → About → Privacy policy)

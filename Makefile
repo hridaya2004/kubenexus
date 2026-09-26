@@ -92,7 +92,13 @@ verify-jni: ## Fail unless every ABI has its native library in jniLibs and the A
 	  done; \
 	done; \
 	if [ -n "$$misaligned" ]; then echo "ERROR: LOAD segments aligned below 16 KB:$$misaligned"; exit 1; fi; \
-	echo "OK: every native lib has 16 KB-aligned LOAD segments"
+	echo "OK: every native lib has 16 KB-aligned LOAD segments"; \
+	gpl=""; \
+	for so in $(ANDROID_DIR)/app/src/main/jniLibs/*/*.so "$$tmp"/jni/*/*.so; do \
+	  if strings "$$so" | grep -qE 'afl_|__afl_'; then gpl="$$gpl $${so#$$tmp/}"; fi; \
+	done; \
+	if [ -n "$$gpl" ]; then echo "ERROR: GPL-2.0 afl++ code linked into:$$gpl"; exit 1; fi; \
+	echo "OK: no afl++ (GPL-2.0) code in any native lib"
 
 verify-ndk: ## Fail unless the NDK AGP was told to use is the one installed here
 	@if [ -z "$(GRADLE_NDK_VERSION)" ]; then \

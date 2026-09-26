@@ -42,20 +42,26 @@ No source file from these modules has been modified. The k8s.io/client-go
 dependency resolves to the upstream release tag v0.36.3 unmodified.
 
 --------------------------------------------------------------------------------
-Vendored native dependencies (Zig)
+Other components compiled into the native libraries
 --------------------------------------------------------------------------------
-Upstream sources are vendored under terminal-native/zig-pkg/.
+libghostty_jni.so (built with Zig; packages fetched per terminal-native/build.zig.zon):
 
-  aro ................. MIT, Copyright (c) 2021 Veikka Tuominen
-  uucode .............. MIT
-  translate_c ......... MIT, Copyright (c) Zig contributors
-  Wuffs ............... MIT OR Apache-2.0, Copyright 2023 The Wuffs Authors
-  zlib ................ zlib, Copyright (C) 1995-2022 Jean-loup Gailly and
-                        Mark Adler
-  (one package) ....... CC0 1.0 Universal
-  Nerd Fonts .......... SIL Open Font License 1.1
-  afl++ ............... GPL-2.0 (BUILD-TIME ONLY — not linked into the
-                        distributed application; see legal/THIRD-PARTY-NOTICES.md)
+  Wuffs ............... MIT OR Apache-2.0 (used under MIT),
+                        Copyright 2023 The Wuffs Authors
+  Zig standard library  MIT, Copyright (c) Zig contributors
+
+libkubenexus_client.so (built with gomobile from k8s-engine/):
+
+  Go runtime, standard library and gomobile bindings (golang.org/x/mobile)
+                        BSD-3-Clause, Copyright 2009 The Go Authors
+  Third-party Go modules under Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause
+  and ISC; their licence texts and NOTICE files are reproduced in the
+  application's "Open source licenses" screen, generated from the modules by
+  k8s-engine/scripts/generate_go_notices.py.
+
+Fetched at build time only and not part of the distributed application: aro,
+translate_c and uucode (Zig build tooling), zlib sources, afl++ (GPL-2.0),
+Nerd Fonts (SIL OFL 1.1) and colour themes. See legal/THIRD-PARTY-NOTICES.md.
 
 --------------------------------------------------------------------------------
 Android and JVM dependencies
@@ -67,8 +73,8 @@ Kotlin standard library, coroutines,
   kotlinx.serialization ................... Apache License 2.0
 Dagger Hilt ............................. Apache License 2.0
 LeakCanary .............................. Apache License 2.0 (debug builds only)
-net.mamoe.yamlkt, org.json,
-  javax.inject ........................... see module metadata
+snakeyaml-engine, AboutLibraries ........ Apache License 2.0
+javax.inject ............................ Apache License 2.0
 
 The app contains no advertising, analytics, or crash-reporting SDKs.
 

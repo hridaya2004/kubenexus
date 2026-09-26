@@ -9,6 +9,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.hridaya.kubenexus.data.R
 import dev.hridaya.kubenexus.domain.model.ActivePortForwardSession
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -85,14 +86,10 @@ class PortForwardNotificationManager @Inject constructor(
             }
         }
 
-        val smallIcon = if (context.applicationInfo.icon != 0) {
-            context.applicationInfo.icon
-        } else {
-            android.R.drawable.stat_notify_sync
-        }
-
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(smallIcon)
+            // Status bar icons are drawn as alpha masks; the full-colour launcher icon
+            // rendered as a solid blob.
+            .setSmallIcon(R.drawable.ic_stat_port_forward)
             .setContentTitle("Port Forwarding Active (${activeSessions.size})")
             .setContentText(summaryText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
@@ -132,8 +129,41 @@ class PortForwardNotificationManager @Inject constructor(
         notificationManager.cancel(NOTIFICATION_ID)
     }
 
+    /**
+     * Explains why tunnels closed on their own: Android 15+ gives dataSync foreground
+     * services 6 hours in every 24, and the budget resets once the app is opened again.
+     */
+    fun showTimeLimitReached() {
+        if (!notificationManager.areNotificationsEnabled()) return
+        val launchIntent =
+            context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            2,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val text = "Android limits background port forwarding to 6 hours a day, so KubeNexus " +
+            "closed your tunnels. Open the app to start them again."
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_port_forward)
+            .setContentTitle("Port forwarding stopped")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(contentIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        try {
+            notificationManager.notify(TIME_LIMIT_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Notification permission denied by user
+        }
+    }
+
     companion object {
         const val CHANNEL_ID = "kubenexus_port_forward"
         const val NOTIFICATION_ID = 42001
+        const val TIME_LIMIT_NOTIFICATION_ID = 42002
     }
 }

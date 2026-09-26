@@ -39,6 +39,7 @@ class GhosttyTerminalEngine(
 
     fun attachSession(session: TerminalSession) {
         this.terminalSession = session
+        resizeRemote(session)
     }
 
     fun detachSession() {
@@ -62,6 +63,16 @@ class GhosttyTerminalEngine(
         rows = newRows
         bridge.nativeResize(handle, cols, rows, cellW, cellH)
         updateSnapshot()
+        terminalSession?.let(::resizeRemote)
+    }
+
+    /** Keeps the remote PTY's window size in step with the local grid. */
+    private fun resizeRemote(session: TerminalSession) {
+        try {
+            session.resize(cols, rows)
+        } catch (_: Exception) {
+            // The session has already ended; there is no remote TTY left to size.
+        }
     }
 
     fun scroll(delta: Int, x: Float, y: Float) {

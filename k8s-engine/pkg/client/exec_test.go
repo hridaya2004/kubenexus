@@ -399,6 +399,88 @@ func TestExecSession_CloseUnblocksPendingWrite(t *testing.T) {
 	}
 }
 
+// Resize must reach remotecommand's size queue so the remote PTY lays out for the
+// phone's real grid instead of a default size.
+func TestExecSession_ResizeFeedsTerminalSizeQueue(t *testing.T) {
+	c := newOfflineClient(t)
+
+	gotSize := make(chan *remotecommand.TerminalSize, 1)
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				if options.TerminalSizeQueue == nil {
+					gotSize <- nil
+					return nil
+				}
+				gotSize <- options.TerminalSizeQueue.Next()
+				<-ctx.Done()
+				return nil
+			},
+		}, nil
+	}
+
+	session, err := c.StartExecSession("default", "pod-1", "c", "/bin/sh", true, &mockExecCallback{})
+	if err != nil {
+		t.Fatalf("StartExecSession() error = %v", err)
+	}
+	defer func() { _ = session.Close() }()
+
+	// Only the latest of several quick resizes matters.
+	if err := session.Resize(80, 24); err != nil {
+		t.Fatalf("Resize() error = %v", err)
+	}
+	if err := session.Resize(46, 31); err != nil {
+		t.Fatalf("Resize() error = %v", err)
+	}
+
+	select {
+	case size := <-gotSize:
+		if size == nil {
+			t.Fatal("TTY session has no TerminalSizeQueue")
+		}
+		if size.Width != 46 || size.Height != 31 {
+			t.Errorf("remote size = %dx%d, want 46x31", size.Width, size.Height)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no size reached the queue")
+	}
+
+	if err := session.Resize(0, 10); err == nil {
+		t.Error("Resize(0, 10) error = nil, want an error")
+	}
+	_ = session.Close()
+	if err := session.Resize(80, 24); !errors.Is(err, errSessionClosed) {
+		t.Errorf("Resize() after Close = %v, want %v", err, errSessionClosed)
+	}
+}
+
+// Without a TTY there is no window size, and the stream must not be given a queue.
+func TestExecSession_NoSizeQueueWithoutTTY(t *testing.T) {
+	c := newOfflineClient(t)
+
+	hasQueue := make(chan bool, 1)
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				hasQueue <- options.TerminalSizeQueue != nil
+				return nil
+			},
+		}, nil
+	}
+
+	session, err := c.StartExecSession("default", "pod-1", "c", "/bin/sh", false, &mockExecCallback{})
+	if err != nil {
+		t.Fatalf("StartExecSession() error = %v", err)
+	}
+	defer func() { _ = session.Close() }()
+	if <-hasQueue {
+		t.Error("non-TTY session was given a TerminalSizeQueue")
+	}
+	if err := session.Resize(80, 24); err != nil && !errors.Is(err, errSessionClosed) {
+		t.Errorf("Resize() on non-TTY session = %v, want nil", err)
+	}
+}
+
 func TestCallbackWriter(t *testing.T) {
 	var written []string
 	cw := &callbackWriter{

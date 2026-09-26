@@ -46,8 +46,71 @@ var errSessionClosed = errors.New("session is closed")
 type ExecSession struct {
 	stdinWriter io.WriteCloser
 	cancel      context.CancelFunc
+	sizeQueue   *terminalSizeQueue // nil for sessions without a TTY
 	mu          sync.Mutex
 	closed      bool
+}
+
+// Resize tells the remote TTY its window size in character cells, as a terminal
+// emulator does with TIOCSWINSZ. Sizes are coalesced so only the latest pending one is
+// sent. It is a no-op for sessions without a TTY and fails once the session has ended.
+func (s *ExecSession) Resize(cols, rows int32) error {
+	if cols <= 0 || rows <= 0 {
+		return fmt.Errorf("invalid terminal size %dx%d", cols, rows)
+	}
+	s.mu.Lock()
+	queue, closed := s.sizeQueue, s.closed
+	s.mu.Unlock()
+	if closed {
+		return errSessionClosed
+	}
+	if queue != nil {
+		queue.push(remotecommand.TerminalSize{Width: clampUint16(cols), Height: clampUint16(rows)})
+	}
+	return nil
+}
+
+func clampUint16(v int32) uint16 {
+	if v > 0xffff {
+		return 0xffff
+	}
+	return uint16(v)
+}
+
+// terminalSizeQueue implements remotecommand.TerminalSizeQueue. Only the most recent
+// size matters, so push replaces a size that has not been consumed yet.
+type terminalSizeQueue struct {
+	sizes chan remotecommand.TerminalSize
+	done  <-chan struct{}
+}
+
+func newTerminalSizeQueue(done <-chan struct{}) *terminalSizeQueue {
+	return &terminalSizeQueue{sizes: make(chan remotecommand.TerminalSize, 1), done: done}
+}
+
+func (q *terminalSizeQueue) push(size remotecommand.TerminalSize) {
+	for {
+		select {
+		case q.sizes <- size:
+			return
+		default:
+		}
+		select {
+		case <-q.sizes: // drop the stale, unconsumed size
+		default:
+		}
+	}
+}
+
+// Next blocks until a size is pushed or the session ends. Returning nil tells
+// remotecommand to stop watching for resizes.
+func (q *terminalSizeQueue) Next() *remotecommand.TerminalSize {
+	select {
+	case size := <-q.sizes:
+		return &size
+	case <-q.done:
+		return nil
+	}
 }
 
 // Write writes string data to the container's standard input.
@@ -270,6 +333,9 @@ func (c *Client) StartExecSession(namespace, podName, container, command string,
 		stdinWriter: stdinWriter,
 		cancel:      cancel,
 	}
+	if tty {
+		session.sizeQueue = newTerminalSizeQueue(sessionCtx.Done())
+	}
 
 	stdoutWriter := &callbackWriter{fn: callback.OnStdout}
 	var stderrCallbackWriter *callbackWriter
@@ -288,12 +354,18 @@ func (c *Client) StartExecSession(namespace, podName, container, command string,
 			_ = session.Close()
 		}()
 
-		err := exec.StreamWithContext(sessionCtx, remotecommand.StreamOptions{
+		streamOptions := remotecommand.StreamOptions{
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
 			Stderr: stderrWriter,
 			Tty:    tty,
-		})
+		}
+		// Assigned only when set: a nil *terminalSizeQueue in the interface field would
+		// be a non-nil interface that remotecommand calls Next on.
+		if session.sizeQueue != nil {
+			streamOptions.TerminalSizeQueue = session.sizeQueue
+		}
+		err := exec.StreamWithContext(sessionCtx, streamOptions)
 		stdoutWriter.Flush()
 		if stderrCallbackWriter != nil {
 			stderrCallbackWriter.Flush()

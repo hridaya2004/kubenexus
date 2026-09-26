@@ -8,7 +8,7 @@ enum class PortForwardTargetKind {
 
 /** Lifecycle of one globally-tracked port-forward tunnel. */
 enum class PortForwardSessionStatus {
-    /** Request accepted, waiting for the listener-ready callback. */
+    /** Request accepted, waiting for the local listener. */
     STARTING,
 
     /** The local listener on 127.0.0.1 is accepting connections. */
@@ -29,6 +29,8 @@ enum class PortForwardSessionStatus {
  */
 data class ActivePortForwardSession(
     val handleId: String,
+    /** Cluster the tunnel was opened on, so it is only shown against that cluster's objects. */
+    val clusterId: String? = null,
     val kind: PortForwardTargetKind = PortForwardTargetKind.Pod,
     val namespace: String,
     val targetName: String,

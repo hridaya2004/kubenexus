@@ -10,6 +10,7 @@ import dev.hridaya.kubenexus.core.common.dispatcher.DispatcherProvider
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.di.ApplicationScope
 import dev.hridaya.kubenexus.data.portforward.PortForwardSessionManager
+import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.domain.model.PortForwardSessionStatus
 import dev.hridaya.kubenexus.domain.model.PortForwardTargetKind
 import dev.hridaya.kubenexus.domain.usecase.GetActiveClusterUseCase
@@ -17,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -42,7 +44,13 @@ class PortForwardViewModel @AssistedInject constructor(
      * Decrypted kubeconfig of the active cluster. Held here deliberately, never
      * in [PortForwardUiState]: credentials must not reach the UI layer.
      */
-    private var rawKubeconfig: String = ""
+    /**
+     * The active cluster as one snapshot, so the kubeconfig and the cluster id recorded
+     * with a forward always belong together. Written on IO, read on main.
+     */
+    @Volatile
+    private var activeCluster: Cluster? = null
+    private val activeClusterId = MutableStateFlow<String?>(null)
 
     private val _uiState = MutableStateFlow(PortForwardUiState())
     val uiState: StateFlow<PortForwardUiState> = _uiState.asStateFlow()
@@ -50,12 +58,16 @@ class PortForwardViewModel @AssistedInject constructor(
     init {
         viewModelScope.launch(dispatcherProvider.io) {
             getActiveClusterUseCase().collect { cluster ->
-                rawKubeconfig = cluster?.rawKubeconfig.orEmpty()
+                activeCluster = cluster
+                activeClusterId.value = cluster?.id
             }
         }
 
         viewModelScope.launch {
-            sessionManager.sessions.collect { allSessions ->
+            // Forwards are tracked process-wide; only show the ones opened on this cluster.
+            combine(sessionManager.sessions, activeClusterId) { allSessions, clusterId ->
+                allSessions.filter { it.clusterId == clusterId }
+            }.collect { allSessions ->
                 val podForwards = allSessions
                     .filter {
                         it.namespace == namespace &&
@@ -95,7 +107,8 @@ class PortForwardViewModel @AssistedInject constructor(
     /** Opens a tunnel 127.0.0.1:[localPort] -> pod:[remotePort]. */
     fun start(localPort: Int, remotePort: Int) {
         if (_uiState.value.isStarting) return
-        val kubeconfig = rawKubeconfig
+        val cluster = activeCluster
+        val kubeconfig = cluster?.rawKubeconfig.orEmpty()
         if (kubeconfig.isBlank()) {
             _uiState.update { it.copy(error = NO_ACTIVE_CLUSTER_MESSAGE) }
             return
@@ -111,6 +124,7 @@ class PortForwardViewModel @AssistedInject constructor(
                     podName = podName,
                     localPort = localPort,
                     remotePort = remotePort,
+                    clusterId = cluster?.id,
                 )
             ) {
                 is Result.Success -> _uiState.update { it.copy(isStarting = false) }

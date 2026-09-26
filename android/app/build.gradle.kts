@@ -242,14 +242,6 @@ aboutLibraries {
     }
 }
 
-// AboutLibraries wants kotlin-stdlib 2.4.10, which the Kotlin 2.2.10 compiler cannot read, so
-// without this pin the module fails to compile. Remove together with a Kotlin 2.4.x upgrade.
-configurations.configureEach {
-    resolutionStrategy {
-        force("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
-    }
-}
-
 dependencies {
     implementation(
         fileTree(

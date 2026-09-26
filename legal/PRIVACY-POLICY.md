@@ -2,20 +2,11 @@
 
 **Last updated: 26 September 2026**
 
-> **Reviewer note (remove before publishing).** This is a starting point drafted
-> from the app's actual code and from Google Play's User Data policy. It is not
-> legal advice. Re-review it — with a lawyer, if you can afford one — before you
-> launch and again before you turn on in-app purchases. Play requires this page to
-> be live at a public, non-geofenced, **non-PDF** URL, and to match the Data safety
-> form you submit. If the two disagree, expect a rejection.
->
-> **Placeholders to fill in:** `[YOUR_LEGAL_NAME]`, `[PRIVACY_EMAIL]`, `[PUBLIC_URL]`
-
 ---
 
 ## 1. Who we are
 
-KubeNexus ("the app") is published by **[YOUR_LEGAL_NAME]** ("we", "us"), an
+KubeNexus ("the app") is published by **Hridaya Prajapati** ("we", "us"), an
 independent developer. KubeNexus is **not** affiliated with, endorsed by, or
 sponsored by The Linux Foundation, the Kubernetes® project, or the Cloud Native
 Computing Foundation.
@@ -23,7 +14,7 @@ Computing Foundation.
 - **App name:** KubeNexus
 - **Play package:** `dev.hridaya.kubenexus`
 - **Source code:** <https://github.com/hridaya2004/kubenexus>
-- **Privacy contact:** `[PRIVACY_EMAIL]`
+- **Privacy contact:** `info.hridayaprajapati@gmail.com`
 
 We do not operate a server, an account system, or a telemetry service.
 
@@ -182,7 +173,7 @@ a public web deletion request form.
 KubeNexus is intended for adults operating infrastructure they are responsible
 for. It is **not** directed at children, and we do not knowingly collect data
 from children. If you believe a child has provided us with personal data,
-contact `[PRIVACY_EMAIL]` and we will help.
+contact `info.hridayaprajapati@gmail.com` and we will help.
 
 ## 12. Your rights
 
@@ -194,8 +185,8 @@ complete control**: it is in an app sandbox only you can read, and you can erase
 it at any time using the controls in section 9. That is a stronger position than
 any request procedure could give you.
 
-If you still have a question or a formal request, email `[PRIVACY_EMAIL]`. We
-will respond within 30 days.
+If you still have a question or a formal request, email
+`info.hridayaprajapati@gmail.com`. We will respond within 30 days.
 
 Because we do not operate a server and hold no records, we cannot retrieve data
 "about you" from anywhere — there is nowhere it is held.
@@ -230,10 +221,11 @@ Material changes will not be applied retroactively without notice.
 
 ## 16. Contact
 
-- **Privacy questions:** `[PRIVACY_EMAIL]`
-- **Security reports:** `[PRIVACY_EMAIL]`
+- **Privacy questions:** `info.hridayaprajapati@gmail.com`
+- **Security reports:** `info.hridayaprajapati@gmail.com`
 - **Source code:** <https://github.com/hridaya2004/kubenexus>
-- **Published at:** `[PUBLIC_URL]` (must be a public, non-geofenced, non-PDF URL)
+- **Published at:** <https://github.com/hridaya2004/kubenexus/blob/main/legal/PRIVACY-POLICY.md>
+  (must be a public, non-geofenced, non-PDF URL)
 
 ---
 

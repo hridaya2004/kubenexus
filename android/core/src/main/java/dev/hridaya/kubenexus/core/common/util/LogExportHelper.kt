@@ -29,24 +29,33 @@ object LogExportHelper {
      */
     val pasteProvider: LogPasteProvider = DpasteLogPasteProvider()
 
+    /** Exports older than this are deleted before a new one is written. */
+    private const val EXPORT_MAX_AGE_MS = 60 * 60 * 1000L
+
     /**
-     * Writes logs to a file in the app's cache directory and shares it as an
-     * actual file attachment via Android's native share sheet and [FileProvider].
+     * Writes logs to a file in the app's cache directory and shares it as an actual file
+     * attachment via Android's share sheet and [FileProvider].
+     *
+     * The file is written on [ioDispatcher], never the main thread, and earlier exports are
+     * pruned so the cache does not accumulate copies of pod logs.
      */
-    fun shareAsFile(
+    suspend fun shareAsFile(
         context: Context,
         content: String,
         filename: String = "pod.log",
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ) {
         if (content.isBlank()) {
             Toast.makeText(context, "No logs to export", Toast.LENGTH_SHORT).show()
             return
         }
 
+        val safeName = safeFileName(filename)
         try {
-            val logsDir = File(context.cacheDir, "logs").apply { mkdirs() }
-            val logFile = File(logsDir, filename).apply {
-                writeText(content, Charsets.UTF_8)
+            val logFile = withContext(ioDispatcher) {
+                val logsDir = File(context.cacheDir, "logs").apply { mkdirs() }
+                pruneExports(logsDir, System.currentTimeMillis())
+                File(logsDir, safeName).apply { writeText(content, Charsets.UTF_8) }
             }
 
             val fileUri: Uri = FileProvider.getUriForFile(
@@ -58,22 +67,41 @@ object LogExportHelper {
             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_STREAM, fileUri)
-                putExtra(Intent.EXTRA_SUBJECT, filename)
-                putExtra(Intent.EXTRA_TITLE, filename)
-                clipData = ClipData.newUri(context.contentResolver, filename, fileUri)
+                putExtra(Intent.EXTRA_SUBJECT, safeName)
+                putExtra(Intent.EXTRA_TITLE, safeName)
+                clipData = ClipData.newUri(context.contentResolver, safeName, fileUri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            val chooser = Intent.createChooser(sendIntent, "Export Logs ($filename)").apply {
+            val chooser = Intent.createChooser(sendIntent, "Export Logs ($safeName)").apply {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(chooser)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Toast.makeText(
                 context,
                 "Failed to export log file: ${e.localizedMessage ?: e.message}",
                 Toast.LENGTH_LONG,
             ).show()
+        }
+    }
+
+    /**
+     * Reduces [filename] to a flat, safe name inside the exports directory, so a pod or
+     * container name can never introduce a path separator or a hidden or empty name.
+     */
+    internal fun safeFileName(filename: String): String {
+        val cleaned = filename.replace(Regex("[^A-Za-z0-9._-]"), "-").trimStart('.', '-')
+        return cleaned.ifEmpty { "logs.log" }.take(120)
+    }
+
+    /** Deletes exports older than [EXPORT_MAX_AGE_MS]; a share target may still be reading newer ones. */
+    internal fun pruneExports(logsDir: File, nowMs: Long) {
+        logsDir.listFiles()?.forEach { file ->
+            if (file.isFile && nowMs - file.lastModified() > EXPORT_MAX_AGE_MS) {
+                file.delete()
+            }
         }
     }
 

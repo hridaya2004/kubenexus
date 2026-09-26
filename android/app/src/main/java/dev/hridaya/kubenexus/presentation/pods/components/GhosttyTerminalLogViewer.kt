@@ -42,7 +42,9 @@ import androidx.compose.ui.unit.dp
 import dev.hridaya.kubenexus.core.common.result.Result
 import dev.hridaya.kubenexus.core.common.util.LogExportHelper
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun GhosttyTerminalLogViewer(
@@ -180,10 +182,11 @@ fun GhosttyTerminalLogViewer(
                     ).show()
                 },
                 onExportFile = {
-                    val text = logs.joinToString("\n")
-                    val safePrefix = title?.replace(Regex("[^a-zA-Z0-9_-]"), "-") ?: "pod"
-                    val filename = "$safePrefix.log"
-                    LogExportHelper.shareAsFile(context, text, filename)
+                    val snapshot = logs
+                    scope.launch {
+                        val text = withContext(Dispatchers.Default) { snapshot.joinToString("\n") }
+                        LogExportHelper.shareAsFile(context, text, "${title ?: "pod"}.log")
+                    }
                 },
                 onExportPastebin = {
                     if (logs.isEmpty()) {

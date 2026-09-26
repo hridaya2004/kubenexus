@@ -3,7 +3,6 @@ package dev.hridaya.kubenexus.presentation.logcat
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
@@ -37,6 +36,7 @@ import dev.hridaya.kubenexus.presentation.logcat.components.LogcatLogList
 import dev.hridaya.kubenexus.presentation.logcat.components.LogcatScrollToLatestButton
 import dev.hridaya.kubenexus.presentation.logcat.components.LogcatTopBar
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
+import dev.hridaya.kubenexus.core.common.util.LogExportHelper
 import kotlinx.coroutines.launch
 
 @Composable
@@ -56,12 +56,9 @@ fun LogcatRoute(
                 }
 
                 is LogcatUiEvent.ShareText -> {
-                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        putExtra(Intent.EXTRA_TEXT, event.text)
-                        type = "text/plain"
-                    }
-                    val shareIntent = Intent.createChooser(sendIntent, "Share Logcat Logs")
-                    context.startActivity(shareIntent)
+                    // As a file: thousands of lines in EXTRA_TEXT can exceed the binder
+                    // transaction limit and crash the share.
+                    LogExportHelper.shareAsFile(context, event.text, "kubenexus-logcat.log")
                 }
 
                 is LogcatUiEvent.CopyToClipboard -> {

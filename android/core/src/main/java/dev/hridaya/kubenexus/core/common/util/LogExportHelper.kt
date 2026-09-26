@@ -7,10 +7,11 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.core.content.FileProvider
-import dev.hridaya.kubenexus.core.common.paste.CompositeLogPasteProvider
+import dev.hridaya.kubenexus.core.common.paste.DpasteLogPasteProvider
 import dev.hridaya.kubenexus.core.common.paste.LogPasteProvider
 import dev.hridaya.kubenexus.core.common.result.AppError
 import dev.hridaya.kubenexus.core.common.result.Result
+import dev.hridaya.kubenexus.core.security.LogSanitizer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,19 +22,12 @@ import java.io.File
  */
 object LogExportHelper {
 
-    private var defaultProvider: LogPasteProvider = CompositeLogPasteProvider()
-
     /**
-     * Sets the active or default [LogPasteProvider] used for remote log uploads.
+     * The paste service used for "Upload to Pastebin". There is deliberately a single one:
+     * the user is told which host receives the logs and for how long before agreeing, so a
+     * silent fallback to another service would upload somewhere they did not agree to.
      */
-    fun setDefaultProvider(provider: LogPasteProvider) {
-        defaultProvider = provider
-    }
-
-    /**
-     * Returns the currently configured default [LogPasteProvider].
-     */
-    fun getDefaultProvider(): LogPasteProvider = defaultProvider
+    val pasteProvider: LogPasteProvider = DpasteLogPasteProvider()
 
     /**
      * Writes logs to a file in the app's cache directory and shares it as an
@@ -84,12 +78,13 @@ object LogExportHelper {
     }
 
     /**
-     * Uploads the log content using the provided (or default) [LogPasteProvider].
+     * Redacts recognisable credentials from [content] and uploads it with [provider].
+     *
+     * Only call this after the user has agreed to send the logs to [LogPasteProvider.name].
      */
     suspend fun uploadToPastebin(
         content: String,
-        title: String? = null,
-        provider: LogPasteProvider = defaultProvider,
+        provider: LogPasteProvider = pasteProvider,
         dispatcher: CoroutineDispatcher = Dispatchers.IO,
     ): Result<String> = withContext(dispatcher) {
         if (content.isBlank()) {
@@ -97,7 +92,7 @@ object LogExportHelper {
                 AppError.Validation("Cannot export empty logs"),
             )
         }
-        provider.upload(content, title)
+        provider.upload(LogSanitizer.sanitize(content))
     }
 
     /**

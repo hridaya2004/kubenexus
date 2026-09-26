@@ -4,6 +4,7 @@ package client
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"k8s.io/client-go/dynamic"
@@ -63,9 +64,9 @@ func NewClientWithOptions(data []byte, timeoutSeconds int64) (*Client, error) {
 		return nil, fmt.Errorf("kubeconfig data cannot be empty")
 	}
 
-	config, err := clientcmd.RESTConfigFromKubeConfig(data)
+	config, err := restConfigFromKubeconfig(data)
 	if err != nil {
-		return nil, fmt.Errorf("parsing kubeconfig: %w", err)
+		return nil, err
 	}
 
 	timeout := defaultTimeout
@@ -115,6 +116,9 @@ func NewFromPath(filePath string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("building kubeconfig from %q: %w", filePath, err)
 	}
+	if err := validateRESTConfig(config); err != nil {
+		return nil, err
+	}
 	config.Timeout = defaultTimeout
 
 	return newClientFromConfig(config, defaultTimeout)
@@ -133,4 +137,52 @@ func (c *Client) SetTimeout(timeoutSeconds int64) {
 // GetTimeout returns the current client timeout in seconds.
 func (c *Client) GetTimeout() int64 {
 	return int64(c.timeout.Seconds())
+}
+
+// restConfigFromKubeconfig parses a kubeconfig exactly as clientcmd does, honouring
+// current-context, and then applies the restrictions every KubeNexus connection is held to.
+func restConfigFromKubeconfig(data []byte) (*rest.Config, error) {
+	config, err := clientcmd.RESTConfigFromKubeConfig(data)
+	if err != nil {
+		return nil, fmt.Errorf("parsing kubeconfig: %w", err)
+	}
+	if err := validateRESTConfig(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// validateRESTConfig rejects kubeconfigs the app must not act on.
+//
+// Exec credential plugins are refused because client-go would run the named command
+// on the device, as the app's own user. A kubeconfig is often copied from elsewhere,
+// so running whatever it names is an arbitrary-command vector, and the usual plugins
+// (aws, gke-gcloud-auth-plugin, kubelogin) do not exist on Android anyway.
+//
+// Plain http servers are refused because Android's network security config does not
+// govern Go's sockets, so this check is what keeps cluster traffic on TLS.
+func validateRESTConfig(config *rest.Config) error {
+	if config.ExecProvider != nil {
+		return fmt.Errorf(
+			"this kubeconfig authenticates with the exec credential plugin %q, which KubeNexus does not run; "+
+				"use a kubeconfig with a token or client certificate instead",
+			config.ExecProvider.Command,
+		)
+	}
+	if config.AuthProvider != nil {
+		return fmt.Errorf(
+			"this kubeconfig authenticates with the %q auth provider, which KubeNexus does not support; "+
+				"use a kubeconfig with a token or client certificate instead",
+			config.AuthProvider.Name,
+		)
+	}
+
+	serverURL, _, err := rest.DefaultServerUrlFor(config)
+	if err != nil {
+		return fmt.Errorf("invalid cluster server address %q: %w", config.Host, err)
+	}
+	if !strings.EqualFold(serverURL.Scheme, "https") {
+		return fmt.Errorf("cluster server %q does not use https; KubeNexus only connects to clusters over TLS", config.Host)
+	}
+	return nil
 }

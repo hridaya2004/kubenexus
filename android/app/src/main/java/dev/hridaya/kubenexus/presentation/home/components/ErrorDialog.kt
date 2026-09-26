@@ -27,12 +27,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.hridaya.kubenexus.core.common.util.ClipboardHelper
 import dev.hridaya.kubenexus.presentation.home.ErrorDialogData
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
@@ -44,7 +44,7 @@ fun ErrorDialog(
     onCopy: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     val verticalScrollState = rememberScrollState()
     val horizontalScrollState = rememberScrollState()
 
@@ -107,7 +107,7 @@ fun ErrorDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    clipboardManager.setText(AnnotatedString(data.rawErrorTrace))
+                    ClipboardHelper.copy(context, "Error details", data.rawErrorTrace, sensitive = true)
                     onCopy(data.rawErrorTrace)
                 },
                 colors = ButtonDefaults.buttonColors(

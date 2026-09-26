@@ -1,8 +1,5 @@
 package dev.hridaya.kubenexus.presentation.logcat
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
@@ -29,6 +26,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.hridaya.kubenexus.core.common.util.ClipboardHelper
+import dev.hridaya.kubenexus.core.common.util.LogExportHelper
 import dev.hridaya.kubenexus.domain.model.LogLevel
 import dev.hridaya.kubenexus.domain.model.LogcatEntry
 import dev.hridaya.kubenexus.presentation.logcat.components.LogcatEmptyState
@@ -36,7 +35,6 @@ import dev.hridaya.kubenexus.presentation.logcat.components.LogcatLogList
 import dev.hridaya.kubenexus.presentation.logcat.components.LogcatScrollToLatestButton
 import dev.hridaya.kubenexus.presentation.logcat.components.LogcatTopBar
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
-import dev.hridaya.kubenexus.core.common.util.LogExportHelper
 import kotlinx.coroutines.launch
 
 @Composable
@@ -62,10 +60,7 @@ fun LogcatRoute(
                 }
 
                 is LogcatUiEvent.CopyToClipboard -> {
-                    val clipboard =
-                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText(event.label, event.text)
-                    clipboard.setPrimaryClip(clip)
+                    ClipboardHelper.copy(context, event.label, event.text, sensitive = true)
                 }
             }
         }

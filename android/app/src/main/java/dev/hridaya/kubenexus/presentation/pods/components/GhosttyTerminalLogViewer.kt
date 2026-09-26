@@ -127,7 +127,7 @@ fun GhosttyTerminalLogViewer(
                     when (val result = LogExportHelper.uploadToPastebin(text, provider)) {
                         is Result.Success -> {
                             val pasteUrl = result.data
-                            LogExportHelper.copyToClipboard(context, pasteUrl, "Pastebin URL")
+                            LogExportHelper.copyToClipboard(context, pasteUrl, "Pastebin URL", sensitive = false)
                             Toast.makeText(
                                 context,
                                 "Logs uploaded! URL copied to clipboard: $pasteUrl",

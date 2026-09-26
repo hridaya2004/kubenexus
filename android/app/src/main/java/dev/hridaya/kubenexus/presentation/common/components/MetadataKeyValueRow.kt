@@ -1,8 +1,5 @@
 package dev.hridaya.kubenexus.presentation.common.components
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -48,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.hridaya.kubenexus.core.common.util.ClipboardHelper
 import dev.hridaya.kubenexus.core.common.util.JsonFormatter
 import dev.hridaya.kubenexus.ui.theme.KubeNexusTheme
 
@@ -216,9 +214,8 @@ private fun CollapsibleJsonMetadataRow(
                     ) {
                         IconButton(
                             onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                                val clip = ClipData.newPlainText(key, formattedJson)
-                                clipboard?.setPrimaryClip(clip)
+                                // Annotations such as last-applied-configuration can carry secrets.
+                                ClipboardHelper.copy(context, key, formattedJson, sensitive = true)
                                 Toast.makeText(
                                     context,
                                     "Copied $key JSON to clipboard",

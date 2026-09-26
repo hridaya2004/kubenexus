@@ -1,6 +1,5 @@
 package dev.hridaya.kubenexus.presentation.pods.components.terminal
 
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.view.KeyEvent
@@ -37,7 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
-
+import dev.hridaya.kubenexus.core.common.util.ClipboardHelper
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiAction
 import dev.hridaya.kubenexus.presentation.pods.detail.PodDetailUiState
 
@@ -157,14 +156,7 @@ fun GhosttyTerminalView(
                                 )
                             }
                             if (!copiedText.isNullOrBlank()) {
-                                val clipboard =
-                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(
-                                    ClipData.newPlainText(
-                                        "Terminal Output",
-                                        copiedText
-                                    )
-                                )
+                                ClipboardHelper.copy(context, "Terminal Output", copiedText, sensitive = true)
                                 Toast.makeText(
                                     context,
                                     "Terminal output copied",

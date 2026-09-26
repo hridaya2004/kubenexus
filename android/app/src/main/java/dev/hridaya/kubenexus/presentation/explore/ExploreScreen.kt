@@ -1,8 +1,5 @@
 package dev.hridaya.kubenexus.presentation.explore
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -12,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.hridaya.kubenexus.core.common.util.ClipboardHelper
 import dev.hridaya.kubenexus.domain.model.APIResource
 import dev.hridaya.kubenexus.domain.model.Cluster
 import dev.hridaya.kubenexus.presentation.explore.components.ExploreExplainDetailView
@@ -35,10 +33,7 @@ fun ExploreRoute(
                 }
 
                 is ExploreUiEvent.CopyToClipboard -> {
-                    val clipboard =
-                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText(event.label, event.text)
-                    clipboard.setPrimaryClip(clip)
+                    ClipboardHelper.copy(context, event.label, event.text, sensitive = false)
                 }
             }
         }

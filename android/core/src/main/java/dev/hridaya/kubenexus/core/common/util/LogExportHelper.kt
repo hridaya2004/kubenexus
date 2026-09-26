@@ -1,7 +1,6 @@
 package dev.hridaya.kubenexus.core.common.util
 
 import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -124,10 +123,10 @@ object LogExportHelper {
     }
 
     /**
-     * Copies a string to clipboard and displays a confirmation toast.
+     * Copies [text] to the clipboard. Logs are treated as [sensitive] unless the caller says
+     * otherwise, so the system clipboard preview does not show them.
      */
-    fun copyToClipboard(context: Context, text: String, label: String = "Logs") {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    fun copyToClipboard(context: Context, text: String, label: String = "Logs", sensitive: Boolean = true) {
+        ClipboardHelper.copy(context, label, text, sensitive)
     }
 }

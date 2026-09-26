@@ -3,10 +3,12 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -302,6 +304,97 @@ func TestExecSession_ClosedOperations(t *testing.T) {
 	}
 	if err := s.WriteBytes([]byte("data")); err == nil {
 		t.Error("WriteBytes() on closed session expected error, got nil")
+	}
+}
+
+// A write issued while the stream is still connecting blocks, because nothing reads
+// stdin yet. If the connection then fails, the write must be released and the session
+// must still shut down; previously the write held the session lock that shutdown needed,
+// so the write, Close and OnDone all hung forever.
+func TestExecSession_WriteDuringFailedConnectDoesNotDeadlock(t *testing.T) {
+	c := newOfflineClient(t)
+
+	release := make(chan struct{})
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				<-release // never reads stdin, like a stream that fails to connect
+				return errors.New("error dialing backend: 403 Forbidden")
+			},
+		}, nil
+	}
+
+	cb := &mockExecCallback{}
+	session, err := c.StartExecSession("default", "pod-1", "c", "/bin/sh", true, cb)
+	if err != nil {
+		t.Fatalf("StartExecSession() error = %v", err)
+	}
+
+	writeErr := make(chan error, 1)
+	go func() { writeErr <- session.WriteBytes([]byte("ls\r")) }()
+	time.Sleep(50 * time.Millisecond) // let the write block on the pipe
+	close(release)
+
+	select {
+	case err := <-writeErr:
+		if !errors.Is(err, errSessionClosed) {
+			t.Errorf("WriteBytes() error = %v, want %v", err, errSessionClosed)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("WriteBytes() still blocked after the stream failed")
+	}
+
+	closed := make(chan error, 1)
+	go func() { closed <- session.Close() }()
+	select {
+	case <-closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Close() blocked")
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for !cb.isDone() {
+		if time.Now().After(deadline) {
+			t.Fatal("OnDone was never delivered")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := session.Write("x"); !errors.Is(err, errSessionClosed) {
+		t.Errorf("Write() after end = %v, want %v", err, errSessionClosed)
+	}
+}
+
+// Close must release a write that is blocked because the remote side is not reading.
+func TestExecSession_CloseUnblocksPendingWrite(t *testing.T) {
+	c := newOfflineClient(t)
+	c.executorFactory = func(cfg *rest.Config, method string, u *url.URL) (remotecommand.Executor, error) {
+		return &mockExecutor{
+			streamFunc: func(ctx context.Context, options remotecommand.StreamOptions) error {
+				<-ctx.Done()
+				return ctx.Err()
+			},
+		}, nil
+	}
+
+	session, err := c.StartExecSession("default", "pod-1", "c", "/bin/sh", true, &mockExecCallback{})
+	if err != nil {
+		t.Fatalf("StartExecSession() error = %v", err)
+	}
+
+	writeErr := make(chan error, 1)
+	go func() { writeErr <- session.Write("pending") }()
+	time.Sleep(50 * time.Millisecond)
+
+	if err := session.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+	select {
+	case err := <-writeErr:
+		if !errors.Is(err, errSessionClosed) {
+			t.Errorf("Write() error = %v, want %v", err, errSessionClosed)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Write() still blocked after Close()")
 	}
 }
 

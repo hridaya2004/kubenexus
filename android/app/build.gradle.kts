@@ -6,6 +6,9 @@ plugins {
     alias(libs.plugins.aboutLibraries)
 }
 
+// Set while configuring android.signingConfigs below; null when the upload key is usable.
+var releaseSigningMissing: String? = null
+
 android {
     namespace = "dev.hridaya.kubenexus"
     compileSdk {
@@ -91,6 +94,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    fun signingValue(name: String): String? =
+        (project.findProperty(name) as? String ?: System.getenv(name))?.takeIf { it.isNotBlank() }
+
+    val releaseKeystore = signingValue("KEYSTORE_PATH")?.let { file(it) }?.takeIf { it.isFile }
+    releaseSigningMissing = when {
+        signingValue("KEYSTORE_PATH") == null -> "KEYSTORE_PATH is not set"
+        releaseKeystore == null -> "KEYSTORE_PATH does not point to a keystore file"
+        else -> listOf("KEYSTORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD")
+            .filter { signingValue(it) == null }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(prefix = "missing ")
+    }
+
     signingConfigs {
         getByName("debug") {
             storeFile = file("debug.keystore")
@@ -99,19 +115,15 @@ android {
             keyPassword = "android"
         }
 
-        create("release") {
-            val keystorePath = project.findProperty("KEYSTORE_PATH") as? String
-                ?: System.getenv("KEYSTORE_PATH")
-            if (keystorePath != null && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
-                storePassword = project.findProperty("KEYSTORE_PASSWORD") as? String
-                    ?: System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = project.findProperty("KEY_ALIAS") as? String
-                    ?: System.getenv("KEY_ALIAS") ?: ""
-                keyPassword = project.findProperty("KEY_PASSWORD") as? String
-                    ?: System.getenv("KEY_PASSWORD") ?: ""
-            } else {
-                initWith(getByName("debug"))
+        // Release builds are signed with the upload key only. There is deliberately no
+        // fallback to the debug key: Google Play rejects debug-signed uploads, and a silent
+        // fallback turned a missing CI secret into a "release" bundle that could never ship.
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = signingValue("KEYSTORE_PASSWORD")
+                keyAlias = signingValue("KEY_ALIAS")
+                keyPassword = signingValue("KEY_PASSWORD")
             }
         }
     }
@@ -132,7 +144,7 @@ android {
                 debugSymbolLevel = "FULL"
             }
             isDebuggable = false
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -185,6 +197,25 @@ android {
             isReturnDefaultValues = true
         }
     }
+}
+
+// Refuse to package a release APK or AAB without the upload key, instead of letting AGP
+// emit an unsigned artifact. Compiling, linting and unit-testing the release variant keep
+// working without it.
+val checkReleaseSigning by tasks.registering {
+    val problem = releaseSigningMissing
+    doLast {
+        if (problem != null) {
+            throw GradleException(
+                "Release signing is not configured ($problem). Set KEYSTORE_PATH, " +
+                    "KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD as Gradle properties or " +
+                    "environment variables to the upload key.",
+            )
+        }
+    }
+}
+tasks.matching { it.name == "packageRelease" || it.name == "packageReleaseBundle" }.configureEach {
+    dependsOn(checkReleaseSigning)
 }
 
 // Gradle cannot see the vendored Zig tree or the Go modules, so android/config/ declares those

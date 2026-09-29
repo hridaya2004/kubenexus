@@ -216,8 +216,9 @@ Window Size Class), Kotlin stdlib/coroutines/serialization, Hilt (Apache-2.0), s
 **debug-only**), `org.json` (tests only), `javax.inject`.
 
 **No advertising, analytics, or crash-reporting SDKs are present.** This is worth keeping true:
-it is what keeps the Data safety answers in [PLAY-SUBMISSION.md](PLAY-SUBMISSION.md) short.
-Adding one SDK will invalidate them.
+it is what keeps the app's Google Play Data safety answers short — almost every data type is
+answered "not collected", and the only affirmative answer is the pod-log upload the user
+confirms. Adding one SDK will invalidate them.
 
 ### 4.6 Generating a compliance export
 

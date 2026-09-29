@@ -1,6 +1,6 @@
 # Privacy Policy — KubeNexus
 
-**Last updated: 27 September 2026**
+**Last updated: 29 September 2026**
 
 ---
 
@@ -26,12 +26,20 @@ Your data is never routed through us, because we do not exist as a service.
 
 | | |
 |---|---|
-| Do we collect your data? | **No.** We receive nothing. |
-| Is anything sent to a third party? | **Only if you choose to** upload pod logs to dpaste.org (section 6). |
+| Do we receive your data? | **No.** We operate no server, so there is nowhere for it to reach us. |
+| Does anything leave your device? | **Only if you choose to**, when you upload pod logs to dpaste.org (section 6). Everything else stays on your device. |
+| Is anything sent to a third party? | **Only that same upload**, and only after you confirm it. |
 | Do we run a server? | **No.** |
 | Do we show ads? | **No.** |
 | Do we use third-party analytics or crash SDKs? | **No.** |
 | Do we ask you to create an account? | **No.** |
+
+The distinction between the first two rows matters, because it is the distinction Google Play
+draws too. Play counts data as "collected" whenever it is transmitted off a device, including
+to a third party — not only to the developer. So the one upload above is declared in our Play
+Data safety listing as **App activity → Other user-generated content**: collected, not shared,
+optional, used for app functionality, and not processed ephemerally because dpaste.org keeps the
+paste for 7 days. Nothing else is declared.
 
 ## 3. What the app stores on your device
 
@@ -122,6 +130,10 @@ Nothing leaves the device unless you ask for it.
   personal or confidential data from your workload. Once uploaded, the paste is
   kept and deleted by dpaste.org under its own terms; the app cannot delete it
   sooner. We never receive the logs or the link.
+
+  This is the only user data KubeNexus declares in its Google Play Data safety
+  section (see section 2). We cannot delete a paste on request: dpaste.org expires
+  it after 7 days, and the app has no way to reach it sooner.
 
 ## 7. Purchases, if we add them
 
@@ -224,10 +236,10 @@ Because we do not operate a server and hold no records, we cannot retrieve data
 
 ## 13. International transfers
 
-We do not transfer personal data internationally, because we do not collect or
-receive personal data at all. Your device talks to your own cluster, wherever
-that cluster happens to be. If you upload logs to dpaste.org, they are stored
-wherever dpaste.org operates, under its terms.
+We do not transfer personal data internationally, because we receive none of it — there is no
+server here for data to reach. Your device talks to your own cluster, wherever that cluster
+happens to be. The one exception is the upload you choose in section 6: those logs are stored
+wherever dpaste.org operates, under dpaste.org's terms, not ours.
 
 If you are in the EEA, UK, or Switzerland, note that the app's handling of data
 on your device remains under your control and is not a transfer by us.

@@ -216,8 +216,10 @@ Window Size Class), Kotlin stdlib/coroutines/serialization, Hilt (Apache-2.0), s
 **debug-only**), `org.json` (tests only), `javax.inject`.
 
 **No advertising, analytics, or crash-reporting SDKs are present.** This is worth keeping true:
-it is what keeps the Data safety answers in [PLAY-SUBMISSION.md](PLAY-SUBMISSION.md) short.
-Adding one SDK will invalidate them.
+it is what keeps the submitted Data safety answers narrow — a single declared type, App activity
+→ Other user-generated content, for pod logs the user chooses to upload to dpaste.org. Adding
+one SDK will invalidate them. See [PLAY-SUBMISSION.md](PLAY-SUBMISSION.md) for the submitted
+answers and the conditions that would change them.
 
 ### 4.6 Generating a compliance export
 
